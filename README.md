@@ -1,6 +1,6 @@
 # 🏌️ SwingVista
 
-> AI-powered golf swing analysis platform with real-time pose detection and intelligent feedback
+> AI-powered golf swing analysis platform with VistaSwing AI coaching system, real-time pose detection, and intelligent feedback
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.0.4-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
@@ -9,15 +9,33 @@
 
 ## ✨ Features
 
-- 🎥 **Real-time Analysis** - Live camera capture with instant pose detection
-- 📹 **Video Upload** - Analyze recorded swing videos with detailed metrics
-- 📊 **Advanced Metrics** - Track swing plane, tempo, rotation, and timing
-- 🏌️ **Club Support** - Driver, iron, wedge, and putter analysis
-- 📈 **Progress Tracking** - Dashboard with swing history and statistics
-- 🔄 **Comparison Mode** - Side-by-side swing comparison
-- 🤖 **AI Integration** - Ready for LLM-powered coaching
-- ⚡ **Web Workers** - Background processing for smooth performance
-- 📱 **Responsive Design** - Works on desktop and mobile devices
+### 🎯 VistaSwing AI Coaching System
+- **C.R.E.A.T.E Framework** - Professional golf coaching methodology
+- **A-F Grading System** - Comprehensive evaluation of swing fundamentals
+- **6 Key Components** - Setup, Grip, Alignment, Rotation, Impact, Follow-through
+- **5 Swing Phases** - Complete analysis from setup to finish
+- **Professional Feedback** - Positive-first coaching tips from PGA-level analysis
+- **Structured Report Cards** - Beautiful JSON output with actionable insights
+
+### 🎥 Analysis & Detection
+- **Real-time Analysis** - Live camera capture with instant pose detection
+- **Video Upload** - Analyze recorded swing videos with detailed metrics
+- **Advanced Metrics** - Track swing plane, tempo, rotation, and timing
+- **Tempo Analysis** - Detect ideal 3:1 backswing to downswing ratio
+- **Swing Plane Detection** - Identify if swing is too steep or flat
+
+### 🏌️ Golf Features
+- **Club Support** - Driver, iron, wedge, and putter analysis
+- **Progress Tracking** - Dashboard with swing history and statistics
+- **Comparison Mode** - Side-by-side swing comparison
+- **Weight Transfer Analysis** - Monitor proper weight shift through swing
+- **Impact Position** - Analyze ball-first contact and shaft lean
+
+### ⚡ Technical Features
+- **Web Workers** - Background processing for smooth performance
+- **MediaPipe Integration** - Advanced pose landmark detection
+- **Responsive Design** - Works on desktop and mobile devices
+- **TypeScript** - Full type safety and developer experience
 
 ## 🚀 Quick Start
 
@@ -87,6 +105,7 @@ swingvista/
 │   ├── 📁 lib/                # Core libraries
 │   │   ├── mediapipe.ts       # Pose detection
 │   │   ├── metrics.config.ts  # Analysis configuration
+│   │   ├── vista-swing-ai.ts  # VistaSwing AI coaching system
 │   │   └── supabase.ts        # Database client
 │   ├── 📁 workers/            # Web Workers
 │   │   └── analysis.worker.ts # Swing analysis
@@ -134,6 +153,19 @@ CREATE INDEX idx_swings_club ON swings(club);
 
 ## 🎯 Usage
 
+### VistaSwing AI Analysis
+1. **Upload or Record** your golf swing
+2. **Select Club Type** (Driver, Iron, Wedge, Putter)
+3. **Analyze Swing** - VistaSwing AI processes your video
+4. **Review Report Card** - Get A-F grades for:
+   - **Setup**: Posture, balance, stance width
+   - **Grip**: Neutral grip, clubface control
+   - **Alignment**: Shoulders, hips, feet alignment
+   - **Rotation**: Hip and shoulder turn, weight transfer
+   - **Impact**: Ball-first contact, shaft lean
+   - **Follow-through**: Balanced finish, complete rotation
+5. **Get Coaching Tips** - Professional feedback for improvement
+
 ### Real-time Analysis
 1. Navigate to **Camera** page
 2. Allow camera permissions
@@ -141,25 +173,69 @@ CREATE INDEX idx_swings_club ON swings(club);
 4. Click **Start Recording**
 5. Perform your golf swing
 6. Click **Stop Recording** to analyze
-7. View instant feedback and metrics
+7. View VistaSwing AI report card and metrics
 
 ### Video Upload Analysis
 1. Navigate to **Upload** page
 2. Click **Select File** and choose a video
 3. Select your club type
-4. Click **Analyze Video**
-5. Wait for processing to complete
-6. Review detailed analysis results
+4. Click **Analyze Video** or **Try Demo Analysis**
+5. Wait for VistaSwing AI processing
+6. Review detailed report card and technical metrics
 
 ### Progress Tracking
 1. Visit the **Dashboard** to see:
-   - Recent swings
+   - Recent swings with VistaSwing AI grades
    - Club-specific statistics
    - Overall progress metrics
 2. Use **Compare** mode to:
    - Select two swings for comparison
    - Track improvement over time
    - Identify areas for focus
+
+## 🎯 VistaSwing AI System
+
+### C.R.E.A.T.E Framework
+
+VistaSwing AI follows the **C.R.E.A.T.E Framework** for professional golf coaching:
+
+- **C** - **Context**: Analyzes golf swing videos frame by frame using computer vision
+- **R** - **Result**: Outputs structured swing report card in JSON format with A-F grades
+- **E** - **Explain**: Uses golf fundamentals as benchmarks for evaluation
+- **A** - **Audience**: Targets amateur golfers (ages 18-50) with clear, actionable feedback
+- **T** - **Tone**: Encouraging, concise, and professional like a real PGA coach
+- **E** - **Edit**: Valid JSON only, grades A-F, maximum 2 sentences per coaching tip
+
+### Analysis Components
+
+#### 6 Key Swing Components
+1. **Setup** - Posture, balance, ball position, stance width
+2. **Grip** - Neutral grip, clubface control, pressure
+3. **Alignment** - Shoulders, hips, feet aligned with target line
+4. **Rotation** - Hip and shoulder turn, weight transfer, sequencing
+5. **Impact** - Ball-first contact, square clubface, shaft lean
+6. **Follow-through** - Balanced finish, chest facing target, complete rotation
+
+#### 5 Swing Phases
+1. **Setup** - Initial position and posture
+2. **Backswing** - Takeaway to top of swing
+3. **Downswing** - Transition to impact
+4. **Impact** - Ball contact moment
+5. **Follow-through** - Finish position
+
+### Example Report Card
+
+```json
+{
+  "setup": {"grade": "B", "tip": "Good athletic posture, but stance is slightly too wide. Narrowing your feet will improve balance."},
+  "grip": {"grade": "A", "tip": "Neutral grip with solid clubface control. Maintain this."},
+  "alignment": {"grade": "C", "tip": "Shoulders are slightly open to the target. Try squaring them for straighter shots."},
+  "rotation": {"grade": "B", "tip": "Shoulder turn is solid, but hip rotation is restricted. Allow your hips to turn more freely."},
+  "impact": {"grade": "C", "tip": "You're flipping the wrists at impact. Focus on leading with your hands to compress the ball."},
+  "followThrough": {"grade": "B", "tip": "Good balance, but weight isn't fully on front foot. Finish tall and let your chest face the target."},
+  "overall": {"score": "B-", "tip": "Solid swing fundamentals. Key improvement: work on squaring your shoulders and leading with your hands at impact."}
+}
+```
 
 ## 🔧 Configuration
 
@@ -180,6 +256,15 @@ export const defaultMetricsConfig: MetricsConfig = {
   // ... more settings
 };
 ```
+
+### VistaSwing AI Configuration
+
+The VistaSwing AI system automatically analyzes:
+- **Tempo Ratio**: Ideal 3:1 backswing to downswing ratio
+- **Swing Plane**: Detects if too steep or flat
+- **Weight Transfer**: Monitors proper weight shift
+- **Impact Position**: Analyzes ball-first contact and shaft lean
+- **Rotation Analysis**: Measures hip and shoulder turn
 
 ## 🧪 Testing
 
@@ -279,12 +364,26 @@ For issues and questions:
 
 ## 🗺️ Roadmap
 
+### ✅ Completed
+- [x] **VistaSwing AI Coaching System** - Professional golf analysis with C.R.E.A.T.E Framework
+- [x] **A-F Grading System** - Comprehensive swing evaluation
+- [x] **Structured Report Cards** - Beautiful JSON output with coaching tips
+- [x] **Real-time Analysis** - Live camera capture and analysis
+- [x] **Video Upload Analysis** - Upload and analyze recorded swings
+
+### 🚧 In Progress
+- [ ] Enhanced pose detection accuracy
+- [ ] More detailed swing metrics
+- [ ] Improved UI/UX for report cards
+
+### 📋 Planned
 - [ ] Mobile app (React Native)
-- [ ] Advanced AI coaching
 - [ ] Social features and sharing
 - [ ] Professional coach dashboard
 - [ ] Integration with golf simulators
 - [ ] Advanced video editing tools
+- [ ] Multi-language support
+- [ ] Advanced AI coaching with video recommendations
 
 ---
 
