@@ -224,8 +224,8 @@ export default function ComparePage() {
                   { key: 'hipRotation', label: 'Hip Rotation', unit: '°' },
                   { key: 'shoulderRotation', label: 'Shoulder Rotation', unit: '°' }
                 ].map(({ key, label, unit }) => {
-                  const swing1Value = selectedData[0].metrics[key as keyof typeof selectedData[0].metrics] as number;
-                  const swing2Value = selectedData[1].metrics[key as keyof typeof selectedData[1].metrics] as number;
+                  const swing1Value = selectedData[0].metrics[key as keyof typeof selectedData[0]['metrics']] as number;
+                  const swing2Value = selectedData[1].metrics[key as keyof typeof selectedData[1]['metrics']] as number;
                   const difference = swing2Value - swing1Value;
                   const improvement = Math.abs(difference) > 0.1;
                   
@@ -233,7 +233,7 @@ export default function ComparePage() {
                     <div key={key} className="text-center p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-600 mb-2">{label}</div>
                       <div className="text-lg font-bold text-gray-900 mb-1">
-                        {swing1Value.toFixed(1)}{unit} → {swing2Value.toFixed(1)}{unit}
+                        {swing1Value.toFixed(1)}{unit} {'→'} {swing2Value.toFixed(1)}{unit}
                       </div>
                       <div className={`text-sm font-medium ${
                         improvement ? 'text-green-600' : 'text-gray-500'
