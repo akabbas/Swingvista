@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPipePoseDetector, PoseLandmark } from '@/lib/mediapipe';
 import { SwingMetrics } from '@/workers/analysis.worker';
+import { SwingReportCard } from '@/lib/vista-swing-ai';
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);

@@ -1,5 +1,6 @@
 import { PoseLandmark } from '../lib/mediapipe';
 import { defaultMetricsConfig, feedbackMessages, MetricsConfig } from '../lib/metrics.config';
+import { VistaSwingAI, SwingReportCard } from '../lib/vista-swing-ai';
 
 export interface SwingMetrics {
   swingId: string;
@@ -14,6 +15,7 @@ export interface SwingMetrics {
     downswingTime: number;
   };
   feedback: string[];
+  reportCard?: SwingReportCard; // VistaSwing AI coaching report card
   timestamps: {
     setup: number;
     backswingTop: number;
@@ -201,11 +203,20 @@ export function analyzeSwing(data: SwingAnalysisData, config: MetricsConfig = de
   
   const feedback = generateFeedback(metrics, config);
   
+  // Generate VistaSwing AI coaching report card
+  let reportCard: SwingReportCard | undefined;
+  try {
+    reportCard = VistaSwingAI.analyzeSwing(data);
+  } catch (error) {
+    console.warn('VistaSwing AI analysis failed:', error);
+  }
+  
   return {
     swingId,
     club,
     metrics,
     feedback,
+    reportCard,
     timestamps: {
       setup: timestamps[0] || 0,
       backswingTop: timestamps[Math.floor(impactFrame * 0.7)] || 0,
