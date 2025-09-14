@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deploying SwingVista to various platforms including Railway, Vercel, and self-hosted options.
+This guide covers deploying SwingVista to various platforms including Railway and self-hosted options.
 
 ## Railway Deployment
 
@@ -36,39 +36,43 @@ This guide covers deploying SwingVista to various platforms including Railway, V
 
 Railway will automatically detect this is a Next.js project and use the appropriate build settings.
 
-## Vercel Deployment
+## Railway Advanced Configuration
 
-### Prerequisites
+### Custom Domain Setup
 
-- Vercel account
-- GitHub repository
-- Supabase project
+1. **Add Custom Domain**
+   - Go to your Railway project settings
+   - Navigate to "Domains" section
+   - Add your custom domain
+   - Configure DNS records as instructed
 
-### Steps
+2. **SSL Certificate**
+   - Railway automatically provides SSL certificates
+   - Your app will be available at `https://yourdomain.com`
 
-1. **Install Vercel CLI**
-   ```bash
-   npm install -g vercel
-   ```
+### Environment Management
 
-2. **Deploy**
-   ```bash
-   vercel
-   ```
+1. **Environment Variables**
+   - Production: Set in Railway dashboard
+   - Development: Use `.env.local` file
+   - Staging: Create separate Railway project
 
-3. **Configure Environment Variables**
-   - Go to your project dashboard
-   - Navigate to Settings > Environment Variables
-   - Add:
-     ```
-     NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-     NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-     ```
+2. **Secrets Management**
+   - Use Railway's built-in secrets management
+   - Never commit sensitive data to Git
+   - Rotate keys regularly
 
-4. **Redeploy**
-   ```bash
-   vercel --prod
-   ```
+### Monitoring and Logs
+
+1. **View Logs**
+   - Access logs in Railway dashboard
+   - Real-time log streaming
+   - Historical log access
+
+2. **Performance Monitoring**
+   - Built-in metrics in Railway dashboard
+   - Response times and error rates
+   - Resource usage tracking
 
 ## Self-Hosted Deployment
 

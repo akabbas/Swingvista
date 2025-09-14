@@ -103,7 +103,7 @@ swingvista/
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
 - **Computer Vision**: MediaPipe Pose Landmarker
 - **Database**: Supabase (PostgreSQL)
-- **Deployment**: Railway/Vercel
+- **Deployment**: Railway
 - **Testing**: Vitest
 - **AI Ready**: OpenAI/Anthropic integration
 
@@ -212,20 +212,18 @@ npm run type-check
 3. **Deploy**
    - Railway will automatically deploy on push to main
 
-### Vercel Deployment
+### Railway Deployment
 
-1. **Connect to Vercel**
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
+1. **Connect to Railway**
+   - Push your code to GitHub
+   - Connect your GitHub repository to Railway
+   - Railway will automatically detect Next.js and deploy
 
-2. **Set environment variables** in Vercel dashboard
+2. **Set environment variables** in Railway dashboard
 
 3. **Deploy**
-   ```bash
-   vercel --prod
-   ```
+   - Railway automatically deploys on every push to main branch
+   - No additional commands needed
 
 ## 📚 API Reference
 
