@@ -1,40 +1,37 @@
-# SwingVista - Golf Swing Analysis Platform
+# 🏌️ SwingVista
 
-A Next.js web application that provides real-time and recorded golf swing analysis using computer vision and AI-powered feedback.
+> AI-powered golf swing analysis platform with real-time pose detection and intelligent feedback
 
-## Features
+[![Next.js](https://img.shields.io/badge/Next.js-14.0.4-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3.0-38B2AC)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- 🎥 **Real-time Analysis**: Live camera capture with pose detection and instant feedback
-- 📹 **Video Upload**: Analyze recorded swing videos with detailed metrics
-- 📊 **Swing Metrics**: Track swing plane, tempo, rotation, and timing
-- 🏌️ **Club Categorization**: Support for driver, iron, wedge, and putter analysis
-- 📈 **Progress Tracking**: Dashboard with swing history and club statistics
-- 🔄 **Comparison Mode**: Side-by-side swing comparison for progress tracking
-- 🤖 **AI Integration**: Ready for LLM-powered coaching and analysis
-- ⚡ **Web Workers**: Background processing for smooth performance
+## ✨ Features
 
-## Tech Stack
+- 🎥 **Real-time Analysis** - Live camera capture with instant pose detection
+- 📹 **Video Upload** - Analyze recorded swing videos with detailed metrics
+- 📊 **Advanced Metrics** - Track swing plane, tempo, rotation, and timing
+- 🏌️ **Club Support** - Driver, iron, wedge, and putter analysis
+- 📈 **Progress Tracking** - Dashboard with swing history and statistics
+- 🔄 **Comparison Mode** - Side-by-side swing comparison
+- 🤖 **AI Integration** - Ready for LLM-powered coaching
+- ⚡ **Web Workers** - Background processing for smooth performance
+- 📱 **Responsive Design** - Works on desktop and mobile devices
 
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **Computer Vision**: MediaPipe Pose Landmarker
-- **Database**: Supabase (PostgreSQL)
-- **Deployment**: Vercel
-- **Testing**: Vitest
-- **AI Ready**: OpenAI/Anthropic integration templates
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
-- Supabase account (optional for full functionality)
+- Supabase account (for full functionality)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/swingvista.git
    cd swingvista
    ```
 
@@ -48,7 +45,7 @@ A Next.js web application that provides real-time and recorded golf swing analys
    cp .env.example .env.local
    ```
    
-   Edit `.env.local` with your Supabase credentials:
+   Edit `.env.local` with your credentials:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -62,9 +59,57 @@ A Next.js web application that provides real-time and recorded golf swing analys
 5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Database Setup
+## 🏗️ Project Structure
 
-### Supabase Setup
+```
+swingvista/
+├── 📁 config/                 # Configuration files
+│   ├── eslint.config.mjs
+│   ├── postcss.config.mjs
+│   ├── tailwind.config.js
+│   └── vitest.config.ts
+├── 📁 docs/                   # Documentation
+│   └── prompts.md
+├── 📁 public/                 # Static assets
+│   └── icons/
+├── 📁 src/
+│   ├── 📁 app/                # Next.js app router
+│   │   ├── 📁 api/            # API routes
+│   │   │   ├── 📁 infer/      # AI inference endpoints
+│   │   │   └── 📁 swings/     # Swing data endpoints
+│   │   ├── 📁 camera/         # Real-time analysis
+│   │   ├── 📁 compare/        # Swing comparison
+│   │   ├── 📁 upload/         # Video upload
+│   │   ├── 📁 swing/          # Individual swing details
+│   │   ├── globals.css        # Global styles
+│   │   ├── layout.tsx         # Root layout
+│   │   └── page.tsx           # Home page
+│   ├── 📁 lib/                # Core libraries
+│   │   ├── mediapipe.ts       # Pose detection
+│   │   ├── metrics.config.ts  # Analysis configuration
+│   │   └── supabase.ts        # Database client
+│   ├── 📁 workers/            # Web Workers
+│   │   └── analysis.worker.ts # Swing analysis
+│   └── 📁 __tests__/          # Test files
+├── 📄 .gitignore
+├── 📄 next.config.js
+├── 📄 package.json
+├── 📄 README.md
+└── 📄 tsconfig.json
+```
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Computer Vision**: MediaPipe Pose Landmarker
+- **Database**: Supabase (PostgreSQL)
+- **Deployment**: Railway/Vercel
+- **Testing**: Vitest
+- **AI Ready**: OpenAI/Anthropic integration
+
+## 📊 Database Setup
+
+### Supabase Configuration
 
 1. Create a new Supabase project
 2. Run the following SQL to create the swings table:
@@ -87,63 +132,36 @@ CREATE INDEX idx_swings_created_at ON swings(created_at);
 CREATE INDEX idx_swings_club ON swings(club);
 ```
 
-## Usage
+## 🎯 Usage
 
 ### Real-time Analysis
-
-1. Navigate to the **Camera** page
-2. Allow camera permissions when prompted
+1. Navigate to **Camera** page
+2. Allow camera permissions
 3. Select your club type
-4. Click **Start Recording** to begin analysis
+4. Click **Start Recording**
 5. Perform your golf swing
 6. Click **Stop Recording** to analyze
 7. View instant feedback and metrics
 
 ### Video Upload Analysis
-
-1. Navigate to the **Upload** page
+1. Navigate to **Upload** page
 2. Click **Select File** and choose a video
 3. Select your club type
 4. Click **Analyze Video**
 5. Wait for processing to complete
 6. Review detailed analysis results
 
-### View Progress
-
+### Progress Tracking
 1. Visit the **Dashboard** to see:
    - Recent swings
    - Club-specific statistics
    - Overall progress metrics
-
 2. Use **Compare** mode to:
    - Select two swings for comparison
    - Track improvement over time
    - Identify areas for focus
 
-## Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   MediaPipe      │    │   Web Workers   │
-│   (Next.js)     │◄──►│   Pose Detection │◄──►│   Analysis      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Supabase      │    │   API Routes     │    │   AI Integration│
-│   Database      │◄──►│   (Next.js API)  │◄──►│   (Optional)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
-### Key Components
-
-- **MediaPipe Integration** (`src/lib/mediapipe.ts`): Handles pose detection
-- **Analysis Worker** (`src/workers/analysis.worker.ts`): Computes swing metrics
-- **Metrics Config** (`src/lib/metrics.config.ts`): Configurable thresholds
-- **Supabase Client** (`src/lib/supabase.ts`): Database operations
-- **API Routes** (`src/app/api/`): Backend endpoints
-
-## Configuration
+## 🔧 Configuration
 
 ### Metrics Configuration
 
@@ -163,21 +181,7 @@ export const defaultMetricsConfig: MetricsConfig = {
 };
 ```
 
-### AI Integration
-
-1. Add your API keys to `.env.local`:
-   ```env
-   OPENAI_API_KEY=your_key_here
-   ANTHROPIC_API_KEY=your_key_here
-   ```
-
-2. Use the prompt templates in `ai/prompts.md`
-
-3. Implement AI endpoints in `src/app/api/ai/`
-
-## Testing
-
-Run the test suite:
+## 🧪 Testing
 
 ```bash
 # Run all tests
@@ -185,9 +189,28 @@ npm test
 
 # Run tests in watch mode
 npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Type checking
+npm run type-check
 ```
 
-## Deployment
+## 🚀 Deployment
+
+### Railway Deployment
+
+1. **Connect to Railway**
+   - Link your GitHub repository
+   - Set environment variables in Railway dashboard
+
+2. **Environment Variables**
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+3. **Deploy**
+   - Railway will automatically deploy on push to main
 
 ### Vercel Deployment
 
@@ -197,28 +220,14 @@ npm run test:watch
    vercel
    ```
 
-2. **Set environment variables** in Vercel dashboard:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+2. **Set environment variables** in Vercel dashboard
 
 3. **Deploy**
    ```bash
    vercel --prod
    ```
 
-### Manual Deployment
-
-1. **Build the application**
-   ```bash
-   npm run build
-   ```
-
-2. **Start production server**
-   ```bash
-   npm start
-   ```
-
-## API Reference
+## 📚 API Reference
 
 ### Swings API
 
@@ -251,100 +260,26 @@ Get swing history.
 #### `GET /api/swings/[id]`
 Get specific swing details.
 
-### Ball Detection API
-
-#### `POST /api/infer/ball`
-Mock ball detection endpoint (ready for YOLOv8 integration).
-
-## Development
-
-### Project Structure
-
-```
-swingvista/
-├── src/
-│   ├── app/                 # Next.js app router pages
-│   │   ├── api/            # API routes
-│   │   ├── camera/         # Real-time analysis page
-│   │   ├── upload/         # Video upload page
-│   │   ├── compare/        # Comparison page
-│   │   └── swing/[id]/     # Swing detail page
-│   ├── lib/                # Utility libraries
-│   │   ├── mediapipe.ts    # MediaPipe integration
-│   │   ├── metrics.config.ts # Configuration
-│   │   └── supabase.ts     # Database client
-│   ├── workers/            # Web Workers
-│   │   └── analysis.worker.ts # Swing analysis
-│   └── __tests__/          # Test files
-├── ai/                     # AI integration templates
-├── public/                 # Static assets
-└── docs/                   # Documentation
-```
-
-### Adding New Metrics
-
-1. **Update the metrics interface** in `src/workers/analysis.worker.ts`
-2. **Add calculation logic** in the analysis function
-3. **Update configuration** in `src/lib/metrics.config.ts`
-4. **Add tests** in `src/__tests__/metrics.test.ts`
-
-### Adding New Feedback Rules
-
-1. **Edit feedback messages** in `src/lib/metrics.config.ts`
-2. **Update generation logic** in `src/workers/analysis.worker.ts`
-3. **Test with various swing patterns**
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Camera not working**
-   - Check browser permissions
-   - Ensure HTTPS in production
-   - Try different browsers
-
-2. **MediaPipe not loading**
-   - Check internet connection
-   - Verify CDN access
-   - Check browser console for errors
-
-3. **Analysis not working**
-   - Ensure sufficient landmarks detected
-   - Check Web Worker support
-   - Verify video quality
-
-4. **Database errors**
-   - Check Supabase credentials
-   - Verify table schema
-   - Check network connectivity
-
-### Performance Optimization
-
-1. **Reduce analysis frequency** for real-time mode
-2. **Implement video compression** for uploads
-3. **Add caching** for repeated analyses
-4. **Optimize MediaPipe settings** for your use case
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 🆘 Support
 
 For issues and questions:
 - Create an issue in the repository
 - Check the troubleshooting section
 - Review the API documentation
 
-## Roadmap
+## 🗺️ Roadmap
 
 - [ ] Mobile app (React Native)
 - [ ] Advanced AI coaching
@@ -352,3 +287,7 @@ For issues and questions:
 - [ ] Professional coach dashboard
 - [ ] Integration with golf simulators
 - [ ] Advanced video editing tools
+
+---
+
+Made with ❤️ by the SwingVista Team
