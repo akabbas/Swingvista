@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable experimental features
-  experimental: {
-    // Enable server actions
-    serverActions: true,
-  },
+  // Server Actions are enabled by default in Next.js 14
   
   // Image optimization
   images: {
