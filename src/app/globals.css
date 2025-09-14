@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Variables for theming */
 :root {
   --background: #fafafa;
   --foreground: #1a1a1a;
@@ -55,7 +56,7 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -73,7 +74,7 @@ body {
   background: hsl(var(--foreground));
 }
 
-/* Smooth animations */
+/* Global smooth animations */
 * {
   transition: all 0.2s ease-in-out;
 }
@@ -89,7 +90,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Custom animations */
+/* Custom keyframe animations */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }

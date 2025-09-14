@@ -27,14 +27,17 @@ interface SwingRecord {
 }
 
 export default function Dashboard() {
+  // State management
   const [clubStats, setClubStats] = useState<ClubStats[]>([]);
   const [recentSwings, setRecentSwings] = useState<SwingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Effects
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Data fetching
   const fetchData = async () => {
     try {
       const [statsResponse, swingsResponse] = await Promise.all([
@@ -58,6 +61,7 @@ export default function Dashboard() {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -85,6 +89,7 @@ export default function Dashboard() {
     );
   }
 
+  // Main render
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Section */}
