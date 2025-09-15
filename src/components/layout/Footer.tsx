@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 
 interface FooterProps {
@@ -28,7 +26,7 @@ export default function Footer({ environment = 'production' }: FooterProps) {
               <a 
                 href="https://github.com/akabbas/Swingvista" 
                 target="_blank" 
-                rel="noopener noreferrer"
+                rel="noopener noreferrer" 
                 className="text-gray-400 hover:text-white transition-colors"
                 aria-label="GitHub Repository"
               >
@@ -42,7 +40,7 @@ export default function Footer({ environment = 'production' }: FooterProps) {
                 aria-label="Contact Support"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
               </a>
             </div>
@@ -105,9 +103,7 @@ export default function Footer({ environment = 'production' }: FooterProps) {
               © {currentYear} SwingVista. All rights reserved.
             </p>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <span className="text-gray-400 text-sm">
-                Made with ❤️ for golfers
-              </span>
+              <span className="text-gray-400 text-sm">Made with ❤️ for golfers</span>
               {environment === 'development' && (
                 <span className="px-2 py-1 bg-yellow-500 text-yellow-900 text-xs rounded-full font-medium">
                   DEV
