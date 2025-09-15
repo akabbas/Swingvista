@@ -1,6 +1,6 @@
+import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -46,6 +46,16 @@ export default function RootLayout({
       var m = window.matchMedia('(prefers-color-scheme: dark)');
       var isDark = s === 'dark' || (!s && m.matches);
       if (isDark) d.classList.add('dark'); else d.classList.remove('dark');
+      // Ensure background matches theme before CSS loads
+      d.style.backgroundColor = isDark ? '#0A0A0A' : '#FAFAFA';
+      // Hint UA for form controls, etc.
+      var meta = document.querySelector('meta[name="color-scheme"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'color-scheme');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', 'dark light');
     } catch (e) {}
   })();
 `;
@@ -53,14 +63,12 @@ export default function RootLayout({
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   return (
-    <html lang="en" className={`${inter.variable} scroll-smooth antialiased font-sans`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.className} ${inter.variable} scroll-smooth antialiased font-sans`}>
       <head>
-        <meta name="color-scheme" content="dark light" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <meta name="color-scheme" content="dark light" />
       </head>
-      <body className={`${inter.className} min-h-screen bg-background text-foreground`} suppressHydrationWarning>
+      <body className={`min-h-screen bg-background text-foreground`}>
         <Header environment={isDevelopment ? 'development' : 'production'} />
         <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900">
           {children}

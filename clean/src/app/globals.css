@@ -8,6 +8,12 @@
     --foreground: 26 26 26;
   }
 
+  /* Support class-based theming to avoid relying solely on media query */
+  .dark {
+    --background: 10 10 10;
+    --foreground: 250 250 250;
+  }
+
   /* Map CSS variables to Tailwind v4 color tokens */
   @theme inline {
     --color-background: rgb(var(--background));
