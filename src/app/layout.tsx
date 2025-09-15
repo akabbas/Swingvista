@@ -1,12 +1,30 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
+import EnvironmentBanner from '@/components/ui/EnvironmentBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'SwingVista - Golf Swing Analysis',
   description: 'Real-time golf swing analysis with AI-powered feedback',
+  keywords: 'golf, swing analysis, AI, pose detection, MediaPipe, sports technology',
+  authors: [{ name: 'SwingVista Team' }],
+  viewport: 'width=device-width, initial-scale=1',
+  robots: 'index, follow',
+  openGraph: {
+    title: 'SwingVista - Golf Swing Analysis',
+    description: 'Real-time golf swing analysis with AI-powered feedback',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SwingVista - Golf Swing Analysis',
+    description: 'Real-time golf swing analysis with AI-powered feedback',
+  }
 }
 
 export default function RootLayout({
@@ -14,49 +32,29 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="theme-color" content="#3B82F6" />
+      </head>
       <body className={`${inter.className} antialiased`}>
-        {/* Navigation Header */}
-        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">SV</span>
-                </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  SwingVista
-                </h1>
-              </div>
-              <div className="hidden md:flex items-center space-x-1">
-                <a href="/" className="px-4 py-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 font-medium">
-                  Dashboard
-                </a>
-                <a href="/camera" className="px-4 py-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 font-medium">
-                  Camera
-                </a>
-                <a href="/upload" className="px-4 py-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 font-medium">
-                  Upload
-                </a>
-                <a href="/compare" className="px-4 py-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 font-medium">
-                  Compare
-                </a>
-              </div>
-              <div className="md:hidden">
-                <button className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
+        {/* Environment Banner for Development */}
+        {isDevelopment && <EnvironmentBanner />}
+        
+        {/* Header Navigation */}
+        <Header environment={isDevelopment ? 'development' : 'production'} />
+        
         {/* Main Content */}
         <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
           {children}
         </main>
+        
+        {/* Footer */}
+        <Footer environment={isDevelopment ? 'development' : 'production'} />
       </body>
     </html>
   )

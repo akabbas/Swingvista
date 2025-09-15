@@ -1,10 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import Tooltip from '@/components/ui/Tooltip';
 
 export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 lg:py-24">
         {/* Animated background */}
@@ -71,7 +78,8 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             {/* Live Analysis Card */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-blue-400/30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <Tooltip content="Real-time pose detection and analysis using your device camera">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-blue-400/30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg lg:rounded-xl flex items-center justify-center mb-4 lg:mb-6 group-hover:animate-pulse">
@@ -84,10 +92,12 @@ export default function Dashboard() {
                   Real-time swing analysis with your camera for instant feedback and improvement
                 </p>
               </div>
-            </div>
+              </div>
+            </Tooltip>
 
             {/* Upload Video Card */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-emerald-400/30 hover:border-emerald-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <Tooltip content="Upload recorded swing videos for detailed analysis and insights">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-emerald-400/30 hover:border-emerald-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/10 to-emerald-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg lg:rounded-xl flex items-center justify-center mb-4 lg:mb-6 group-hover:animate-pulse">
@@ -100,10 +110,12 @@ export default function Dashboard() {
                   Analyze recorded swing videos with detailed metrics and personalized insights
                 </p>
               </div>
-            </div>
+              </div>
+            </Tooltip>
 
             {/* Compare Swings Card */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-purple-400/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <Tooltip content="Compare different swings to track your progress over time">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-purple-400/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg lg:rounded-xl flex items-center justify-center mb-4 lg:mb-6 group-hover:animate-pulse">
@@ -116,10 +128,12 @@ export default function Dashboard() {
                   Track your progress over time with detailed comparisons and improvement metrics
                 </p>
               </div>
-            </div>
+              </div>
+            </Tooltip>
 
             {/* AI Insights Card */}
-            <div className="group relative overflow-hidden bg-gradient-to-br from-orange-500/20 to-orange-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-orange-400/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+            <Tooltip content="Advanced AI coaching and personalized tips coming soon">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-orange-500/20 to-orange-600/30 backdrop-blur-sm p-6 lg:p-8 rounded-2xl lg:rounded-3xl border border-orange-400/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-400/10 to-orange-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg lg:rounded-xl flex items-center justify-center mb-4 lg:mb-6 group-hover:animate-pulse">
@@ -132,7 +146,8 @@ export default function Dashboard() {
                   Advanced AI coaching and personalized tips coming soon
                 </p>
               </div>
-            </div>
+              </div>
+            </Tooltip>
           </div>
         </div>
       </section>

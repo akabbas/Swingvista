@@ -1,5 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SwingExporter, ExportData, ExportOptions, defaultExportOptions } from '../lib/export-utils';
+
+// Mock DOM environment
+const mockDocument = {
+  createElement: vi.fn(),
+  body: {
+    appendChild: vi.fn(),
+    removeChild: vi.fn()
+  }
+};
+
+Object.defineProperty(global, 'document', {
+  value: mockDocument,
+  writable: true
+});
 import { TrajectoryPoint, SwingTrajectory } from '../lib/mediapipe';
 import { SwingPhase } from '../lib/swing-phases';
 import { TrajectoryMetrics, SwingPathAnalysis } from '../lib/trajectory-analysis';
@@ -192,6 +206,16 @@ describe('SwingExporter', () => {
     };
 
     exportOptions = { ...defaultExportOptions };
+    
+    // Reset DOM mocks
+    mockDocument.createElement.mockReturnValue({
+      href: '',
+      download: '',
+      click: vi.fn(),
+      style: { display: 'none' }
+    });
+    mockDocument.body.appendChild.mockImplementation(() => {});
+    mockDocument.body.removeChild.mockImplementation(() => {});
   });
 
   describe('exportAsJSON', () => {
@@ -287,7 +311,7 @@ describe('SwingExporter', () => {
   });
 
   describe('downloadFile', () => {
-    it('should create download link for string content', () => {
+    it('should create download link for string content', async () => {
       const content = 'test content';
       const filename = 'test.txt';
       const mimeType = 'text/plain';
@@ -296,6 +320,7 @@ describe('SwingExporter', () => {
       const mockLink = {
         href: '',
         download: '',
+        style: { display: '' },
         click: vi.fn()
       };
       
@@ -305,7 +330,7 @@ describe('SwingExporter', () => {
       const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
       const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
-      SwingExporter.downloadFile(content, filename, mimeType);
+      await SwingExporter.downloadFile(content, filename, mimeType);
 
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(mockLink.download).toBe(filename);
@@ -323,7 +348,7 @@ describe('SwingExporter', () => {
       revokeObjectURLSpy.mockRestore();
     });
 
-    it('should create download link for Blob content', () => {
+    it('should create download link for Blob content', async () => {
       const content = new Blob(['test'], { type: 'text/plain' });
       const filename = 'test.txt';
       const mimeType = 'text/plain';
@@ -332,6 +357,7 @@ describe('SwingExporter', () => {
       const mockLink = {
         href: '',
         download: '',
+        style: { display: '' },
         click: vi.fn()
       };
       
@@ -341,7 +367,7 @@ describe('SwingExporter', () => {
       const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
       const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
-      SwingExporter.downloadFile(content, filename, mimeType);
+      await SwingExporter.downloadFile(content, filename, mimeType);
 
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(mockLink.download).toBe(filename);

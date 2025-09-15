@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SwingExporter, defaultExportOptions } from '@/lib/export-utils';
+import ExportDialog from '@/components/ui/ExportDialog';
 
 interface SwingRecord {
   id: string;
@@ -43,6 +44,7 @@ export default function SwingDetailPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -79,103 +81,73 @@ export default function SwingDetailPage() {
     }
   };
 
-  const handleExport = async (format: 'json' | 'csv') => {
-    if (!swing) return;
+  const handleExport = () => {
+    setShowExportDialog(true);
+  };
 
-    setIsExporting(true);
-    try {
-      // Create export data from swing record
-      const exportData = {
-        swingId: swing.id,
-        timestamp: new Date(swing.created_at).getTime(),
-        club: swing.club,
-        trajectory: {
-          rightWrist: [],
-          leftWrist: [],
-          rightShoulder: [],
-          leftShoulder: [],
-          rightHip: [],
-          leftHip: [],
-          clubhead: []
-        },
-        phases: (swing.phases || []).map(phase => ({
-          name: phase.name,
-          startFrame: phase.startFrame,
-          endFrame: phase.endFrame,
-          startTime: phase.startTime,
-          endTime: phase.endTime,
-          duration: phase.endTime - phase.startTime,
-          keyLandmarks: [],
-          color: '#3B82F6',
-          description: `${phase.name} phase`
-        })),
-        metrics: {
-          totalDistance: 0,
-          maxVelocity: 0,
-          avgVelocity: 0,
-          maxAcceleration: 0,
-          avgAcceleration: 0,
-          peakFrame: swing.impact_frame,
-          smoothness: 0.8
-        },
-        pathAnalysis: {
-          clubheadPath: [],
-          swingPlane: swing.swing_plane_angle,
-          pathConsistency: 0.8,
-          insideOut: false,
-          outsideIn: false,
-          onPlane: true
-        },
-        reportCard: swing.report_card ? {
-          setup: swing.report_card.setup,
-          grip: swing.report_card.grip,
-          alignment: swing.report_card.alignment,
-          rotation: swing.report_card.rotation,
-          impact: swing.report_card.impact,
-          followThrough: swing.report_card.follow_through,
-          overall: swing.report_card.overall
-        } : {
-          setup: { grade: 'C', tip: 'Setup needs improvement' },
-          grip: { grade: 'C', tip: 'Grip needs improvement' },
-          alignment: { grade: 'C', tip: 'Alignment needs improvement' },
-          rotation: { grade: 'C', tip: 'Rotation needs improvement' },
-          impact: { grade: 'C', tip: 'Impact needs improvement' },
-          followThrough: { grade: 'C', tip: 'Follow through needs improvement' },
-          overall: { score: 'C', tip: 'Overall swing needs improvement' }
-        },
-        videoUrl: swing.video_url
-      };
+  const createExportData = () => {
+    if (!swing) return null;
 
-      const options = {
-        ...defaultExportOptions,
-        format,
-        includeTrajectory: false, // No trajectory data available
-        includePhases: true,
-        includeMetrics: true,
-        includeReportCard: true
-      };
-
-      let content: string;
-      let filename: string;
-      let mimeType: string;
-
-      if (format === 'json') {
-        content = SwingExporter.exportAsJSON(exportData, options);
-        filename = `swing-${swing.id}.json`;
-        mimeType = 'application/json';
-      } else {
-        content = SwingExporter.exportAsCSV(exportData, options);
-        filename = `swing-${swing.id}.csv`;
-        mimeType = 'text/csv';
-      }
-
-      SwingExporter.downloadFile(content, filename, mimeType);
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
-    } finally {
-      setIsExporting(false);
-    }
+    return {
+      swingId: swing.id,
+      timestamp: new Date(swing.created_at).getTime(),
+      club: swing.club,
+      trajectory: {
+        rightWrist: [],
+        leftWrist: [],
+        rightShoulder: [],
+        leftShoulder: [],
+        rightHip: [],
+        leftHip: [],
+        clubhead: []
+      },
+      phases: (swing.phases || []).map(phase => ({
+        name: phase.name,
+        startFrame: phase.startFrame,
+        endFrame: phase.endFrame,
+        startTime: phase.startTime,
+        endTime: phase.endTime,
+        duration: phase.endTime - phase.startTime,
+        keyLandmarks: [],
+        color: '#3B82F6',
+        description: `${phase.name} phase`
+      })),
+      metrics: {
+        totalDistance: 0,
+        maxVelocity: 0,
+        avgVelocity: 0,
+        maxAcceleration: 0,
+        avgAcceleration: 0,
+        peakFrame: swing.impact_frame,
+        smoothness: 0.8
+      },
+      pathAnalysis: {
+        clubheadPath: [],
+        swingPlane: swing.swing_plane_angle,
+        pathConsistency: 0.8,
+        insideOut: false,
+        outsideIn: false,
+        onPlane: true
+      },
+      reportCard: swing.report_card ? {
+        setup: swing.report_card.setup,
+        grip: swing.report_card.grip,
+        alignment: swing.report_card.alignment,
+        rotation: swing.report_card.rotation,
+        impact: swing.report_card.impact,
+        followThrough: swing.report_card.follow_through,
+        overall: swing.report_card.overall
+      } : {
+        setup: { grade: 'C', tip: 'Setup needs improvement' },
+        grip: { grade: 'C', tip: 'Grip needs improvement' },
+        alignment: { grade: 'C', tip: 'Alignment needs improvement' },
+        rotation: { grade: 'C', tip: 'Rotation needs improvement' },
+        impact: { grade: 'C', tip: 'Impact needs improvement' },
+        followThrough: { grade: 'C', tip: 'Follow through needs improvement' },
+        overall: { score: 'C', tip: 'Overall swing needs improvement' }
+      },
+      videoUrl: swing.video_url
+    };
   };
 
   if (loading) {
@@ -220,35 +192,15 @@ export default function SwingDetailPage() {
               </p>
             </div>
             <div className="flex space-x-3">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleExport('json')}
-                  disabled={isExporting}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center"
-                >
-                  {isExporting ? (
-                    <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  )}
-                  Export JSON
-                </button>
-                <button
-                  onClick={() => handleExport('csv')}
-                  disabled={isExporting}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-colors flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export CSV
-                </button>
-              </div>
+              <button
+                onClick={handleExport}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Data
+              </button>
               <Link href="/" className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
                 Back to Dashboard
               </Link>
@@ -403,6 +355,23 @@ export default function SwingDetailPage() {
           </div>
         </div>
       </div>
+      
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        swingData={createExportData() || {
+          swingId: '',
+          timestamp: 0,
+          club: '',
+          trajectory: { rightWrist: [], leftWrist: [], rightShoulder: [], leftShoulder: [], rightHip: [], leftHip: [], clubhead: [] },
+          phases: [],
+          metrics: { totalDistance: 0, maxVelocity: 0, avgVelocity: 0, maxAcceleration: 0, avgAcceleration: 0, peakFrame: 0, smoothness: 0 },
+          pathAnalysis: { clubheadPath: [], swingPlane: 0, pathConsistency: 0, insideOut: false, outsideIn: false, onPlane: false },
+          reportCard: { setup: { grade: 'C', tip: '' }, grip: { grade: 'C', tip: '' }, alignment: { grade: 'C', tip: '' }, rotation: { grade: 'C', tip: '' }, impact: { grade: 'C', tip: '' }, followThrough: { grade: 'C', tip: '' }, overall: { score: 'C', tip: '' } },
+          videoUrl: ''
+        }}
+        onExportComplete={() => setShowExportDialog(false)}
+      />
     </div>
   );
 }

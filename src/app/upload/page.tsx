@@ -4,6 +4,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { UnifiedSwingData } from '@/lib/unified-analysis';
 import { saveSwing } from '@/lib/supabase';
+import { getEnvironmentConfig, logEnvironmentInfo } from '@/lib/environment';
+import Button from '@/components/ui/Button';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ProgressBar from '@/components/ui/ProgressBar';
+import ErrorAlert from '@/components/ui/ErrorAlert';
 
 // Using UnifiedSwingData from unified-analysis.ts
 
@@ -22,6 +27,12 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ step: '', progress: 0 });
   const [showLandmarks, setShowLandmarks] = useState(false);
+  const [environmentConfig] = useState(getEnvironmentConfig());
+
+  // Log environment info in development
+  useEffect(() => {
+    logEnvironmentInfo();
+  }, []);
 
   const clubs = ['driver', 'iron', 'wedge', 'putter'];
 
@@ -394,27 +405,27 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center mb-4">
+        {/* Page Header */}
+        <header className="mb-8">
+          <nav className="flex items-center mb-4" aria-label="Breadcrumb">
             <Link 
               href="/" 
               className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Dashboard
             </Link>
-          </div>
+          </nav>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Upload Video Analysis</h1>
           <p className="text-gray-600 text-lg">Upload a recorded swing video for detailed analysis</p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Video Player */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6">
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Video Player Section */}
+          <section className="lg:col-span-2" aria-label="Video Upload and Player">
+            <article className="bg-white rounded-xl shadow-lg p-6">
               {!videoUrl ? (
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-gray-400 transition-colors">
                   <div className="space-y-6">
@@ -428,12 +439,18 @@ export default function UploadPage() {
                       <p className="text-gray-500 mb-4">Choose a video file to analyze your golf swing</p>
                       <p className="text-sm text-gray-400">Supported formats: MP4, MOV, AVI (Max 100MB)</p>
                     </div>
-                    <button
+                    <Button
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      variant="primary"
+                      size="lg"
+                      icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      }
                     >
                       Select Video File
-                    </button>
+                    </Button>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -464,20 +481,23 @@ export default function UploadPage() {
                   {/* Video Controls */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <button
+                      <Button
                         onClick={togglePlayPause}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                        variant="primary"
+                        size="md"
+                        icon={
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            {isPlaying ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                            )}
+                          </svg>
+                        }
                       >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          {isPlaying ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" />
-                          )}
-                        </svg>
                         {isPlaying ? 'Pause' : 'Play'}
-                      </button>
-                      <span className="text-sm text-gray-600">
+                      </Button>
+                      <span className="text-sm text-gray-600" aria-label="Video time">
                         {formatTime(currentTime)} / {formatTime(duration)}
                       </span>
                     </div>
@@ -490,25 +510,28 @@ export default function UploadPage() {
                       value={currentTime}
                       onChange={handleSeek}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      aria-label="Video seek bar"
                     />
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+            </article>
+          </section>
 
           {/* Controls and Results */}
-          <div className="space-y-6">
+          <aside className="space-y-6" aria-label="Analysis Controls and Results">
             {/* Club Selection */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <section className="bg-white rounded-xl shadow-lg p-6">
+              <label htmlFor="club-select" className="block text-sm font-semibold text-gray-700 mb-3">
                 Select Club
               </label>
               <select
+                id="club-select"
                 value={selectedClub}
                 onChange={(e) => setSelectedClub(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 disabled={isAnalyzing}
+                aria-describedby="club-help"
               >
                 {clubs.map((club) => (
                   <option key={club} value={club}>
@@ -516,33 +539,42 @@ export default function UploadPage() {
                   </option>
                 ))}
               </select>
-            </div>
+              <p id="club-help" className="text-xs text-gray-500 mt-1">
+                Choose the club type for accurate analysis
+              </p>
+            </section>
 
             {/* Analysis Controls */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <section className="bg-white rounded-xl shadow-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Analysis</h3>
               
               {error && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
+                <ErrorAlert 
+                  message={error} 
+                  onDismiss={() => setError(null)}
+                  className="mb-4"
+                />
               )}
               
               {selectedFile && !isAnalyzing && (
-                <button
+                <Button
                   onClick={analyzeVideo}
-                  className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center"
+                  variant="success"
+                  size="lg"
+                  fullWidth
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  }
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
                   Analyze Video
-                </button>
+                </Button>
               )}
 
               {/* Demo button for testing without file upload */}
               {!selectedFile && !isAnalyzing && (
-                <button
+                <Button
                   onClick={() => {
                     // Create a mock file for demo purposes
                     const mockFile = new File([''], 'demo-video.mp4', { type: 'video/mp4' });
@@ -551,34 +583,32 @@ export default function UploadPage() {
                     setDuration(10);
                     setError(null);
                   }}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center mb-3"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  className="mb-3"
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                    </svg>
+                  }
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" />
-                  </svg>
                   Try Demo Analysis (No File Required)
-                </button>
+                </Button>
               )}
               
               {isAnalyzing && (
-                <div className="w-full bg-blue-100 text-blue-800 py-3 px-4 rounded-lg text-center font-medium">
-                  <div className="flex items-center justify-center mb-2">
-                    <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Analyzing Video...
-                  </div>
-                  <div className="text-sm">
-                    <div className="mb-1">{progress.step}</div>
-                    <div className="w-full bg-blue-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${progress.progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="mt-1 text-xs">{progress.progress}%</div>
-                  </div>
+                <div className="w-full bg-blue-100 text-blue-800 py-3 px-4 rounded-lg">
+                  <LoadingSpinner 
+                    size="md" 
+                    text="Analyzing Video..." 
+                    className="mb-4"
+                  />
+                  <ProgressBar 
+                    progress={progress.progress}
+                    step={progress.step}
+                    showPercentage={true}
+                  />
                 </div>
               )}
 
@@ -601,7 +631,7 @@ export default function UploadPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </section>
 
             {/* Analysis Results */}
             {analysisResult && (
@@ -748,8 +778,8 @@ export default function UploadPage() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </aside>
+        </main>
       </div>
     </div>
   );

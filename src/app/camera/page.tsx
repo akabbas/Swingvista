@@ -4,6 +4,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { PoseResult } from '@/lib/mediapipe';
 import { UnifiedSwingData } from '@/lib/unified-analysis';
 import { saveSwing } from '@/lib/supabase';
+import { getEnvironmentConfig, logEnvironmentInfo } from '@/lib/environment';
+import { logger, logError, logInfo, logWarn } from '@/lib/logger';
+import Button from '@/components/ui/Button';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ProgressBar from '@/components/ui/ProgressBar';
+import ErrorAlert from '@/components/ui/ErrorAlert';
+import MonitoringDashboard from '@/components/ui/MonitoringDashboard';
 
 // Using UnifiedSwingData from unified-analysis.ts
 
@@ -18,6 +25,18 @@ export default function CameraPage() {
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [detectedPoses, setDetectedPoses] = useState<PoseResult[]>([]);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [environmentConfig] = useState(getEnvironmentConfig());
+  const [performanceStats, setPerformanceStats] = useState({
+    fps: 0,
+    frameTime: 0,
+    memoryUsage: 0
+  });
+  const [showMonitoring, setShowMonitoring] = useState(false);
+
+  // Log environment info in development
+  useEffect(() => {
+    logEnvironmentInfo();
+  }, []);
 
   // Essential refs only
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,17 +65,23 @@ export default function CameraPage() {
     }
   };
 
-  // Initialize camera with proper constraints
+  // Initialize camera with proper constraints and mobile optimization
   const initializeCamera = async () => {
     try {
       setError(null);
+      logInfo('Starting camera initialization', { userAgent: navigator.userAgent }, 'Camera');
+      
+      // Detect mobile device for optimized constraints
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      logInfo('Device type detected', { isMobile }, 'Camera');
       
       // Request camera access with optimal constraints
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 30 }
+          width: { ideal: isMobile ? 640 : 1280 },
+          height: { ideal: isMobile ? 480 : 720 },
+          frameRate: { ideal: isMobile ? 15 : 30, max: isMobile ? 15 : 30 },
+          facingMode: isMobile ? 'user' : 'environment'
         },
         audio: false
       });
@@ -85,17 +110,46 @@ export default function CameraPage() {
       });
       
       await poseDetectorRef.current.initialize();
+      logInfo('MediaPipe pose detector initialized successfully', {}, 'Camera');
       
       // Start real-time pose detection
       startPoseDetection();
 
     } catch (err) {
       console.error('Camera initialization error:', err);
+      logError('Camera initialization failed', { error: err }, 'Camera');
+      
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          setError('Camera access denied. Please allow camera permissions and refresh the page.');
+          setError('Camera access denied. Please allow camera permissions and refresh the page. On mobile, make sure you\'re using HTTPS.');
+          logWarn('Camera access denied by user', { errorName: err.name }, 'Camera');
         } else if (err.name === 'NotFoundError') {
           setError('No camera found. Please connect a camera and try again.');
+          logWarn('No camera device found', { errorName: err.name }, 'Camera');
+        } else if (err.name === 'NotReadableError') {
+          setError('Camera is already in use by another application. Please close other camera apps and try again.');
+          logWarn('Camera device in use', { errorName: err.name }, 'Camera');
+        } else if (err.name === 'OverconstrainedError') {
+          setError('Camera constraints not supported. Trying with lower resolution...');
+          logWarn('Camera constraints not supported, trying fallback', { errorName: err.name }, 'Camera');
+          // Try with lower constraints
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({
+              video: { width: 320, height: 240, frameRate: 15 },
+              audio: false
+            });
+            streamRef.current = fallbackStream;
+            if (videoRef.current) {
+              videoRef.current.srcObject = fallbackStream;
+              videoRef.current.play();
+              videoRef.current.onloadedmetadata = () => {
+                setIsCameraReady(true);
+              };
+            }
+            return;
+          } catch (fallbackErr) {
+            setError('Camera not supported. Please try a different device or browser.');
+          }
         } else {
           setError('Failed to access camera. Please check your camera and try again.');
         }
@@ -105,26 +159,91 @@ export default function CameraPage() {
     }
   };
 
-  // Real-time pose detection loop
+  // Real-time pose detection loop with throttling, error recovery, and performance monitoring
   const startPoseDetection = useCallback(() => {
+    let lastDetectionTime = 0;
+    let consecutiveErrors = 0;
+    const maxErrors = 5;
+    const detectionInterval = 1000 / 15; // 15 FPS for pose detection (reduced from 30)
+    
+    // Performance monitoring
+    let frameCount = 0;
+    let lastFpsTime = Date.now();
+    let frameTimes: number[] = [];
+
     const detectPose = async () => {
       if (!videoRef.current || !poseDetectorRef.current || !isCameraReady) {
         animationRef.current = requestAnimationFrame(detectPose);
         return;
       }
 
+      const now = Date.now();
+      if (now - lastDetectionTime < detectionInterval) {
+        animationRef.current = requestAnimationFrame(detectPose);
+        return;
+      }
+
+      const frameStartTime = performance.now();
+
       try {
         const result = await poseDetectorRef.current.detectPose(videoRef.current);
         if (result) {
           setDetectedPoses(prev => {
             const newPoses = [...prev, result];
-            // Keep last 30 frames (1 second at 30fps)
-            return newPoses.slice(-30);
+            // Keep last 60 frames (4 seconds at 15fps)
+            return newPoses.slice(-60);
           });
           drawLandmarks(result);
+          consecutiveErrors = 0; // Reset error counter on success
         }
+        lastDetectionTime = now;
+        
+        // Performance monitoring
+        frameCount++;
+        const frameTime = performance.now() - frameStartTime;
+        frameTimes.push(frameTime);
+        
+        // Keep only last 30 frame times for average calculation
+        if (frameTimes.length > 30) {
+          frameTimes = frameTimes.slice(-30);
+        }
+        
+        // Update performance stats every second
+        if (now - lastFpsTime >= 1000) {
+          const fps = frameCount;
+          const avgFrameTime = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+          const memoryUsage = (performance as any).memory ? 
+            Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024) : 0;
+          
+          setPerformanceStats({
+            fps,
+            frameTime: Math.round(avgFrameTime),
+            memoryUsage
+          });
+          
+          frameCount = 0;
+          lastFpsTime = now;
+        }
+        
       } catch (error) {
         console.warn('Pose detection error:', error);
+        logWarn('Pose detection error', { error, consecutiveErrors }, 'PoseDetection');
+        consecutiveErrors++;
+        
+        // If too many consecutive errors, try to reinitialize
+        if (consecutiveErrors >= maxErrors) {
+          console.error('Too many pose detection errors, attempting recovery...');
+          logError('Too many pose detection errors, attempting recovery', { consecutiveErrors }, 'PoseDetection');
+          try {
+            await poseDetectorRef.current.initialize();
+            consecutiveErrors = 0;
+            logInfo('Pose detector reinitialized successfully', {}, 'PoseDetection');
+          } catch (reinitError) {
+            console.error('Failed to reinitialize pose detector:', reinitError);
+            logError('Failed to reinitialize pose detector', { error: reinitError }, 'PoseDetection');
+            setError('Pose detection failed. Please refresh the page.');
+          }
+        }
       }
 
       // Continue detection loop
@@ -134,7 +253,7 @@ export default function CameraPage() {
     detectPose();
   }, [isCameraReady]);
 
-  // Draw landmarks on canvas
+  // Draw landmarks on canvas with performance optimizations
   const drawLandmarks = useCallback((poseResult: PoseResult) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -144,14 +263,16 @@ export default function CameraPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Only resize canvas if dimensions changed
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
 
-    // Clear canvas
+    // Clear canvas efficiently
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw landmarks
+    // Draw landmarks with visibility threshold
     const landmarks = poseResult.landmarks;
     const keyLandmarks = [
       { landmark: landmarks[16], color: '#FF6B6B', label: 'RW' }, // Right wrist
@@ -162,6 +283,11 @@ export default function CameraPage() {
       { landmark: landmarks[23], color: '#DDA0DD', label: 'LH' }, // Left hip
     ];
 
+    // Batch drawing operations for better performance
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.font = '12px Arial';
+    
     keyLandmarks.forEach(({ landmark, color, label }) => {
       if (landmark && landmark.visibility && landmark.visibility > 0.5) {
         const x = landmark.x * canvas.width;
@@ -173,15 +299,15 @@ export default function CameraPage() {
         ctx.fillStyle = color;
         ctx.fill();
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
         ctx.stroke();
 
         // Draw label
         ctx.fillStyle = '#000000';
-        ctx.font = '12px Arial';
         ctx.fillText(label, x + 12, y - 8);
       }
     });
+    
+    ctx.restore();
   }, [showLandmarks]);
 
   // Start recording
@@ -206,19 +332,23 @@ export default function CameraPage() {
   const analyzeSwing = async () => {
     if (detectedPoses.length === 0) {
       setError('No swing data recorded. Please record a swing first.');
+      logWarn('Analysis attempted with no pose data', {}, 'Analysis');
       return;
     }
 
     if (detectedPoses.length < 10) {
       setError('Insufficient swing data recorded. Please record a longer swing (at least 1 second).');
+      logWarn('Analysis attempted with insufficient pose data', { poseCount: detectedPoses.length }, 'Analysis');
       return;
     }
 
     if (!selectedClub) {
       setError('Please select a club type.');
+      logWarn('Analysis attempted without club selection', {}, 'Analysis');
       return;
     }
 
+    logInfo('Starting swing analysis', { poseCount: detectedPoses.length, club: selectedClub }, 'Analysis');
     setIsAnalyzing(true);
     setError(null);
     setProgress({ step: 'Initializing analysis...', progress: 0 });
@@ -338,19 +468,35 @@ export default function CameraPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">Live Swing Analysis</h1>
+        {/* Page Header */}
+        <header className="text-center mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex-1"></div>
+            <h1 className="text-4xl font-bold text-white">Live Swing Analysis</h1>
+            <div className="flex-1 flex justify-end">
+              <Button
+                onClick={() => setShowMonitoring(true)}
+                variant="outline"
+                size="sm"
+                className="bg-white/10 text-white border-white/30 hover:bg-white/20"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Monitor
+              </Button>
+            </div>
+          </div>
           <p className="text-xl text-blue-200">
             Record your swing and get instant AI-powered feedback with real-time pose detection
           </p>
-        </div>
+        </header>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Video Section */}
-          <div className="space-y-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <section className="space-y-6" aria-label="Camera Feed and Controls">
+            <article className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
               <h2 className="text-2xl font-bold text-white mb-4">Camera Feed</h2>
               
               <div className="relative bg-black rounded-lg overflow-hidden">
@@ -419,88 +565,132 @@ export default function CameraPage() {
                 {/* Recording Controls */}
                 <div className="flex space-x-4">
                   {!isRecording ? (
-                    <button
+                    <Button
                       onClick={startRecording}
                       disabled={!isCameraReady || isAnalyzing}
-                      className="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium flex items-center justify-center"
+                      variant="danger"
+                      size="lg"
+                      fullWidth
+                      icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      }
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
                       Start Recording
-                    </button>
+                    </Button>
                   ) : (
-                    <button
+                    <Button
                       onClick={stopRecording}
-                      className="flex-1 bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 font-medium flex items-center justify-center"
+                      variant="secondary"
+                      size="lg"
+                      fullWidth
+                      icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                        </svg>
+                      }
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                      </svg>
                       Stop Recording
-                    </button>
+                    </Button>
                   )}
 
                   {detectedPoses.length > 0 && !isRecording && (
-                    <button
+                    <Button
                       onClick={analyzeSwing}
                       disabled={isAnalyzing}
-                      className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium flex items-center justify-center"
+                      variant="success"
+                      size="lg"
+                      fullWidth
+                      loading={isAnalyzing}
+                      icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      }
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
                       {isAnalyzing ? 'Analyzing...' : 'Analyze Swing'}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 {/* Progress Indicator */}
                 {isAnalyzing && (
                   <div className="bg-blue-100 text-blue-800 py-3 px-4 rounded-lg">
-                    <div className="flex items-center justify-center mb-2">
-                      <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Analyzing Swing...
-                    </div>
-                    <div className="text-sm">
-                      <div className="mb-1">{progress.step}</div>
-                      <div className="w-full bg-blue-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${progress.progress}%` }}
-                        ></div>
-                      </div>
-                      <div className="mt-1 text-xs">{progress.progress}%</div>
-                    </div>
+                    <LoadingSpinner 
+                      size="md" 
+                      text="Analyzing Swing..." 
+                      className="mb-4"
+                    />
+                    <ProgressBar 
+                      progress={progress.progress}
+                      step={progress.step}
+                      showPercentage={true}
+                    />
                   </div>
                 )}
 
                 {/* Error Display */}
                 {error && (
-                  <div className="bg-red-100 text-red-800 py-3 px-4 rounded-lg">
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {error}
-                    </div>
+                  <div className="space-y-3">
+                    <ErrorAlert 
+                      message={error} 
+                      onDismiss={() => setError(null)}
+                      type="error"
+                      className="bg-red-100 text-red-800"
+                    />
+                    {error.includes('Camera') && (
+                      <Button
+                        onClick={() => {
+                          setError(null);
+                          setIsCameraReady(false);
+                          initializeCamera();
+                        }}
+                        variant="secondary"
+                        size="sm"
+                        fullWidth
+                        icon={
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        }
+                      >
+                        Retry Camera
+                      </Button>
+                    )}
                   </div>
                 )}
 
                 {/* Recording Stats */}
                 {detectedPoses.length > 0 && (
-                  <div className="text-white text-sm">
+                  <div className="text-white text-sm space-y-1">
                     <p>Frames recorded: {detectedPoses.length}</p>
-                    <p>Duration: {(detectedPoses.length / 30).toFixed(1)}s</p>
+                    <p>Duration: {(detectedPoses.length / 15).toFixed(1)}s</p>
+                  </div>
+                )}
+
+                {/* Performance Stats */}
+                {isCameraReady && (
+                  <div className="bg-blue-900/30 text-blue-200 text-xs p-3 rounded-lg">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium">Performance</span>
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        performanceStats.fps >= 10 ? 'bg-green-600' : 
+                        performanceStats.fps >= 5 ? 'bg-yellow-600' : 'bg-red-600'
+                      }`}>
+                        {performanceStats.fps} FPS
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>Frame Time: {performanceStats.frameTime}ms</div>
+                      <div>Memory: {performanceStats.memoryUsage}MB</div>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </article>
+          </section>
 
           {/* Results Section */}
           <div className="space-y-6">
@@ -674,8 +864,13 @@ export default function CameraPage() {
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
+      
+      <MonitoringDashboard
+        isOpen={showMonitoring}
+        onClose={() => setShowMonitoring(false)}
+      />
     </div>
   );
 }

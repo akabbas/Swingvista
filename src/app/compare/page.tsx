@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getEnvironmentConfig, logEnvironmentInfo } from '@/lib/environment';
+import Button from '@/components/ui/Button';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ErrorAlert from '@/components/ui/ErrorAlert';
 
 interface SwingRecord {
   id: string;
@@ -30,6 +34,13 @@ export default function ComparePage() {
   const [swings, setSwings] = useState<SwingRecord[]>([]);
   const [selectedSwings, setSelectedSwings] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [environmentConfig] = useState(getEnvironmentConfig());
+
+  // Log environment info in development
+  useEffect(() => {
+    logEnvironmentInfo();
+  }, []);
 
   useEffect(() => {
     fetchSwings();
@@ -37,13 +48,17 @@ export default function ComparePage() {
 
   const fetchSwings = async () => {
     try {
-      const response = await fetch('/api/swings');
+      setError(null);
+      const response = await fetch(`${environmentConfig.apiBaseUrl}/swings`);
       if (response.ok) {
         const data = await response.json();
         setSwings(data);
+      } else {
+        throw new Error(`Failed to fetch swings: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error fetching swings:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch swings');
     } finally {
       setLoading(false);
     }
@@ -66,13 +81,13 @@ export default function ComparePage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="h-96 bg-gray-200 rounded"></div>
-            <div className="h-96 bg-gray-200 rounded"></div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <header className="mb-8">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Swing Comparison</h1>
+            <p className="text-gray-600 text-lg">Compare your swings to track progress and identify improvements</p>
+          </header>
+          <LoadingSpinner size="lg" text="Loading swings..." className="py-12" />
         </div>
       </div>
     );
@@ -81,11 +96,33 @@ export default function ComparePage() {
   const selectedData = getSelectedSwingData();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Swing Comparison</h1>
-        <p className="text-gray-600">Compare two swings side by side to track your progress</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <header className="mb-8">
+          <nav className="flex items-center mb-4" aria-label="Breadcrumb">
+            <Link 
+              href="/" 
+              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Dashboard
+            </Link>
+          </nav>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Swing Comparison</h1>
+          <p className="text-gray-600 text-lg">Compare your swings to track progress and identify improvements</p>
+        </header>
+
+        {/* Error Display */}
+        {error && (
+          <ErrorAlert 
+            message={error} 
+            onDismiss={() => setError(null)}
+            className="mb-6"
+          />
+        )}
 
       {swings.length === 0 ? (
         <div className="text-center py-12">
@@ -97,12 +134,22 @@ export default function ComparePage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Swings to Compare</h3>
           <p className="text-gray-500 mb-6">Record some swings first to use the comparison feature.</p>
           <div className="space-x-4">
-            <Link href="/camera" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-              Start Recording
-            </Link>
-            <Link href="/upload" className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-              Upload Video
-            </Link>
+            <Button asChild variant="primary">
+              <Link href="/camera">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Start Recording
+              </Link>
+            </Button>
+            <Button asChild variant="success">
+              <Link href="/upload">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Video
+              </Link>
+            </Button>
           </div>
         </div>
       ) : (
@@ -255,6 +302,7 @@ export default function ComparePage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

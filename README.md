@@ -43,15 +43,23 @@
 - **Progress Tracking** - Historical swing data and improvement trends
 - **Club-Specific Analysis** - Driver, iron, wedge, and putter specific metrics
 - **Statistical Analysis** - Average scores, tempo ratios, and consistency metrics
-- **Export Capabilities** - JSON, CSV, and annotated video export
+- **Export Capabilities** - JSON, CSV, and annotated video export with progress indicators
 - **Data Visualization** - Interactive charts and graphs for swing analysis
+- **Performance Monitoring** - Real-time FPS, memory usage, and error tracking dashboard
+- **Logging System** - Comprehensive error logging and debugging tools
 
 ### ⚡ Technical Excellence
 - **Web Workers** - Heavy computation offloaded for smooth performance
 - **Advanced Smoothing** - Moving average and Kalman filtering for stable tracking
-- **Real-time Processing** - 30fps pose detection with minimal latency
+- **Real-time Processing** - 15fps pose detection with performance monitoring
 - **Responsive Design** - Works seamlessly on desktop and mobile devices
 - **TypeScript** - Full type safety and excellent developer experience
+- **Semantic HTML5** - Accessible, SEO-friendly markup structure
+- **Environment Awareness** - Dynamic configuration for development and production
+- **Component Architecture** - Reusable, maintainable UI components
+- **Performance Monitoring** - Real-time FPS, memory usage, and error tracking
+- **Theme Support** - Dark/light mode toggle with system preference detection
+- **Enhanced UX** - Tooltips, loading skeletons, and smooth animations
 
 ## 🚀 Quick Start
 
@@ -118,6 +126,9 @@ swingvista/
 │   ├── tailwind.config.js
 │   └── vitest.config.ts
 ├── 📁 docs/                   # Documentation
+│   ├── HTML_STRUCTURE.md      # HTML structure and components guide
+│   ├── API.md                 # API documentation
+│   ├── DEPLOYMENT.md          # Deployment guide
 │   └── prompts.md
 ├── 📁 public/                 # Static assets
 │   └── icons/
@@ -131,20 +142,45 @@ swingvista/
 │   │   ├── 📁 upload/         # Video upload
 │   │   ├── 📁 swing/          # Individual swing details
 │   │   ├── globals.css        # Global styles
-│   │   ├── layout.tsx         # Root layout
+│   │   ├── layout.tsx         # Root layout with Header/Footer
 │   │   └── page.tsx           # Home page
+│   ├── 📁 components/         # Reusable UI components
+│   │   ├── 📁 layout/         # Layout components
+│   │   │   ├── Header.tsx     # Navigation header
+│   │   │   └── Footer.tsx     # Site footer
+│   │   └── 📁 ui/             # UI components
+│   │       ├── Button.tsx     # Button component
+│   │       ├── LoadingSpinner.tsx
+│   │       ├── ProgressBar.tsx
+│   │       ├── ErrorAlert.tsx
+│   │       ├── EnvironmentBanner.tsx
+│   │       ├── ExportDialog.tsx
+│   │       ├── MonitoringDashboard.tsx
+│   │       ├── Skeleton.tsx
+│   │       ├── ThemeToggle.tsx
+│   │       └── Tooltip.tsx
 │   ├── 📁 lib/                # Core libraries
 │   │   ├── mediapipe.ts       # Pose detection
 │   │   ├── metrics.config.ts  # Analysis configuration
 │   │   ├── vista-swing-ai.ts  # VistaSwing AI coaching system
-│   │   └── supabase.ts        # Database client
+│   │   ├── supabase.ts        # Database client
+│   │   ├── environment.ts     # Environment configuration
+│   │   ├── logger.ts          # Logging and monitoring system
+│   │   └── export-utils.ts    # Export functionality
 │   ├── 📁 workers/            # Web Workers
 │   │   └── analysis.worker.ts # Swing analysis
 │   └── 📁 __tests__/          # Test files
+│       ├── html-structure.test.ts
+│       ├── export-utils.test.ts
+│       ├── metrics.test.ts
+│       ├── swing-phases.test.ts
+│       └── trajectory-analysis.test.ts
 ├── 📄 .gitignore
 ├── 📄 next.config.js
 ├── 📄 package.json
 ├── 📄 README.md
+├── 📄 CHANGELOG.md
+├── 📄 FIXES_SUMMARY.md
 └── 📄 tsconfig.json
 ```
 
@@ -313,6 +349,70 @@ npm run test:coverage
 npm run type-check
 ```
 
+### Test Coverage
+- **HTML Structure Tests**: Semantic HTML5, accessibility, responsive design
+- **Component Tests**: UI component functionality and behavior
+- **Integration Tests**: API endpoints and data flow
+- **Unit Tests**: Individual function and utility testing
+- **Accessibility Tests**: ARIA compliance and screen reader support
+
+## 📊 Monitoring & Logging
+
+SwingVista includes comprehensive monitoring and logging capabilities for production debugging and performance optimization.
+
+### Real-time Performance Monitoring
+- **FPS Tracking**: Real-time frame rate monitoring during pose detection
+- **Memory Usage**: JavaScript heap size monitoring
+- **Frame Time Analysis**: Per-frame processing time measurement
+- **Error Recovery**: Automatic recovery from pose detection failures
+
+### Logging System
+- **Structured Logging**: JSON-formatted logs with context and metadata
+- **Log Levels**: DEBUG, INFO, WARN, ERROR, FATAL with configurable filtering
+- **Session Tracking**: Unique session IDs for debugging user sessions
+- **Error Aggregation**: Automatic error collection and analysis
+- **Export Capabilities**: Download logs for debugging and analysis
+
+### Monitoring Dashboard
+Access the monitoring dashboard by clicking the "Monitor" button on the camera page:
+- **Live Log Viewing**: Real-time log display with filtering
+- **Performance Metrics**: FPS, memory usage, and processing times
+- **Error Analysis**: Detailed error logs with stack traces
+- **Log Export**: Download logs in JSON format for analysis
+
+### Usage
+```typescript
+import { logger, logInfo, logError, logWarn } from '@/lib/logger';
+
+// Log information
+logInfo('User started analysis', { userId: '123', club: 'driver' }, 'Analysis');
+
+// Log errors
+logError('Analysis failed', { error: errorMessage, context: 'PoseDetection' }, 'Analysis');
+
+// Log warnings
+logWarn('Low FPS detected', { fps: 5, threshold: 10 }, 'Performance');
+```
+
+## 🏗️ HTML Structure & Components
+
+SwingVista uses a modern, accessible HTML structure with reusable components:
+
+### Component Architecture
+- **Layout Components**: Header, Footer with responsive navigation
+- **UI Components**: Button, LoadingSpinner, ProgressBar, ErrorAlert
+- **Environment Awareness**: Dynamic configuration and connection testing
+- **Accessibility**: ARIA support, keyboard navigation, screen reader compatibility
+
+### Key Features
+- **Semantic HTML5**: Proper use of `<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
+- **Environment Detection**: Automatic development/production configuration
+- **Component Reusability**: Consistent UI patterns across all pages
+- **Performance Optimization**: Lazy loading, code splitting, bundle optimization
+
+For detailed information, see [HTML Structure Guide](docs/HTML_STRUCTURE.md).
+
 ## 🚀 Deployment
 
 ### Railway Deployment
@@ -398,10 +498,13 @@ For issues and questions:
 ### 🎉 Latest Release - December 19, 2024
 - **✅ Complete End-to-End Functionality** - Full video upload, live camera recording, swing analysis, and data persistence
 - **✅ Real-time Pose Detection** - Live MediaPipe integration for camera-based swing analysis  
-- **✅ Comprehensive Export System** - JSON and CSV export functionality for swing data
+- **✅ Comprehensive Export System** - JSON and CSV export functionality with progress indicators
 - **✅ Advanced Swing Analysis** - AI-powered report cards with detailed feedback
 - **✅ Side-by-Side Comparison** - Multi-swing comparison with progress tracking
 - **✅ Production Ready** - All critical issues resolved, comprehensive error handling, and full TypeScript support
+- **✅ Performance Monitoring** - Real-time FPS, memory usage, and error tracking dashboard
+- **✅ Enhanced UX** - Theme toggle, tooltips, loading skeletons, and smooth animations
+- **✅ Comprehensive Logging** - Structured logging system with monitoring dashboard
 
 ### 🔧 Major Fixes
 - **Fixed**: MediaPipe pose detection initialization and error handling

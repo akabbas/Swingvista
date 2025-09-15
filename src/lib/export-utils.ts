@@ -177,20 +177,71 @@ export class SwingExporter {
   }
 
   /**
-   * Download file
+   * Download file with progress feedback and error handling
    */
-  static downloadFile(content: string | Blob, filename: string, mimeType: string) {
-    const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    URL.revokeObjectURL(url);
+  static downloadFile(
+    content: string | Blob, 
+    filename: string, 
+    mimeType: string,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Validate inputs
+        if (!content) {
+          throw new Error('Content cannot be empty');
+        }
+        
+        if (!filename || filename.trim() === '') {
+          throw new Error('Filename cannot be empty');
+        }
+        
+        if (!mimeType || mimeType.trim() === '') {
+          throw new Error('MIME type cannot be empty');
+        }
+
+        // Report progress
+        onProgress?.(10);
+
+        const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+        
+        // Report progress
+        onProgress?.(30);
+        
+        const url = URL.createObjectURL(blob);
+        
+        // Report progress
+        onProgress?.(50);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        
+        // Report progress
+        onProgress?.(70);
+        
+        document.body.appendChild(link);
+        
+        // Report progress
+        onProgress?.(90);
+        
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          // Report completion
+          onProgress?.(100);
+          resolve();
+        }, 100);
+        
+      } catch (error) {
+        reject(new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    });
   }
 
   /**
