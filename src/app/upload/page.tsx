@@ -1,51 +1,27 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { SwingReportCard } from '@/lib/vista-swing-ai';
+import { UnifiedSwingData } from '@/lib/unified-analysis';
+import { saveSwing } from '@/lib/supabase';
 
-// Simplified interfaces for now
-interface PoseLandmark {
-  x: number;
-  y: number;
-  z: number;
-  visibility?: number;
-}
-
-interface SwingMetrics {
-  swingId: string;
-  club: string;
-  metrics: {
-    swingPlaneAngle: number;
-    tempoRatio: number;
-    hipRotation: number;
-    shoulderRotation: number;
-    impactFrame: number;
-    backswingTime: number;
-    downswingTime: number;
-  };
-  feedback: string[];
-  reportCard?: SwingReportCard; // VistaSwing AI coaching report card
-  timestamps: {
-    setup: number;
-    backswingTop: number;
-    impact: number;
-    followThrough: number;
-  };
-}
+// Using UnifiedSwingData from unified-analysis.ts
 
 export default function UploadPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<SwingMetrics | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<UnifiedSwingData | null>(null);
   const [selectedClub, setSelectedClub] = useState('driver');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ step: '', progress: 0 });
+  const [showLandmarks, setShowLandmarks] = useState(false);
 
   const clubs = ['driver', 'iron', 'wedge', 'putter'];
 
@@ -66,8 +42,9 @@ export default function UploadPage() {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('video/')) {
-      setError('Please select a valid video file');
+    const supportedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov'];
+    if (!supportedTypes.includes(file.type)) {
+      setError('Please select a supported video file (MP4, WebM, OGG, AVI, MOV)');
       return;
     }
 
@@ -80,17 +57,26 @@ export default function UploadPage() {
     setError(null);
     setSelectedFile(file);
     setAnalysisResult(null);
+    setShowLandmarks(false);
     
-    const url = URL.createObjectURL(file);
-    setVideoUrl(url);
-    
-    if (videoRef.current) {
-      videoRef.current.src = url;
-      videoRef.current.onloadedmetadata = () => {
-        if (videoRef.current) {
-          setDuration(videoRef.current.duration);
-        }
-      };
+    try {
+      const url = URL.createObjectURL(file);
+      setVideoUrl(url);
+      
+      if (videoRef.current) {
+        videoRef.current.src = url;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            setDuration(videoRef.current.duration);
+          }
+        };
+        videoRef.current.onerror = () => {
+          setError('Failed to load video. Please try a different file.');
+        };
+      }
+    } catch (error) {
+      setError('Failed to process video file. Please try again.');
+      console.error('File processing error:', error);
     }
   };
 
@@ -100,62 +86,206 @@ export default function UploadPage() {
       return;
     }
 
+    if (!selectedClub) {
+      setError('Please select a club type');
+      return;
+    }
+
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResult(null);
+    setProgress({ step: 'Initializing analysis...', progress: 0 });
+
+    let worker: Worker | null = null;
 
     try {
-      // Simulate analysis with a delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Process video to extract poses
+      setProgress({ step: 'Processing video frames...', progress: 10 });
+      const poses = await processVideoToPoses(selectedFile);
       
-      // Generate mock analysis results
-      const mockResult: SwingMetrics = {
-        swingId: `upload_${Date.now()}`,
-        club: selectedClub,
-        metrics: {
-          swingPlaneAngle: Math.random() * 20 + 10, // 10-30 degrees
-          tempoRatio: Math.random() * 0.5 + 2.5, // 2.5-3.0
-          hipRotation: Math.random() * 30 + 40, // 40-70 degrees
-          shoulderRotation: Math.random() * 40 + 80, // 80-120 degrees
-          impactFrame: Math.floor(Math.random() * 30) + 20, // 20-50
-          backswingTime: Math.random() * 0.5 + 0.8, // 0.8-1.3 seconds
-          downswingTime: Math.random() * 0.3 + 0.4, // 0.4-0.7 seconds
-        },
-        feedback: [
-          'Good swing plane angle',
-          'Tempo could be improved',
-          'Excellent hip rotation',
-          'Consider working on shoulder turn'
-        ],
-        reportCard: {
-          setup: { grade: 'B', tip: 'Good athletic posture, but stance is slightly too wide. Narrowing your feet will improve balance.' },
-          grip: { grade: 'A', tip: 'Neutral grip with solid clubface control. Maintain this.' },
-          alignment: { grade: 'C', tip: 'Shoulders are slightly open to the target. Try squaring them for straighter shots.' },
-          rotation: { grade: 'B', tip: 'Shoulder turn is solid, but hip rotation is restricted. Allow your hips to turn more freely.' },
-          impact: { grade: 'C', tip: 'You\'re flipping the wrists at impact. Focus on leading with your hands to compress the ball.' },
-          followThrough: { grade: 'B', tip: 'Good balance, but weight isn\'t fully on front foot. Finish tall and let your chest face the target.' },
-          overall: { score: 'B-', tip: 'Solid swing fundamentals. Key improvement: work on squaring your shoulders and leading with your hands at impact.' }
-        },
-        timestamps: {
-          setup: 0,
-          backswingTop: 1000,
-          impact: 2000,
-          followThrough: 3000
+      if (poses.length === 0) {
+        throw new Error('No pose landmarks detected in video. Please ensure the video shows a clear view of a person performing a golf swing.');
+      }
+
+      if (poses.length < 10) {
+        throw new Error('Insufficient pose data detected. Please ensure the video is at least 1 second long and shows a complete golf swing.');
+      }
+
+      // Create unified analysis worker
+      worker = new Worker(new URL('../../workers/unified-analysis.worker.ts', import.meta.url));
+      
+      // Set up worker message handling
+      worker.onmessage = (e) => {
+        const { type, data } = e.data;
+        
+        if (type === 'PROGRESS') {
+          setProgress(data);
+        } else if (type === 'SWING_ANALYZED') {
+          setAnalysisResult(data);
+          setVideoUrl(videoUrl);
+          setShowLandmarks(true);
+          setIsAnalyzing(false);
+          
+          // Save to Supabase
+          saveSwingToDatabase(data);
+          
+          if (worker) worker.terminate();
+        } else if (type === 'ERROR') {
+          setError(data.error || 'Analysis failed. Please try again.');
+          setIsAnalyzing(false);
+          if (worker) worker.terminate();
         }
       };
 
-      setAnalysisResult(mockResult);
-      
-      // Save to local storage for now
-      const existingSwings = JSON.parse(localStorage.getItem('swings') || '[]');
-      existingSwings.push(mockResult);
-      localStorage.setItem('swings', JSON.stringify(existingSwings));
+      worker.onerror = (error) => {
+        console.error('Worker error:', error);
+        setError('Analysis worker failed. Please try again.');
+        setIsAnalyzing(false);
+        if (worker) worker.terminate();
+      };
+
+      // Start unified analysis
+      worker.postMessage({
+        type: 'ANALYZE_SWING',
+        data: {
+          poses: poses,
+          club: selectedClub,
+          swingId: `upload_${Date.now()}`,
+          source: 'upload' as const,
+          videoUrl: videoUrl
+        }
+      });
+
+      // Set timeout for analysis (5 minutes max)
+      setTimeout(() => {
+        if (worker) {
+          worker.terminate();
+          setError('Analysis timed out. Please try with a shorter video.');
+          setIsAnalyzing(false);
+        }
+      }, 5 * 60 * 1000);
       
     } catch (error) {
       console.error('Error analyzing video:', error);
-      setError('Analysis failed. Please try again.');
-    } finally {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start analysis. Please try again.';
+      setError(errorMessage);
       setIsAnalyzing(false);
+      if (worker) worker.terminate();
+    }
+  };
+
+  // Process video to extract poses
+  const processVideoToPoses = async (videoFile: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      const videoUrl = URL.createObjectURL(videoFile);
+      video.src = videoUrl;
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+      
+      const poses: any[] = [];
+      let frameCount = 0;
+      let poseDetector: any = null;
+      
+      video.onloadedmetadata = async () => {
+        try {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          // Dynamically import MediaPipe
+          const { MediaPipePoseDetector } = await import('@/lib/mediapipe');
+          poseDetector = new MediaPipePoseDetector({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+          });
+          
+          await poseDetector.initialize();
+          
+          const processFrame = async () => {
+            if (video.ended || video.paused) {
+              if (poseDetector) {
+                poseDetector.destroy();
+              }
+              URL.revokeObjectURL(videoUrl);
+              resolve(poses);
+              return;
+            }
+            
+            try {
+              // Ensure video is playing
+              if (video.paused) {
+                await video.play();
+              }
+              
+              // Detect pose in current frame
+              const result = await poseDetector.detectPose(video);
+              if (result) {
+                poses.push({
+                  ...result,
+                  timestamp: video.currentTime * 1000,
+                  frame: frameCount
+                });
+              }
+              
+              frameCount++;
+              
+              // Move to next frame (every 100ms for 10fps analysis)
+              video.currentTime += 0.1;
+              
+              // Continue processing
+              setTimeout(processFrame, 10);
+            } catch (error) {
+              console.warn('Pose detection failed for frame:', error);
+              frameCount++;
+              video.currentTime += 0.1;
+              setTimeout(processFrame, 10);
+            }
+          };
+          
+          // Start processing
+          video.currentTime = 0;
+          await video.play();
+          processFrame();
+        } catch (error) {
+          console.error('Error initializing pose detection:', error);
+          reject(error);
+        }
+      };
+      
+      video.onerror = (error) => {
+        console.error('Video loading error:', error);
+        URL.revokeObjectURL(videoUrl);
+        reject(new Error('Failed to load video'));
+      };
+      
+      video.oncanplay = () => {
+        // Video is ready to play
+      };
+    });
+  };
+
+  // Save swing to database
+  const saveSwingToDatabase = async (swingData: UnifiedSwingData) => {
+    try {
+      const result = await saveSwing(swingData);
+      if (result.success) {
+        console.log('Swing saved to database successfully');
+      } else {
+        console.error('Failed to save swing to database:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving swing to database:', error);
     }
   };
 
@@ -183,6 +313,83 @@ export default function UploadPage() {
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
+
+  // Draw landmarks on video
+  const drawLandmarks = useCallback(() => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    
+    if (!canvas || !video || !analysisResult || !showLandmarks) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Find current frame based on video time
+    const currentTime = video.currentTime * 1000; // Convert to milliseconds
+    const frameIndex = Math.floor((currentTime / (video.duration * 1000)) * analysisResult.frameCount);
+    
+    if (frameIndex >= 0 && frameIndex < analysisResult.trajectory.rightWrist.length) {
+      const rightWrist = analysisResult.trajectory.rightWrist[frameIndex];
+      const leftWrist = analysisResult.trajectory.leftWrist[frameIndex];
+      const rightShoulder = analysisResult.trajectory.rightShoulder[frameIndex];
+      const leftShoulder = analysisResult.trajectory.leftShoulder[frameIndex];
+      const rightHip = analysisResult.trajectory.rightHip[frameIndex];
+      const leftHip = analysisResult.trajectory.leftHip[frameIndex];
+      const clubhead = analysisResult.trajectory.clubhead[frameIndex];
+
+      // Draw landmarks
+      const landmarks = [
+        { point: rightWrist, color: '#FF6B6B', label: 'RW' },
+        { point: leftWrist, color: '#4ECDC4', label: 'LW' },
+        { point: rightShoulder, color: '#45B7D1', label: 'RS' },
+        { point: leftShoulder, color: '#96CEB4', label: 'LS' },
+        { point: rightHip, color: '#FFEAA7', label: 'RH' },
+        { point: leftHip, color: '#DDA0DD', label: 'LH' },
+        { point: clubhead, color: '#FF8C00', label: 'CH' }
+      ];
+
+      landmarks.forEach(({ point, color, label }) => {
+        if (point) {
+          const x = point.x * canvas.width;
+          const y = point.y * canvas.height;
+
+          // Draw circle
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Draw label
+          ctx.fillStyle = '#000000';
+          ctx.font = '12px Arial';
+          ctx.fillText(label, x + 12, y - 8);
+        }
+      });
+    }
+  }, [analysisResult, showLandmarks]);
+
+  // Update landmarks when video time changes
+  useEffect(() => {
+    if (videoRef.current && analysisResult) {
+      const video = videoRef.current;
+      const handleTimeUpdate = () => {
+        drawLandmarks();
+      };
+      
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    }
+  }, [drawLandmarks, analysisResult]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
@@ -246,6 +453,11 @@ export default function UploadPage() {
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
                       onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                      style={{ zIndex: 10 }}
                     />
                   </div>
                   
@@ -349,12 +561,44 @@ export default function UploadPage() {
               )}
               
               {isAnalyzing && (
-                <div className="w-full bg-blue-100 text-blue-800 py-3 px-4 rounded-lg text-center font-medium flex items-center justify-center">
-                  <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Analyzing Video...
+                <div className="w-full bg-blue-100 text-blue-800 py-3 px-4 rounded-lg text-center font-medium">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing Video...
+                  </div>
+                  <div className="text-sm">
+                    <div className="mb-1">{progress.step}</div>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${progress.progress}%` }}
+                      ></div>
+                    </div>
+                    <div className="mt-1 text-xs">{progress.progress}%</div>
+                  </div>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Show Landmarks:</span>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={showLandmarks}
+                        onChange={(e) => setShowLandmarks(e.target.checked)}
+                        className="rounded"
+                      />
+                      <span className="ml-2 text-sm">Overlay pose landmarks</span>
+                    </label>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Processed {analysisResult.frameCount} frames in {analysisResult.processingTime}ms
+                  </div>
                 </div>
               )}
             </div>
@@ -365,7 +609,7 @@ export default function UploadPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Analysis Results</h3>
                 <div className="space-y-4">
                   {/* VistaSwing AI Report Card */}
-                  {analysisResult.reportCard && (
+                  {analysisResult.aiFeedback.reportCard && (
                     <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-lg border-2 border-green-200">
                       <div className="flex items-center mb-4">
                         <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center mr-3">
@@ -381,66 +625,66 @@ export default function UploadPage() {
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Setup</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.setup.grade)}`}>
-                              {analysisResult.reportCard.setup.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.setup.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.setup.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.setup.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.setup.tip}</p>
                         </div>
 
                         {/* Grip */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Grip</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.grip.grade)}`}>
-                              {analysisResult.reportCard.grip.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.grip.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.grip.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.grip.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.grip.tip}</p>
                         </div>
 
                         {/* Alignment */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Alignment</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.alignment.grade)}`}>
-                              {analysisResult.reportCard.alignment.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.alignment.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.alignment.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.alignment.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.alignment.tip}</p>
                         </div>
 
                         {/* Rotation */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Rotation</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.rotation.grade)}`}>
-                              {analysisResult.reportCard.rotation.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.rotation.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.rotation.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.rotation.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.rotation.tip}</p>
                         </div>
 
                         {/* Impact */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Impact</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.impact.grade)}`}>
-                              {analysisResult.reportCard.impact.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.impact.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.impact.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.impact.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.impact.tip}</p>
                         </div>
 
                         {/* Follow Through */}
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-700">Follow Through</span>
-                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.reportCard.followThrough.grade)}`}>
-                              {analysisResult.reportCard.followThrough.grade}
+                            <span className={`text-2xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.followThrough.grade)}`}>
+                              {analysisResult.aiFeedback.reportCard.followThrough.grade}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{analysisResult.reportCard.followThrough.tip}</p>
+                          <p className="text-sm text-gray-600">{analysisResult.aiFeedback.reportCard.followThrough.tip}</p>
                         </div>
                       </div>
 
@@ -448,11 +692,11 @@ export default function UploadPage() {
                       <div className="bg-gradient-to-r from-green-100 to-blue-100 p-4 rounded-lg border border-green-300">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-lg font-bold text-gray-900">Overall Score</span>
-                          <span className={`text-4xl font-bold ${getGradeColor(analysisResult.reportCard.overall.score)}`}>
-                            {analysisResult.reportCard.overall.score}
+                          <span className={`text-4xl font-bold ${getGradeColor(analysisResult.aiFeedback.reportCard.overall.score)}`}>
+                            {analysisResult.aiFeedback.reportCard.overall.score}
                           </span>
                         </div>
-                        <p className="text-gray-700 font-medium">{analysisResult.reportCard.overall.tip}</p>
+                        <p className="text-gray-700 font-medium">{analysisResult.aiFeedback.reportCard.overall.tip}</p>
                       </div>
                     </div>
                   )}
@@ -482,7 +726,7 @@ export default function UploadPage() {
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-semibold text-gray-900 mb-3">Technical Feedback</h4>
                     <div className="space-y-2">
-                      {analysisResult.feedback.map((feedback, index) => (
+                      {analysisResult.aiFeedback.feedback.map((feedback, index) => (
                         <div
                           key={index}
                           className="bg-blue-100 text-blue-800 px-3 py-2 rounded-md text-sm font-medium"

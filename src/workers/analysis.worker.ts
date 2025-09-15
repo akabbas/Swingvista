@@ -1,6 +1,8 @@
-import { PoseLandmark } from '../lib/mediapipe';
+import { PoseLandmark, TrajectoryPoint, SwingTrajectory } from '../lib/mediapipe';
 import { defaultMetricsConfig, feedbackMessages, MetricsConfig } from '../lib/metrics.config';
 import { VistaSwingAI, SwingReportCard } from '../lib/vista-swing-ai';
+import { SwingPhase, SwingPhaseDetector, SwingPhaseAnalysis } from '../lib/swing-phases';
+import { TrajectoryAnalyzer, TrajectoryMetrics, SwingPathAnalysis } from '../lib/trajectory-analysis';
 
 export interface SwingMetrics {
   swingId: string;
@@ -29,6 +31,19 @@ export interface SwingAnalysisData {
   timestamps: number[];
   club: string;
   swingId: string;
+}
+
+export interface EnhancedSwingAnalysis {
+  swingId: string;
+  club: string;
+  basicMetrics: SwingMetrics;
+  trajectory: SwingTrajectory;
+  phases: SwingPhase[];
+  phaseAnalysis: SwingPhaseAnalysis;
+  trajectoryMetrics: TrajectoryMetrics;
+  swingPathAnalysis: SwingPathAnalysis;
+  reportCard: SwingReportCard;
+  processingTime: number;
 }
 
 // Calculate angle between three points
@@ -166,13 +181,29 @@ function generateFeedback(metrics: SwingMetrics['metrics'], config: MetricsConfi
   return feedback;
 }
 
-// Main analysis function
-export function analyzeSwing(data: SwingAnalysisData, config: MetricsConfig = defaultMetricsConfig): SwingMetrics {
+// Enhanced analysis function with trajectory and phase analysis
+export function analyzeSwingEnhanced(data: SwingAnalysisData, config: MetricsConfig = defaultMetricsConfig): EnhancedSwingAnalysis {
+  const startTime = performance.now();
   const { landmarks, timestamps, club, swingId } = data;
   
   if (landmarks.length < 10) {
     throw new Error('Insufficient landmarks for analysis');
   }
+  
+  // Initialize analyzers
+  const phaseDetector = new SwingPhaseDetector();
+  const trajectoryAnalyzer = new TrajectoryAnalyzer();
+  
+  // Convert landmarks to trajectory format
+  const trajectory = convertLandmarksToTrajectory(landmarks, timestamps);
+  
+  // Detect swing phases
+  const phases = phaseDetector.detectPhases(landmarks, trajectory, timestamps).phases;
+  const phaseAnalysis = phaseDetector.detectPhases(landmarks, trajectory, timestamps);
+  
+  // Analyze trajectory
+  const trajectoryMetrics = trajectoryAnalyzer.analyzeTrajectory(trajectory.rightWrist);
+  const swingPathAnalysis = trajectoryAnalyzer.analyzeSwingPath(trajectory, phases);
   
   // Detect impact frame
   const impactFrame = detectImpactFrame(landmarks);
@@ -191,7 +222,7 @@ export function analyzeSwing(data: SwingAnalysisData, config: MetricsConfig = de
   const backswingTime = Math.max(impactFrame * 0.033, 0.1); // Minimum 0.1s
   const downswingTime = Math.max((landmarks.length - impactFrame) * 0.033, 0.1); // Minimum 0.1s
   
-  const metrics: SwingMetrics['metrics'] = {
+  const basicMetrics: SwingMetrics['metrics'] = {
     swingPlaneAngle,
     tempoRatio,
     hipRotation,
@@ -201,29 +232,162 @@ export function analyzeSwing(data: SwingAnalysisData, config: MetricsConfig = de
     downswingTime
   };
   
-  const feedback = generateFeedback(metrics, config);
+  const feedback = generateFeedback(basicMetrics, config);
   
   // Generate VistaSwing AI coaching report card
-  let reportCard: SwingReportCard | undefined;
+  let reportCard: SwingReportCard;
   try {
     reportCard = VistaSwingAI.analyzeSwing(data);
   } catch (error) {
     console.warn('VistaSwing AI analysis failed:', error);
+    // Fallback report card
+    reportCard = {
+      setup: { grade: 'C', tip: 'Analysis incomplete' },
+      grip: { grade: 'C', tip: 'Analysis incomplete' },
+      alignment: { grade: 'C', tip: 'Analysis incomplete' },
+      rotation: { grade: 'C', tip: 'Analysis incomplete' },
+      impact: { grade: 'C', tip: 'Analysis incomplete' },
+      followThrough: { grade: 'C', tip: 'Analysis incomplete' },
+      overall: { score: 'C', tip: 'Analysis incomplete' }
+    };
   }
+  
+  const processingTime = performance.now() - startTime;
   
   return {
     swingId,
     club,
-    metrics,
-    feedback,
+    basicMetrics: {
+      swingId,
+      club,
+      metrics: basicMetrics,
+      feedback,
+      reportCard,
+      timestamps: {
+        setup: timestamps[0] || 0,
+        backswingTop: timestamps[Math.floor(impactFrame * 0.7)] || 0,
+        impact: timestamps[impactFrame] || 0,
+        followThrough: timestamps[landmarks.length - 1] || 0
+      }
+    },
+    trajectory,
+    phases,
+    phaseAnalysis,
+    trajectoryMetrics,
+    swingPathAnalysis,
     reportCard,
-    timestamps: {
-      setup: timestamps[0] || 0,
-      backswingTop: timestamps[Math.floor(impactFrame * 0.7)] || 0,
-      impact: timestamps[impactFrame] || 0,
-      followThrough: timestamps[landmarks.length - 1] || 0
-    }
+    processingTime
   };
+}
+
+// Convert landmarks to trajectory format
+function convertLandmarksToTrajectory(landmarks: PoseLandmark[][], timestamps: number[]): SwingTrajectory {
+  const rightWrist: TrajectoryPoint[] = [];
+  const leftWrist: TrajectoryPoint[] = [];
+  const rightShoulder: TrajectoryPoint[] = [];
+  const leftShoulder: TrajectoryPoint[] = [];
+  const rightHip: TrajectoryPoint[] = [];
+  const leftHip: TrajectoryPoint[] = [];
+  const clubhead: TrajectoryPoint[] = [];
+
+  landmarks.forEach((frame, index) => {
+    const timestamp = timestamps[index] || index * 33.33;
+    
+    // Right wrist (index 16)
+    if (frame[16]) {
+      rightWrist.push({
+        x: frame[16].x,
+        y: frame[16].y,
+        z: frame[16].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Left wrist (index 15)
+    if (frame[15]) {
+      leftWrist.push({
+        x: frame[15].x,
+        y: frame[15].y,
+        z: frame[15].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Right shoulder (index 12)
+    if (frame[12]) {
+      rightShoulder.push({
+        x: frame[12].x,
+        y: frame[12].y,
+        z: frame[12].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Left shoulder (index 11)
+    if (frame[11]) {
+      leftShoulder.push({
+        x: frame[11].x,
+        y: frame[11].y,
+        z: frame[11].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Right hip (index 24)
+    if (frame[24]) {
+      rightHip.push({
+        x: frame[24].x,
+        y: frame[24].y,
+        z: frame[24].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Left hip (index 23)
+    if (frame[23]) {
+      leftHip.push({
+        x: frame[23].x,
+        y: frame[23].y,
+        z: frame[23].z,
+        timestamp,
+        frame: index
+      });
+    }
+    
+    // Estimate clubhead position
+    if (frame[16] && frame[12]) {
+      const clubheadExtension = 0.3;
+      const angle = Math.atan2(frame[16].y - frame[12].y, frame[16].x - frame[12].x);
+      clubhead.push({
+        x: frame[16].x + clubheadExtension * Math.cos(angle),
+        y: frame[16].y + clubheadExtension * Math.sin(angle),
+        z: frame[16].z,
+        timestamp,
+        frame: index
+      });
+    }
+  });
+
+  return {
+    rightWrist,
+    leftWrist,
+    rightShoulder,
+    leftShoulder,
+    rightHip,
+    leftHip,
+    clubhead
+  };
+}
+
+// Main analysis function (backward compatibility)
+export function analyzeSwing(data: SwingAnalysisData, config: MetricsConfig = defaultMetricsConfig): SwingMetrics {
+  const enhanced = analyzeSwingEnhanced(data, config);
+  return enhanced.basicMetrics;
 }
 
 // Web Worker message handler
@@ -234,6 +398,23 @@ self.onmessage = function(e) {
     if (type === 'ANALYZE_SWING') {
       const result = analyzeSwing(data);
       self.postMessage({ type: 'SWING_ANALYZED', data: result });
+    } else if (type === 'ANALYZE_SWING_ENHANCED') {
+      const result = analyzeSwingEnhanced(data);
+      self.postMessage({ type: 'SWING_ANALYZED_ENHANCED', data: result });
+    } else if (type === 'ANALYZE_TRAJECTORY') {
+      const { trajectory, phases } = data;
+      const analyzer = new TrajectoryAnalyzer();
+      const metrics = analyzer.analyzeTrajectory(trajectory.rightWrist);
+      const pathAnalysis = analyzer.analyzeSwingPath(trajectory, phases);
+      self.postMessage({ 
+        type: 'TRAJECTORY_ANALYZED', 
+        data: { metrics, pathAnalysis } 
+      });
+    } else if (type === 'DETECT_PHASES') {
+      const { landmarks, trajectory, timestamps } = data;
+      const phaseDetector = new SwingPhaseDetector();
+      const result = phaseDetector.detectPhases(landmarks, trajectory, timestamps);
+      self.postMessage({ type: 'PHASES_DETECTED', data: result });
     }
   } catch (error) {
     self.postMessage({ 

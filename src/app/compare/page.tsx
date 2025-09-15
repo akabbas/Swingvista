@@ -6,17 +6,24 @@ import Link from 'next/link';
 interface SwingRecord {
   id: string;
   club: string;
-  metrics: {
-    swingPlaneAngle: number;
-    tempoRatio: number;
-    hipRotation: number;
-    shoulderRotation: number;
-    impactFrame: number;
-    backswingTime: number;
-    downswingTime: number;
-  };
+  swing_plane_angle: number;
+  tempo_ratio: number;
+  hip_rotation: number;
+  shoulder_rotation: number;
+  impact_frame: number;
+  backswing_time: number;
+  downswing_time: number;
   feedback: string[];
   created_at: string;
+  report_card?: {
+    setup: { grade: string; tip: string };
+    grip: { grade: string; tip: string };
+    alignment: { grade: string; tip: string };
+    rotation: { grade: string; tip: string };
+    impact: { grade: string; tip: string };
+    follow_through: { grade: string; tip: string };
+    overall: { score: string; tip: string };
+  };
 }
 
 export default function ComparePage() {
@@ -121,8 +128,8 @@ export default function ComparePage() {
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <div>Plane: {swing.metrics.swingPlaneAngle.toFixed(1)}°</div>
-                    <div>Tempo: {swing.metrics.tempoRatio.toFixed(2)}</div>
+                    <div>Plane: {swing.swing_plane_angle.toFixed(1)}°</div>
+                    <div>Tempo: {swing.tempo_ratio.toFixed(2)}</div>
                   </div>
                 </div>
               ))}
@@ -154,25 +161,25 @@ export default function ComparePage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
                         <div className="text-xl font-bold text-gray-900">
-                          {swing.metrics.swingPlaneAngle.toFixed(1)}°
+                          {swing.swing_plane_angle.toFixed(1)}°
                         </div>
                         <div className="text-xs text-gray-600">Swing Plane</div>
                       </div>
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
                         <div className="text-xl font-bold text-gray-900">
-                          {swing.metrics.tempoRatio.toFixed(2)}
+                          {swing.tempo_ratio.toFixed(2)}
                         </div>
                         <div className="text-xs text-gray-600">Tempo Ratio</div>
                       </div>
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
                         <div className="text-xl font-bold text-gray-900">
-                          {swing.metrics.hipRotation.toFixed(1)}°
+                          {swing.hip_rotation.toFixed(1)}°
                         </div>
                         <div className="text-xs text-gray-600">Hip Rotation</div>
                       </div>
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
                         <div className="text-xl font-bold text-gray-900">
-                          {swing.metrics.shoulderRotation.toFixed(1)}°
+                          {swing.shoulder_rotation.toFixed(1)}°
                         </div>
                         <div className="text-xs text-gray-600">Shoulder Rotation</div>
                       </div>
@@ -199,11 +206,11 @@ export default function ComparePage() {
                       <div className="text-sm text-gray-600 space-y-1">
                         <div className="flex justify-between">
                           <span>Backswing:</span>
-                          <span>{swing.metrics.backswingTime.toFixed(2)}s</span>
+                          <span>{swing.backswing_time.toFixed(2)}s</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Downswing:</span>
-                          <span>{swing.metrics.downswingTime.toFixed(2)}s</span>
+                          <span>{swing.downswing_time.toFixed(2)}s</span>
                         </div>
                       </div>
                     </div>
@@ -219,13 +226,13 @@ export default function ComparePage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Comparison Summary</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { key: 'swingPlaneAngle', label: 'Swing Plane', unit: '°' },
-                  { key: 'tempoRatio', label: 'Tempo Ratio', unit: '' },
-                  { key: 'hipRotation', label: 'Hip Rotation', unit: '°' },
-                  { key: 'shoulderRotation', label: 'Shoulder Rotation', unit: '°' }
+                  { key: 'swing_plane_angle', label: 'Swing Plane', unit: '°' },
+                  { key: 'tempo_ratio', label: 'Tempo Ratio', unit: '' },
+                  { key: 'hip_rotation', label: 'Hip Rotation', unit: '°' },
+                  { key: 'shoulder_rotation', label: 'Shoulder Rotation', unit: '°' }
                 ].map(({ key, label, unit }) => {
-                  const swing1Value = selectedData[0].metrics[key as keyof typeof selectedData[0]['metrics']] as number;
-                  const swing2Value = selectedData[1].metrics[key as keyof typeof selectedData[1]['metrics']] as number;
+                  const swing1Value = selectedData[0][key as keyof SwingRecord] as number;
+                  const swing2Value = selectedData[1][key as keyof SwingRecord] as number;
                   const difference = swing2Value - swing1Value;
                   const improvement = Math.abs(difference) > 0.1;
                   
