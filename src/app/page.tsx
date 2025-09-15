@@ -22,8 +22,8 @@ export default function Dashboard() {
         
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Logo */}
-          <div className="inline-flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-600 rounded-full mb-2 animate-float shadow-lg logo-container">
-            <svg className="text-white logo-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="inline-flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-600 rounded-full mb-2 animate-float shadow-lg w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12">
+            <svg className="text-white w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
@@ -82,8 +82,8 @@ export default function Dashboard() {
               <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/30 backdrop-blur-sm p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-blue-400/30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse icon-container">
-                  <svg className="text-white icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse w-8 h-8">
+                  <svg className="text-white w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -100,8 +100,8 @@ export default function Dashboard() {
               <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 backdrop-blur-sm p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-emerald-400/30 hover:border-emerald-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/10 to-emerald-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse icon-container">
-                  <svg className="text-white icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse w-8 h-8">
+                  <svg className="text-white w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
@@ -118,8 +118,8 @@ export default function Dashboard() {
               <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/30 backdrop-blur-sm p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-purple-400/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse icon-container">
-                  <svg className="text-white icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse w-8 h-8">
+                  <svg className="text-white w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
@@ -136,8 +136,8 @@ export default function Dashboard() {
               <div className="group relative overflow-hidden bg-gradient-to-br from-orange-500/20 to-orange-600/30 backdrop-blur-sm p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-orange-400/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-400/10 to-orange-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse icon-container">
-                  <svg className="text-white icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-gradient-to-br from-orange-400 to-orange-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse w-8 h-8">
+                  <svg className="text-white w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
