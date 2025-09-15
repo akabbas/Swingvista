@@ -1,10 +1,6 @@
 import Link from 'next/link';
 
-interface FooterProps {
-  environment?: 'development' | 'production';
-}
-
-export default function Footer({ environment = 'production' }: FooterProps) {
+export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
@@ -103,12 +99,10 @@ export default function Footer({ environment = 'production' }: FooterProps) {
               © {currentYear} SwingVista. All rights reserved.
             </p>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <span className="text-gray-400 text-sm">Made with ❤️ for golfers</span>
-              {environment === 'development' && (
-                <span className="px-2 py-1 bg-yellow-500 text-yellow-900 text-xs rounded-full font-medium">
-                  DEV
-                </span>
-              )}
+              <span className="text-gray-400 text-sm">Made with love for golfers</span>
+              <span className="px-2 py-1 bg-yellow-500 text-yellow-900 text-xs rounded-full font-medium">
+                DEV
+              </span>
             </div>
           </div>
         </div>

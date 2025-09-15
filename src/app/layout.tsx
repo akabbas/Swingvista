@@ -33,7 +33,15 @@ const themeInitScript = `
       var s = localStorage.getItem('theme');
       var m = window.matchMedia('(prefers-color-scheme: dark)');
       var isDark = s === 'dark' || (!s && m.matches);
-      if (isDark) d.classList.add('dark'); else d.classList.remove('dark');
+      if (isDark) {
+        d.classList.add('dark');
+        d.style.backgroundColor = 'rgb(10 10 10)'; // Dark background
+        d.setAttribute('data-theme', 'dark');
+      } else {
+        d.classList.remove('dark');
+        d.style.backgroundColor = 'rgb(250 250 250)'; // Light background
+        d.setAttribute('data-theme', 'light');
+      }
     } catch (e) { /* noop */ }
   })();
 `;
@@ -85,11 +93,11 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-background text-foreground`}>
         {isDevelopment && <EnvironmentBanner />}
-        <Header environment={isDevelopment ? 'development' : 'production'} />
+        <Header />
         <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900">
           {children}
         </main>
-        <Footer environment={isDevelopment ? 'development' : 'production'} />
+        <Footer />
       </body>
     </html>
   )

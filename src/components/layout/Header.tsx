@@ -1,14 +1,10 @@
 import Link from 'next/link';
 
-interface HeaderProps {
-  environment?: 'development' | 'production';
-}
-
-export default function Header({ environment = 'production' }: HeaderProps) {
+export default function Header() {
   const navItems = [
-    { href: '/', label: 'Dashboard', icon: '🏠' },
-    { href: '/camera', label: 'Camera', icon: '📹' },
-    { href: '/upload', label: 'Upload', icon: '📤' },
+    { href: '/', label: 'Dashboard' },
+    { href: '/camera', label: 'Camera' },
+    { href: '/upload', label: 'Upload' },
   ];
 
   return (
@@ -31,10 +27,9 @@ export default function Header({ environment = 'production' }: HeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                className="px-4 py-2 rounded-lg transition-all duration-200 font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </Link>
             ))}
           </nav>

@@ -19,6 +19,14 @@
     }
   }
 
+  /* Explicit dark mode override for immediate application */
+  html.dark {
+    --background: 10 10 10;
+    --foreground: 250 250 250;
+    --primary: 14 165 233;
+    --secondary: 30 41 59;
+  }
+
   /* Core styles in base layer */
   body {
     @apply bg-background text-foreground antialiased;
