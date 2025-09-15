@@ -1,23 +1,39 @@
+// Import order matters! CSS must be first
+import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import EnvironmentBanner from '@/components/ui/EnvironmentBanner'
+import PreHydrationControl from '@/components/PreHydrationControl'
 
+// Configure font loading with swap + preload strategy
 const inter = Inter({ 
   subsets: ['latin'],
-  display: 'swap',
+  display: 'swap', // Use swap with preload for better performance
   preload: true,
-  fallback: ['system-ui', 'sans-serif']
+  weight: ['300', '400', '500', '600', '700', '800'], // Preload all possible weights
+  variable: '--font-inter',
+  fallback: [
+    '-apple-system',
+    'BlinkMacSystemFont',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    'Arial',
+    'sans-serif'
+  ],
+  adjustFontFallback: true, // Enable for better font metrics matching
 })
 
 export const metadata: Metadata = {
   title: 'SwingVista - Golf Swing Analysis',
   description: 'Real-time golf swing analysis with AI-powered feedback',
-  keywords: 'golf, swing analysis, AI, pose detection, MediaPipe, sports technology',
-  authors: [{ name: 'SwingVista Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+  metadataBase: new URL('https://swingvista.com'),
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/apple-touch-icon.png',
+  },
   robots: 'index, follow',
   openGraph: {
     title: 'SwingVista - Golf Swing Analysis',
@@ -32,33 +48,29 @@ export const metadata: Metadata = {
   }
 }
 
+// Viewport and theme configuration must be in separate exports
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#3B82F6'
+}
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   return (
-    <html lang="en" className="scroll-smooth">
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-        <meta name="theme-color" content="#3B82F6" />
-      </head>
-      <body className={`${inter.className} antialiased`}>
-        {/* Environment Banner for Development */}
+    <html lang="en" className={`${inter.variable} scroll-smooth antialiased font-sans`}>
+      <PreHydrationControl />
+      <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-background text-foreground`}>
         {isDevelopment && <EnvironmentBanner />}
-        
-        {/* Header Navigation */}
         <Header environment={isDevelopment ? 'development' : 'production'} />
-        
-        {/* Main Content */}
-        <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900">
           {children}
         </main>
-        
-        {/* Footer */}
         <Footer environment={isDevelopment ? 'development' : 'production'} />
       </body>
     </html>
