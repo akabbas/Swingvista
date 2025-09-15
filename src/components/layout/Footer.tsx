@@ -63,11 +63,6 @@ export default function Footer({ environment = 'production' }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/compare" className="text-gray-400 hover:text-white transition-colors">
-                  Compare Swings
-                </Link>
-              </li>
-              <li>
                 <a href="/docs" className="text-gray-400 hover:text-white transition-colors">
                   Documentation
                 </a>

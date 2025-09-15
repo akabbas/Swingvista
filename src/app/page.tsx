@@ -113,23 +113,6 @@ export default function Dashboard() {
               </div>
             </Tooltip>
 
-            {/* Compare Swings Card */}
-            <Tooltip content="Compare different swings to track your progress over time">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/30 backdrop-blur-sm p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-purple-400/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative z-10">
-                <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded flex items-center justify-center mb-3 group-hover:animate-pulse w-8 h-8">
-                  <svg className="text-white w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg lg:text-xl font-bold text-white mb-3">Compare Swings</h3>
-                <p className="text-purple-100 text-sm lg:text-base leading-relaxed">
-                  Track your progress over time with detailed comparisons and improvement metrics
-                </p>
-              </div>
-              </div>
-            </Tooltip>
 
             {/* AI Insights Card */}
             <Tooltip content="Advanced AI coaching and personalized tips coming soon">

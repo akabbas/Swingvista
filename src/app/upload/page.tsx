@@ -767,14 +767,6 @@ export default function UploadPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-200">
-                    <Link
-                      href="/compare"
-                      className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium text-center block"
-                    >
-                      Compare with Other Swings
-                    </Link>
-                  </div>
                 </div>
               </div>
             )}

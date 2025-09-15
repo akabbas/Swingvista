@@ -48,7 +48,6 @@ export default function Header({ environment = 'production' }: HeaderProps) {
     { href: '/', label: 'Dashboard', icon: '🏠' },
     { href: '/camera', label: 'Camera', icon: '📹' },
     { href: '/upload', label: 'Upload', icon: '📤' },
-    { href: '/compare', label: 'Compare', icon: '⚖️' },
   ];
 
   const isActive = (href: string) => pathname === href;
