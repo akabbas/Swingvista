@@ -60,8 +60,6 @@ export default function RootLayout({
   })();
 `;
 
-  const isDevelopment = process.env.NODE_ENV === 'development';
-
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.className} ${inter.variable} scroll-smooth antialiased font-sans`}>
       <head>
@@ -69,11 +67,11 @@ export default function RootLayout({
         <meta name="color-scheme" content="dark light" />
       </head>
       <body className={`min-h-screen bg-background text-foreground`}>
-        <Header environment={isDevelopment ? 'development' : 'production'} />
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900">
+        <Header />
+        <main className="min-h-screen bg-background">
           {children}
         </main>
-        <Footer environment={isDevelopment ? 'development' : 'production'} />
+        <Footer />
       </body>
     </html>
   );
