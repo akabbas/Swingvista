@@ -108,3 +108,4 @@ If you encounter issues:
 2. Verify your project is active and not paused
 3. Ensure you're using the correct region
 4. Check the Supabase documentation for API limits
+

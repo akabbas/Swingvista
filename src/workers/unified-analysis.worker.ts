@@ -50,3 +50,4 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     });
   }
 };
+

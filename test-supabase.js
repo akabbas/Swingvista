@@ -121,3 +121,4 @@ testConnection().then(success => {
     process.exit(1);
   }
 });
+

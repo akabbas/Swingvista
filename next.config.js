@@ -4,91 +4,21 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable font optimization
+  // Use Next's built-in font and CSS optimizations
   optimizeFonts: true,
 
-  // Compiler options
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Experimental features
   experimental: {
+    // Lightning CSS-based optimizations and critical CSS handling
     optimizeCss: true,
-    optimizeServerReact: true,
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
+    serverActions: { bodySizeLimit: '2mb' },
   },
 
-  // Configure webpack
-  webpack: (config, { dev, isServer }) => {
-    // Production optimizations
-    if (!dev && !isServer) {
-      // Optimize chunks
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          minSize: 20000,
-          maxSize: 50000,
-          cacheGroups: {
-            // Critical CSS chunk
-            critical: {
-              name: 'critical',
-              test: /\.(css|scss)$/,
-              chunks: 'all',
-              enforce: true,
-              priority: 50,
-            },
-            // Common styles chunk
-            styles: {
-              name: 'styles',
-              test: /\.(css|scss)$/,
-              chunks: 'all',
-              enforce: true,
-              priority: 10,
-            },
-            // Vendor chunk
-            vendors: {
-              test: /[\\/]node_modules[\\/]/,
-              priority: -10,
-              reuseExistingChunk: true,
-            },
-            // Default chunk
-            default: {
-              minChunks: 2,
-              priority: -20,
-              reuseExistingChunk: true,
-            },
-          },
-        },
-        minimize: true,
-        runtimeChunk: {
-          name: 'runtime',
-        },
-      };
-
-      // Add CSS optimization plugins
-      const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
-      config.optimization.minimizer = [
-        ...config.optimization.minimizer || [],
-        new CssMinimizerPlugin({
-          minimizerOptions: {
-            preset: [
-              'default',
-              {
-                discardComments: { removeAll: true },
-                normalizeWhitespace: true,
-                minifyFontValues: true,
-                minifyGradients: true,
-              },
-            ],
-          },
-        }),
-      ];
-    }
-
+  // Avoid custom CSS chunk splitting which can delay first paint
+  webpack: (config) => {
     return config;
   },
 }

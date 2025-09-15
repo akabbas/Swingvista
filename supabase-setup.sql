@@ -107,3 +107,4 @@ INSERT INTO swings (
 
 -- Verify the table was created successfully
 SELECT 'Table created successfully' as status, COUNT(*) as record_count FROM swings;
+

@@ -37,3 +37,4 @@ console.log('4. Update .env.local with your actual credentials');
 console.log('5. Run the SQL in supabase-setup.sql in your Supabase SQL Editor');
 console.log('6. Test with: node test-supabase.js');
 console.log('\n🚀 Or run the interactive setup: node setup-supabase.js');
+

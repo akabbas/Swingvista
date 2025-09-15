@@ -347,3 +347,4 @@ export const searchProSwings = (query: string): ProSwing[] => {
     swing.characteristics.some(char => char.toLowerCase().includes(lowercaseQuery))
   );
 };
+

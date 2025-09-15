@@ -59,3 +59,4 @@ createTable().then(success => {
     console.log('\n💡 After creating the table, run: node test-supabase.js');
   }
 });
+

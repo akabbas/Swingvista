@@ -2,20 +2,10 @@ const defaultTheme = require('tailwindcss/defaultTheme');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  mode: 'jit',
-  
   content: [
-    './src/app/**/*.{js,ts,jsx,tsx}',
-    './src/components/**/*.{js,ts,jsx,tsx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-
-  future: {
-    removeDeprecatedGapUtilities: true,
-    purgeLayersByDefault: true,
-    hoverOnlyWhenSupported: true,
-    disableColorOpacityUtilitiesByDefault: true,
-    respectDefaultRingColorOpacity: true,
-  },
 
   theme: {
     extend: {
@@ -38,24 +28,6 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-inter)', ...defaultTheme.fontFamily.sans],
       },
-    },
-  },
-
-  // Optimize CSS generation
-  experimental: {
-    optimizeUniversalDefaults: true,
-    matchVariant: true,
-  },
-
-  // Optimize CSS output
-  variants: {
-    extend: {
-      opacity: ['group-hover'],
-      transform: ['group-hover'],
-      scale: ['group-hover'],
-      backgroundColor: ['active', 'group-focus'],
-      textColor: ['group-focus'],
-      borderColor: ['group-focus'],
     },
   },
 

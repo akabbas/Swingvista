@@ -112,3 +112,4 @@ SELECT
   'Table created successfully' as status, 
   COUNT(*) as record_count 
 FROM public.swings;
+

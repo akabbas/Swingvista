@@ -1,4 +1,15 @@
-import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose';
+// Lazy load MediaPipe
+let Pose: any;
+let POSE_CONNECTIONS: any;
+
+async function loadMediaPipe() {
+  if (!Pose) {
+    const module = await import('@mediapipe/pose');
+    Pose = module.Pose;
+    POSE_CONNECTIONS = module.POSE_CONNECTIONS;
+  }
+  return { Pose, POSE_CONNECTIONS };
+}
 
 export interface PoseLandmark {
   x: number;
@@ -32,7 +43,7 @@ export interface SwingTrajectory {
 }
 
 export class MediaPipePoseDetector {
-  private pose: Pose | null = null;
+  private pose: any = null; // Type is dynamic due to lazy loading
   private isInitialized = false;
   private options: any;
   private pendingResolves: ((result: PoseResult | null) => void)[] = [];
@@ -53,8 +64,9 @@ export class MediaPipePoseDetector {
     if (this.isInitialized) return;
 
     try {
+      const { Pose } = await loadMediaPipe();
       this.pose = new Pose({
-        locateFile: (file) => {
+        locateFile: (file: string) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
         }
       });
@@ -69,7 +81,7 @@ export class MediaPipePoseDetector {
       });
 
       // Set up results handler
-      this.pose.onResults((results) => {
+      this.pose.onResults((results: { poseLandmarks?: any[], poseWorldLandmarks?: any[] }) => {
         const resolve = this.pendingResolves.shift();
         if (resolve) {
           if (results.poseLandmarks && results.poseLandmarks.length > 0) {

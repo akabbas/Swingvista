@@ -5,14 +5,13 @@ import { Inter } from 'next/font/google'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import EnvironmentBanner from '@/components/ui/EnvironmentBanner'
-import PreHydrationControl from '@/components/PreHydrationControl'
 
-// Configure font loading with swap + preload strategy
-const inter = Inter({ 
+// Configure font loading to avoid font swapping and FOUC
+const inter = Inter({
   subsets: ['latin'],
-  display: 'swap', // Use swap with preload for better performance
+  display: 'block',
   preload: true,
-  weight: ['300', '400', '500', '600', '700', '800'], // Preload all possible weights
+  weight: ['300', '400', '500', '600', '700', '800'],
   variable: '--font-inter',
   fallback: [
     '-apple-system',
@@ -23,8 +22,21 @@ const inter = Inter({
     'Arial',
     'sans-serif'
   ],
-  adjustFontFallback: true, // Enable for better font metrics matching
+  adjustFontFallback: true,
 })
+
+// Inline theme script to set initial color mode before React hydration
+const themeInitScript = `
+  (function() {
+    try {
+      var d = document.documentElement;
+      var s = localStorage.getItem('theme');
+      var m = window.matchMedia('(prefers-color-scheme: dark)');
+      var isDark = s === 'dark' || (!s && m.matches);
+      if (isDark) d.classList.add('dark'); else d.classList.remove('dark');
+    } catch (e) { /* noop */ }
+  })();
+`;
 
 export const metadata: Metadata = {
   title: 'SwingVista - Golf Swing Analysis',
@@ -64,7 +76,13 @@ export default function RootLayout({
 
   return (
     <html lang="en" className={`${inter.variable} scroll-smooth antialiased font-sans`}>
-      <PreHydrationControl />
+      <head>
+        <meta name="color-scheme" content="dark light" />
+        {/* Preconnects are harmless even when fonts are self-hosted by next/font */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-background text-foreground`}>
         {isDevelopment && <EnvironmentBanner />}
         <Header environment={isDevelopment ? 'development' : 'production'} />

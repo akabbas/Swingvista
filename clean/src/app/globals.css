@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 250 250 250;
+    --foreground: 26 26 26;
+  }
+
+  /* Map CSS variables to Tailwind v4 color tokens */
+  @theme inline {
+    --color-background: rgb(var(--background));
+    --color-foreground: rgb(var(--foreground));
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 10 10 10;
+      --foreground: 250 250 250;
+    }
+  }
+
+  html {
+    text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
