@@ -39,6 +39,12 @@ export async function extractPosesFromVideo(
   const MAX_POSES = maxFrames || 600; // Limit to prevent memory issues
   const poses: PoseResult[] = [];
   const qualityWarnings: string[] = [];
+  
+  // Add timeout protection
+  const timeoutMs = Math.min(60000, duration * 1000 + 10000); // Max 60s or video duration + 10s
+  const timeoutId = setTimeout(() => {
+    throw new Error(`Video processing timed out after ${timeoutMs}ms. Please try a shorter video.`);
+  }, timeoutMs);
 
   try {
     if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
@@ -114,6 +120,7 @@ export async function extractPosesFromVideo(
     }
   } finally {
     // Clean up resources properly
+    clearTimeout(timeoutId);
     detector.destroy();
     URL.revokeObjectURL(objectUrl);
     video.src = '';

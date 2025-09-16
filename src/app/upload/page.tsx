@@ -252,12 +252,20 @@ export default function UploadPage() {
     }
     reset();
     dispatch({ type: 'SET_ANALYZING', payload: true });
+    
+    // Add timeout protection
+    const timeoutId = setTimeout(() => {
+      dispatch({ type: 'SET_ERROR', payload: 'Analysis timed out. Please try a shorter video or check your internet connection.' });
+      dispatch({ type: 'SET_ANALYZING', payload: false });
+    }, 120000); // 2 minute timeout
+    
     try {
       dispatch({ type: 'SET_STEP', payload: 'Initializing...' }); 
       dispatch({ type: 'SET_PROGRESS', payload: 5 });
       const startTime = performance.now();
 
       // Advanced cache hydration by content hash
+      dispatch({ type: 'SET_STEP', payload: 'Checking cache...' });
       const contentHash = await hashVideoFile(state.file);
       const cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
 
@@ -268,6 +276,7 @@ export default function UploadPage() {
         dispatch({ type: 'SET_POSES', payload: cachedPoses });
         dispatch({ type: 'SET_RESULT', payload: cachedAnalysis });
         dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });
+        dispatch({ type: 'SET_PROGRESS', payload: 80 });
         const aiFromCache = await lazyAIAnalyzer.analyze(cachedPoses, cachedAnalysis.trajectory, cachedAnalysis.phases, 'driver');
         dispatch({ type: 'SET_AI_ANALYSIS', payload: aiFromCache });
         const endTimeCached = performance.now();
@@ -286,14 +295,22 @@ export default function UploadPage() {
         try { trackEvent('analysis_completed', { cacheHit: true, duration: endTimeCached - startTime, score: aiFromCache?.overallScore }); } catch {}
         dispatch({ type: 'SET_STEP', payload: 'Done' });
         dispatch({ type: 'SET_PROGRESS', payload: 100 });
+        clearTimeout(timeoutId);
         return;
       }
+      
+      // Extract poses with better progress reporting
+      dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 10 });
+      
       const extracted = await extractPosesFromVideo(state.file, { sampleFps: 30, maxFrames: 600 }, (s, p) => { 
         dispatch({ type: 'SET_STEP', payload: s }); 
-        dispatch({ type: 'SET_PROGRESS', payload: p * 0.6 }); 
+        dispatch({ type: 'SET_PROGRESS', payload: 10 + (p * 0.5) }); // 10-60%
       });
-      if (extracted.length < 10) throw new Error('Could not detect enough pose frames. Try a clearer video.');
+      
+      if (extracted.length < 10) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
       dispatch({ type: 'SET_POSES', payload: extracted });
+      dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
       await setCachedPoses(cacheKey, extracted);
 
       if (!workerPool) throw new Error('Worker pool not available');
@@ -302,19 +319,25 @@ export default function UploadPage() {
       const source = 'upload' as const;
 
       // Use worker pool for better performance
+      dispatch({ type: 'SET_STEP', payload: 'Analyzing swing mechanics...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 65 });
       const analysis = await workerPool.processMessage({ 
         type: 'ANALYZE_SWING', 
         data: { poses: extracted, club, swingId, source } 
       });
       dispatch({ type: 'SET_RESULT', payload: analysis });
+      dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
       await setCachedAnalysis(cacheKey, analysis);
       
       // Generate AI analysis (lazy loaded)
       dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 80 });
       const aiResult = await lazyAIAnalyzer.analyze(extracted, analysis.trajectory, analysis.phases, club);
       dispatch({ type: 'SET_AI_ANALYSIS', payload: aiResult });
       
       // Save to progress history
+      dispatch({ type: 'SET_STEP', payload: 'Saving to progress history...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 90 });
       ProgressTracker.saveAnalysis(aiResult, videoUrl || undefined);
       loadProgressHistory();
       
@@ -336,8 +359,11 @@ export default function UploadPage() {
 
       dispatch({ type: 'SET_STEP', payload: 'Done' }); 
       dispatch({ type: 'SET_PROGRESS', payload: 100 });
+      clearTimeout(timeoutId);
     } catch (err: any) {
-      dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to analyze video' });
+      console.error('Analysis error:', err);
+      dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to analyze video. Please try a different video or check your internet connection.' });
+      clearTimeout(timeoutId);
     } finally {
       dispatch({ type: 'SET_ANALYZING', payload: false });
     }
