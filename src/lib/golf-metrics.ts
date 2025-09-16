@@ -1,6 +1,6 @@
 import { PoseResult } from './mediapipe';
 import { SwingPhase } from './swing-phases';
-import { TrajectoryPoint, SwingTrajectory } from './mediapipe';
+import { SwingTrajectory } from './mediapipe';
 
 // Professional benchmark data based on PGA Tour statistics
 export const BENCHMARKS = {

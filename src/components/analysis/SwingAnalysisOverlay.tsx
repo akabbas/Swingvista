@@ -105,7 +105,7 @@ export default function SwingAnalysisOverlay({ videoUrl, poseData, metrics, clas
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [poseData, metrics]);
+  }, [poseData, metrics, currentPhase, feedback]);
 
   return (
     <div className={`relative ${className}`}>

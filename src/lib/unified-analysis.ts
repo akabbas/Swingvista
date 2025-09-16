@@ -134,7 +134,7 @@ function convertPosesToTrajectory(poses: PoseResult[]): SwingTrajectory {
   return { rightWrist, leftWrist, rightShoulder, leftShoulder, rightHip, leftHip, clubhead };
 }
 
-function calculateClubheadSpeed(clubheadTrajectory: TrajectoryPoint[]): number {
+function _calculateClubheadSpeed(clubheadTrajectory: TrajectoryPoint[]): number {
   if (clubheadTrajectory.length < 2) return 0;
   let maxSpeed = 0;
   for (let i = 1; i < clubheadTrajectory.length; i++) {

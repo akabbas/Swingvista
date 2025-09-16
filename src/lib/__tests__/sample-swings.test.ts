@@ -1,5 +1,5 @@
 import { extractPosesFromVideo } from '../video-poses';
-import { calculateSwingMetrics } from '../golf-metrics';
+import { calculateSwingMetrics as _calculateSwingMetrics } from '../golf-metrics';
 import { analyzeSwing } from '../unified-analysis';
 import { BENCHMARKS } from '../golf-metrics';
 

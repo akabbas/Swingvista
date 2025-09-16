@@ -4,8 +4,8 @@ import { validateEnv } from '@/lib/env/validate';
 
 export async function POST(req: NextRequest) {
   try {
-    const { ok } = validateEnv(); // OpenAI is recommended; route can still respond without it
-    const { poses, swingMetrics, recordingQuality } = await req.json();
+    const { ok: _envOk } = validateEnv(); // OpenAI is recommended; route can still respond without it
+    const { poses: _poses, swingMetrics, recordingQuality } = await req.json();
 
     const ai = getOpenAI();
     if (!ai) {

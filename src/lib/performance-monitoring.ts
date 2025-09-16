@@ -17,7 +17,6 @@ export class PerformanceMonitor {
       this.metrics = this.metrics.slice(-this.MAX_METRICS);
     }
     try {
-      // eslint-disable-next-line no-console
       console.log('[Performance] Analysis completed:', {
         duration: metrics.videoDuration,
         processingTime: metrics.processingTime,

@@ -568,7 +568,7 @@ export default function UploadPage() {
       dispatch({ type: 'SET_ANALYZING', payload: false });
       dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
     }
-  }, [state.file, workerPool, videoUrl, reset, loadProgressHistory]);
+  }, [state.file, workerPool, videoUrl, reset, loadProgressHistory, state.error, state.isAnalyzing, state.progress, state.step]);
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-16">
@@ -705,7 +705,19 @@ export default function UploadPage() {
                       <div className="space-y-8">
                         <div>
                           <h3 className="text-xl font-semibold mb-4">Swing Analysis</h3>
-                          <SwingFeedback feedback={state.result.aiFeedback} />
+                          {state.result.aiFeedback && (
+                            <SwingFeedback 
+                              analysis={{
+                                swingMetrics: state.result.metrics,
+                                overallScore: state.result.aiFeedback.overallScore,
+                                strengths: state.result.aiFeedback.strengths,
+                                improvements: state.result.aiFeedback.improvements,
+                                technicalNotes: state.result.aiFeedback.technicalNotes || [],
+                                recordingQuality: { angle: 'side', score: 80, recommendations: [] },
+                                openAI: true
+                              }}
+                            />
+                          )}
                         </div>
                         <div>
                           <h3 className="text-xl font-semibold mb-4">Drill Recommendations</h3>
