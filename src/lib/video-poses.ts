@@ -67,15 +67,30 @@ export async function extractPosesFromVideo(
     throw new Error('Failed to initialize video processing. Please refresh and try again.');
   }
 
-  // Shorter timeout for faster processing
-  const frameTimeoutMs = Math.max(10000, duration * 1000 + 3000); // 10s minimum or video duration + 3s
+  // More generous timeout for video processing
+  const frameTimeoutMs = Math.max(30000, duration * 2000 + 10000); // 30s minimum or video duration * 2 + 10s
+  console.log(`Video processing timeout set to ${frameTimeoutMs}ms for ${duration}s video`);
   let timeoutHandle: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
       console.error(`Frame processing timeout after ${frameTimeoutMs}ms for ${duration}s video`);
+      console.error(`Processed ${poses.length} poses out of ${MAX_POSES} max`);
       reject(new Error('Video processing is taking too long. Please try again or use a shorter video.'));
     }, frameTimeoutMs);
   });
+
+  // Add progress monitoring
+  let lastPoseCount = 0;
+  let lastProgressTime = Date.now();
+  const progressCheckInterval = setInterval(() => {
+    const now = Date.now();
+    if (poses.length === lastPoseCount && now - lastProgressTime > 5000) {
+      console.warn(`No progress for 5 seconds. Current poses: ${poses.length}/${MAX_POSES}`);
+    } else if (poses.length > lastPoseCount) {
+      lastPoseCount = poses.length;
+      lastProgressTime = now;
+    }
+  }, 1000);
 
   // Process video with timeout protection
   try {
@@ -108,31 +123,37 @@ export async function extractPosesFromVideo(
             console.log(`Processing frame at ${mediaTime.toFixed(2)}s (${poses.length + 1}/${MAX_POSES})`);
           }
 
-          if (shouldProcess && withinFrameLimit) {
-        const result = await detector.detectPose(video);
-        if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
-          // Override timestamp with mediaTime in ms for consistency
-          result.timestamp = Math.round(mediaTime * 1000);
-          poses.push(result);
-        } else if (result) {
-          // Log quality issues for user feedback
-          const quality = assessPoseQuality(result, minConfidence);
-          if (quality?.score && quality.score < qualityThreshold) {
-            qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
-          }
-        }
-            lastProcessedMediaTime = mediaTime;
+                   if (shouldProcess && withinFrameLimit) {
+                     console.log(`Detecting pose for frame at ${mediaTime.toFixed(2)}s`);
+                     const result = await detector.detectPose(video);
+                     if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
+                       // Override timestamp with mediaTime in ms for consistency
+                       result.timestamp = Math.round(mediaTime * 1000);
+                       poses.push(result);
+                       console.log(`Added pose ${poses.length}/${MAX_POSES} at ${mediaTime.toFixed(2)}s`);
+                     } else if (result) {
+                       // Log quality issues for user feedback
+                       const quality = assessPoseQuality(result, minConfidence);
+                       if (quality?.score && quality.score < qualityThreshold) {
+                         qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
+                         console.log(`Pose quality too low at ${mediaTime.toFixed(2)}s: ${quality.issues?.join(', ')}`);
+                       }
+                     } else {
+                       console.log(`No pose detected at ${mediaTime.toFixed(2)}s`);
+                     }
+                     lastProcessedMediaTime = mediaTime;
 
             const progress = duration > 0 ? Math.min(99, (mediaTime / duration) * 100) : Math.min(99, poses.length);
             onProgress?.('Reading video frames...', progress);
           }
 
-          if (video.ended || poses.length >= MAX_POSES) {
-            isStopped = true;
-            video.pause();
-            resolve();
-            return;
-          }
+                   if (video.ended || poses.length >= MAX_POSES) {
+                     isStopped = true;
+                     video.pause();
+                     console.log(`Video processing completed: ${poses.length} poses extracted`);
+                     resolve();
+                     return;
+                   }
 
           (video as any).requestVideoFrameCallback(handler);
         };
@@ -175,19 +196,11 @@ export async function extractPosesFromVideo(
   } finally {
     // Clean up resources properly
     clearTimeout(timeoutHandle);
+    clearInterval(progressCheckInterval);
     detector.destroy();
     URL.revokeObjectURL(objectUrl);
     video.src = '';
     video.remove();
-  }
-
-  // Process video with timeout protection
-  try {
-    await Promise.race([processVideo(), timeoutPromise]);
-    onProgress?.('Frames captured', 100);
-  } catch (error) {
-    console.error('Video processing failed:', error);
-    throw error instanceof Error ? error : new Error('Unknown video processing error');
   }
 
   // Filter out any accidental nulls and ensure we have enough frames for analysis pipeline
