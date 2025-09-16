@@ -77,9 +77,9 @@ export async function extractPosesFromVideo(
     }, frameTimeoutMs);
   });
 
-  // Define video processing function
-  const processVideo = async () => {
-    try {
+  // Process video with timeout protection
+  try {
+    const processVideo = async () => {
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         console.log('Using modern video frame callback');
         // Modern path: process frames while playing
@@ -164,10 +164,15 @@ export async function extractPosesFromVideo(
         }
       }
       return poses;
-    } catch (error) {
-      console.error('Error in processVideo:', error);
-      throw error;
-    } finally {
+    };
+
+    const result = await Promise.race([processVideo(), timeoutPromise]);
+    onProgress?.('Frames captured', 100);
+    return result;
+  } catch (error) {
+    console.error('Video processing failed:', error);
+    throw error instanceof Error ? error : new Error('Unknown video processing error');
+  } finally {
     // Clean up resources properly
     clearTimeout(timeoutHandle);
     detector.destroy();
