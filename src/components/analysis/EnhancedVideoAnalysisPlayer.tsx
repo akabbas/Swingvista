@@ -5,6 +5,9 @@ import { PoseResult } from '@/lib/mediapipe';
 import { SwingMetrics } from '@/lib/golf-metrics';
 import { EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
 import SwingPhaseNavigator from './SwingPhaseNavigator';
+import OverlaySystem, { OverlayMode } from './OverlaySystem';
+import OverlayControls from './OverlayControls';
+import { useOverlayPreferences } from '@/hooks/useOverlayPreferences';
 
 interface EnhancedVideoAnalysisPlayerProps {
   videoUrl: string;
@@ -25,11 +28,24 @@ export default function EnhancedVideoAnalysisPlayer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showOverlays, setShowOverlays] = useState(true);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [slowMotionPhases, setSlowMotionPhases] = useState<Set<string>>(new Set());
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  // Overlay preferences
+  const {
+    preferences,
+    isLoaded: preferencesLoaded,
+    setOverlayMode,
+    setAutoSwitch,
+    setShowTooltips,
+    setPerformanceMode,
+    getSmartOverlayMode,
+  } = useOverlayPreferences();
+
+  // Get current overlay mode (with smart switching)
+  const currentOverlayMode = getSmartOverlayMode(isPlaying);
 
   // Video event handlers
   const handleVideoLoad = useCallback(() => {
@@ -191,238 +207,7 @@ export default function EnhancedVideoAnalysisPlayer({
     return Math.random() * 180; // Placeholder calculation
   };
 
-  // Draw pose landmarks
-  const drawPoseLandmarks = useCallback((ctx: CanvasRenderingContext2D, pose: PoseResult) => {
-    console.log('DEBUG - Drawing pose landmarks:', pose);
-    
-    if (!pose || !pose.landmarks || !Array.isArray(pose.landmarks)) {
-      console.warn('DEBUG - Invalid pose data for drawing:', pose);
-      return;
-    }
-
-    const { width, height } = ctx.canvas;
-    const points = pose.landmarks;
-    
-    console.log('DEBUG - Canvas dimensions:', { width, height });
-    console.log('DEBUG - Landmarks count:', points.length);
-    
-    // Helper function to draw connections
-    const connect = (a: number, b: number, color = 'rgba(0, 255, 0, 0.8)', lineWidth = 3) => {
-      const pa = points[a];
-      const pb = points[b];
-      if (!pa || !pb || (pa.visibility && pa.visibility < 0.5) || (pb.visibility && pb.visibility < 0.5)) return;
-      
-      ctx.beginPath();
-      ctx.moveTo(pa.x * width, pa.y * height);
-      ctx.lineTo(pb.x * width, pb.y * height);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
-      ctx.stroke();
-    };
-
-    // Draw skeleton connections
-    const connections = [
-      // Head
-      [0, 1], [1, 2], [2, 3], [3, 7],
-      [0, 4], [4, 5], [5, 6], [6, 8],
-      // Torso
-      [11, 12], [11, 23], [12, 24], [23, 24],
-      // Arms
-      [11, 13], [13, 15], [12, 14], [14, 16],
-      // Legs
-      [23, 25], [25, 27], [24, 26], [26, 28]
-    ];
-
-    // Draw connections
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-    ctx.lineWidth = 3;
-    connections.forEach(([a, b]) => connect(a, b, 'rgba(0, 255, 0, 0.8)', 3));
-
-    // Draw key points
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
-    points.forEach((point, index) => {
-      if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
-        console.warn('DEBUG - Invalid point data:', point, 'at index:', index);
-        return;
-      }
-      
-      if (point.visibility && point.visibility < 0.5) return;
-      
-      ctx.beginPath();
-      ctx.arc(point.x * width, point.y * height, 4, 0, 2 * Math.PI);
-      ctx.fill();
-    });
-    
-    console.log('DEBUG - Pose landmarks drawn successfully');
-  }, []);
-
-  // Draw phase overlay
-  const drawPhaseOverlay = useCallback((ctx: CanvasRenderingContext2D) => {
-    const { width, height } = ctx.canvas;
-    
-    if (!phases || phases.length === 0) return;
-    
-    const currentPhase = getCurrentPhase();
-    if (!currentPhase) return;
-    
-    // Draw semi-transparent phase background
-    ctx.fillStyle = `${currentPhase.color}20`;
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw phase information panel
-    const panelWidth = 400;
-    const panelHeight = 120;
-    const margin = 20;
-    
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(margin, margin, panelWidth, panelHeight);
-    
-    // Phase name
-    ctx.fillStyle = currentPhase.color;
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(currentPhase.name.toUpperCase(), margin + 20, margin + 40);
-    
-    // Phase description
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '16px Arial';
-    ctx.fillText(currentPhase.description, margin + 20, margin + 65);
-    
-    // Phase progress bar
-    const progressBarWidth = 360;
-    const progressBarHeight = 8;
-    const progressBarY = margin + 90;
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fillRect(margin + 20, progressBarY, progressBarWidth, progressBarHeight);
-    
-    const phaseProgress = (currentTime - currentPhase.startTime) / (currentPhase.endTime - currentPhase.startTime);
-    ctx.fillStyle = currentPhase.color;
-    ctx.fillRect(margin + 20, progressBarY, progressBarWidth * phaseProgress, progressBarHeight);
-    
-    // Phase timing
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '14px Arial';
-    const timeText = `${(currentPhase.startTime / 1000).toFixed(1)}s - ${(currentPhase.endTime / 1000).toFixed(1)}s`;
-    ctx.fillText(timeText, margin + 20, margin + 110);
-    
-    // Grade
-    ctx.fillText(`Grade: ${currentPhase.grade}`, margin + 200, margin + 110);
-    
-    // Confidence
-    ctx.fillText(`Confidence: ${(currentPhase.confidence * 100).toFixed(0)}%`, margin + 300, margin + 110);
-  }, [phases, currentTime, getCurrentPhase]);
-
-  // Draw key metrics overlay
-  const drawMetricsOverlay = useCallback((ctx: CanvasRenderingContext2D) => {
-    const { width, height } = ctx.canvas;
-    const currentPhase = getCurrentPhase();
-    
-    if (!currentPhase) return;
-    
-    // Position metrics panel on the right side
-    const panelWidth = 300;
-    const panelHeight = 200;
-    const margin = 20;
-    const panelX = width - panelWidth - margin;
-    
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(panelX, margin, panelWidth, panelHeight);
-    
-    // Title
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText('Phase Metrics', panelX + 20, margin + 30);
-    
-    // Phase-specific metrics
-    ctx.font = '14px Arial';
-    let yOffset = margin + 60;
-    
-    Object.entries(currentPhase.metrics).forEach(([key, value]) => {
-      if (value === undefined || value === null) return;
-      
-      let displayValue = value;
-      let unit = '';
-      
-      if (typeof value === 'number') {
-        if (key.includes('Angle') || key.includes('Rotation')) {
-          unit = '°';
-        } else if (key.includes('Transfer') || key.includes('Balance')) {
-          unit = '%';
-        } else if (key.includes('Ratio')) {
-          unit = ':1';
-        }
-        displayValue = value.toFixed(1);
-      } else if (typeof value === 'object' && value.left !== undefined) {
-        displayValue = `${value.left.toFixed(0)}/${value.right.toFixed(0)}`;
-        unit = '%';
-      }
-      
-      const label = key.replace(/([A-Z])/g, ' $1').trim();
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(`${label}:`, panelX + 20, yOffset);
-      ctx.fillStyle = currentPhase.color;
-      ctx.fillText(`${displayValue}${unit}`, panelX + 150, yOffset);
-      
-      yOffset += 20;
-    });
-  }, [currentTime, getCurrentPhase]);
-
-  // Main drawing function
-  const drawFrame = useCallback(() => {
-    console.log('DEBUG - drawFrame called, showOverlays:', showOverlays);
-    
-    if (!canvasRef.current || !videoRef.current) {
-      console.warn('DEBUG - Missing canvas or video ref');
-      return;
-    }
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.warn('DEBUG - Could not get canvas context');
-      return;
-    }
-    
-    const { videoWidth, videoHeight } = videoRef.current;
-    if (videoWidth === 0 || videoHeight === 0) {
-      console.warn('DEBUG - Video dimensions are 0:', { videoWidth, videoHeight });
-      return;
-    }
-    
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
-    
-    console.log('DEBUG - Canvas set to video dimensions:', { videoWidth, videoHeight });
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    if (showOverlays) {
-      console.log('DEBUG - Drawing overlays...');
-      
-      // Draw phase overlay first (background)
-      drawPhaseOverlay(ctx);
-      
-      // Draw pose landmarks
-      const closestPose = findClosestPose(currentTime);
-      console.log('DEBUG - Closest pose found:', closestPose);
-      
-      if (closestPose) {
-        drawPoseLandmarks(ctx, closestPose);
-      } else {
-        console.warn('DEBUG - No pose found for current time:', currentTime);
-      }
-      
-      // Draw metrics overlay
-      drawMetricsOverlay(ctx);
-      
-      console.log('DEBUG - All overlays drawn');
-    } else {
-      console.log('DEBUG - Overlays disabled, skipping drawing');
-    }
-  }, [currentTime, showOverlays, findClosestPose, drawPhaseOverlay, drawPoseLandmarks, drawMetricsOverlay]);
+  // Overlay system handles all drawing now
 
   // Handle video time updates
   const handleTimeUpdate = useCallback(() => {
@@ -496,31 +281,6 @@ export default function EnhancedVideoAnalysisPlayer({
     }
   }, [slowMotionPhases, getCurrentPhase]);
 
-  // Draw frame on time update and continuously during playback
-  useEffect(() => {
-    drawFrame();
-    
-    // Set up continuous drawing during playback
-    let animationFrameId: number;
-    
-    const animate = () => {
-      drawFrame();
-      if (videoRef.current && !videoRef.current.paused) {
-        animationFrameId = requestAnimationFrame(animate);
-      }
-    };
-    
-    if (videoRef.current && !videoRef.current.paused) {
-      animationFrameId = requestAnimationFrame(animate);
-    }
-    
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [drawFrame]);
-
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Debug Panel */}
@@ -537,11 +297,25 @@ export default function EnhancedVideoAnalysisPlayer({
             <div>
               <p><strong>Poses Count:</strong> {poses?.length || 0}</p>
               <p><strong>Phases Count:</strong> {phases?.length || 0}</p>
-              <p><strong>Show Overlays:</strong> {showOverlays ? 'Yes' : 'No'}</p>
+              <p><strong>Overlay Mode:</strong> {currentOverlayMode}</p>
               <p><strong>Playback Speed:</strong> {playbackSpeed}x</p>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Overlay Controls */}
+      {preferencesLoaded && (
+        <OverlayControls
+          currentMode={currentOverlayMode}
+          onModeChange={setOverlayMode}
+          autoSwitch={preferences.autoSwitch}
+          onAutoSwitchChange={setAutoSwitch}
+          showTooltips={preferences.showTooltips}
+          onShowTooltipsChange={setShowTooltips}
+          performanceMode={preferences.performanceMode}
+          onPerformanceModeChange={setPerformanceMode}
+        />
       )}
       
       {/* Video Player */}
@@ -573,6 +347,17 @@ export default function EnhancedVideoAnalysisPlayer({
             style={{ imageRendering: 'pixelated' }}
           />
           
+          {/* Overlay System */}
+          <OverlaySystem
+            canvasRef={canvasRef}
+            videoRef={videoRef}
+            poses={poses}
+            phases={phases}
+            currentTime={currentTime}
+            overlayMode={currentOverlayMode}
+            isPlaying={isPlaying}
+          />
+          
           {!videoLoaded && !videoError && (
             <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center">
               <div className="text-center">
@@ -593,16 +378,9 @@ export default function EnhancedVideoAnalysisPlayer({
               {isPlaying ? '⏸️ Pause' : '▶️ Play'}
             </button>
             
-            <button
-              onClick={() => setShowOverlays(!showOverlays)}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                showOverlays 
-                  ? 'bg-green-600 text-white hover:bg-green-700' 
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            >
-              {showOverlays ? '👁️ Hide Overlays' : '👁️ Show Overlays'}
-            </button>
+            <div className="text-sm text-gray-600">
+              Mode: {currentOverlayMode.charAt(0).toUpperCase() + currentOverlayMode.slice(1)}
+            </div>
             
             <div className="flex items-center space-x-2">
               <label className="text-sm text-gray-600">Speed:</label>
