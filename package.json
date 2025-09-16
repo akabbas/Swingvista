@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "clean": "rm -rf .next",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "precommit": "node scripts/precommit-secrets-scan.js"
   },
   "dependencies": {
     "@mediapipe/pose": "^0.5.1675469404",

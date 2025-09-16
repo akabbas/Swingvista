@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAI } from '@/lib/openai';
+import { validateEnv } from '@/lib/env/validate';
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, swingMetrics, recordingQuality } = await req.json();
+    const { ok } = validateEnv(); // OpenAI is recommended; route can still respond without it
+    const { poses, swingMetrics, recordingQuality } = await req.json();
 
     const ai = getOpenAI();
     if (!ai) {
@@ -19,11 +21,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const prompt = `Analyze this swing based on provided metrics and poses.`;
     const completion = await ai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are a seasoned golf coach. Be constructive and specific.' },
-        { role: 'user', content: prompt || 'Analyze my swing based on provided metrics.' }
+        { role: 'user', content: JSON.stringify({ prompt, swingMetrics, recordingQuality }) }
       ],
       temperature: 0.7,
       max_tokens: 800,

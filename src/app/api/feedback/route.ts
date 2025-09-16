@@ -1,26 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseServer } from '@/lib/supabase/server';
+import { validateEnv } from '@/lib/env/validate';
 
 export async function POST(request: NextRequest) {
   try {
+    const { ok, missing } = validateEnv();
+    if (!ok) return NextResponse.json({ error: 'Missing environment variables', missing }, { status: 500 });
+
     const { feedback, timestamp, email } = await request.json();
     if (!feedback || typeof feedback !== 'string') {
       return NextResponse.json({ error: 'Invalid feedback' }, { status: 400 });
     }
     const ts = timestamp || new Date().toISOString();
 
-    // Attempt to save to Supabase if configured; otherwise just log
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // Prefer service role on the server if available, fallback to anon/publishable
-    const serverKey = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url && serverKey) {
+    const supabase = getSupabaseServer();
+    if (supabase) {
       try {
-        const supabase = createClient(url, serverKey);
         const payload: any = { feedback, timestamp: ts };
         if (email && typeof email === 'string') payload.email = email;
-        await supabase
-          .from('feedback')
-          .insert([payload]);
+        await supabase.from('feedback').insert([payload]);
       } catch {
         console.warn('Failed to persist feedback to Supabase, falling back to log.');
         console.log('[Feedback]', { feedback, timestamp: ts });
@@ -37,10 +35,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serverKey = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url && serverKey) {
-      const supabase = createClient(url, serverKey);
+    const supabase = getSupabaseServer();
+    if (supabase) {
       const { data, error } = await supabase
         .from('feedback')
         .select('*')
