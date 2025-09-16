@@ -15,4 +15,4 @@ install-command = "npm ci"
 [build.args]
 NODE_ENV = "production"
 NODE_OPTIONS = "--max-old-space-size=4096"
-OPENAI_API_KEY = "dummy-key-for-build"
+OPENAI_API_KEY = "sk-4o-mini-prod-x892-20230515"
