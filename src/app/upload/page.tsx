@@ -1,6 +1,6 @@
 "use client";
 import Link from 'next/link';
-import React, { useMemo, useRef, useReducer, useCallback } from 'react';
+import React, { useMemo, useRef, useReducer, useCallback, useEffect } from 'react';
 import ProgressBar from '@/components/ui/ProgressBar';
 import ErrorAlert from '@/components/ui/ErrorAlert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -132,8 +132,15 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
 }
 
 export default function UploadPage() {
+  console.log('UploadPage component mounted');
   const [state, dispatch] = useReducer(uploadReducer, initialState);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Debug mount state
+  useEffect(() => {
+    console.log('UploadPage mounted, inputRef:', inputRef.current);
+    return () => console.log('UploadPage unmounted');
+  }, []);
 
   const videoUrl = useMemo(() => {
     if (!state.file) return null;
@@ -161,7 +168,16 @@ export default function UploadPage() {
 
   const onChooseFile = () => {
     console.log('Choose file button clicked');
-    inputRef.current?.click();
+    try {
+      if (!inputRef.current) {
+        console.error('inputRef is null!');
+        return;
+      }
+      console.log('Clicking input ref:', inputRef.current);
+      inputRef.current.click();
+    } catch (err) {
+      console.error('Error in onChooseFile:', err);
+    }
   };
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,7 +237,13 @@ export default function UploadPage() {
   }, []);
 
   const analyze = useCallback(async () => {
-    console.log('Analyze button clicked, file:', state.file?.name);
+    console.log('Analyze button clicked, current state:', {
+      file: state.file?.name,
+      isAnalyzing: state.isAnalyzing,
+      error: state.error,
+      step: state.step
+    });
+    
     if (!state.file) { 
       console.log('No file selected, showing error');
       dispatch({ type: 'SET_ERROR', payload: 'Please choose a video file first.' }); 
