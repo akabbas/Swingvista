@@ -9,7 +9,7 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   preload: true,
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   fallback: [
     "-apple-system",
     "BlinkMacSystemFont",
@@ -19,18 +19,17 @@ const inter = Inter({
     "Arial",
     "sans-serif",
   ],
-  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
-  title: "SwingVista - Clean Baseline",
-  description: "FOUC-free baseline for SwingVista",
+  title: "SwingVista - Golf Swing Analysis",
+  description: "Advanced golf swing analysis with AI-powered insights",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#3B82F6",
+  themeColor: "#10B981",
 };
 
 export default function RootLayout({
@@ -39,10 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.className} ${inter.variable} scroll-smooth antialiased font-sans`}>
-      <body className="min-h-screen bg-background text-foreground">
+    <html lang="en" className={`${inter.className} ${inter.variable}`}>
+      <body className="min-h-screen bg-white text-gray-900 antialiased">
         <Header />
-        <main className="min-h-screen bg-background">
+        <main className="min-h-screen bg-white">
           {children}
         </main>
         <Footer />
