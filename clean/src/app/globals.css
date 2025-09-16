@@ -3,12 +3,13 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme (default) */
   :root {
     --background: 250 250 250;
     --foreground: 26 26 26;
   }
 
-  /* Support class-based theming to avoid relying solely on media query */
+  /* Dark theme */
   .dark {
     --background: 10 10 10;
     --foreground: 250 250 250;
@@ -20,21 +21,34 @@
     --color-foreground: rgb(var(--foreground));
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: 10 10 10;
-      --foreground: 250 250 250;
-    }
-  }
-
+  /* Prevent FOUC by setting initial background */
   html {
     text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Initial background to prevent white flash */
+    background-color: rgb(250 250 250);
+  }
+
+  /* Dark theme background */
+  html.dark {
+    background-color: rgb(10 10 10);
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Ensure smooth transitions */
+    transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+  }
+
+  /* Prevent flash during font loading */
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300 800;
+    font-display: swap;
+    src: url('/_next/static/media/inter-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }
 }
