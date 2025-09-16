@@ -1,61 +1,69 @@
 # SwingVista Components Guide
 
-This guide provides detailed information about all UI components in the SwingVista application, their usage, props, and examples.
+This guide documents all the React components available in the SwingVista application, their props, usage examples, and styling guidelines.
 
-## Table of Contents
+## Component Architecture
 
-- [Layout Components](#layout-components)
-- [UI Components](#ui-components)
-- [Specialized Components](#specialized-components)
-- [Component Patterns](#component-patterns)
-- [Styling Guidelines](#styling-guidelines)
+SwingVista uses a component-based architecture with:
+- **Layout Components**: Structure and navigation
+- **UI Components**: Reusable interface elements
+- **Page Components**: Full page layouts
+- **Feature Components**: Specific functionality (planned)
 
 ## Layout Components
 
 ### Header
-**File**: `src/components/layout/Header.tsx`
 
-Navigation header with responsive design and environment awareness.
+**Location**: `src/components/layout/Header.tsx`
 
-**Features**:
-- Responsive navigation menu
-- Environment banner integration
-- Mobile-friendly hamburger menu
-- Theme toggle support
+The main navigation header with logo and navigation links.
 
-**Usage**:
-```tsx
-import Header from '@/components/layout/Header';
-
+```typescript
 <Header />
 ```
 
-### Footer
-**File**: `src/components/layout/Footer.tsx`
-
-Site footer with links and information.
-
 **Features**:
-- Social media links
-- Copyright information
-- Responsive design
-- Accessibility compliance
+- Responsive design with mobile-friendly navigation
+- Logo with gradient background
+- Navigation links with hover effects
+- Consistent spacing and typography
 
-**Usage**:
-```tsx
-import Footer from '@/components/layout/Footer';
+**Styling**:
+- Fixed height (56px)
+- White background with bottom border
+- Green-to-blue gradient logo
+- Hover states for navigation links
 
+### Footer
+
+**Location**: `src/components/layout/Footer.tsx`
+
+The application footer with copyright and navigation links.
+
+```typescript
 <Footer />
 ```
+
+**Features**:
+- Dynamic copyright year
+- Navigation links
+- Clean, minimal design
+- Responsive layout
+
+**Styling**:
+- Top border separator
+- White background
+- Gray text for secondary information
+- Hover effects on links
 
 ## UI Components
 
 ### Button
-**File**: `src/components/ui/Button.tsx`
 
-Versatile button component with multiple variants and states.
+**Location**: `src/components/ui/Button.tsx`
 
-**Props**:
+A versatile button component with multiple variants and states.
+
 ```typescript
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline';
@@ -67,47 +75,53 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 ```
 
+**Usage Examples**:
+
+```typescript
+// Primary button
+<Button variant="primary" size="md">
+  Click me
+</Button>
+
+// Button with loading state
+<Button loading={true}>
+  Processing...
+</Button>
+
+// Button with icon
+<Button icon={<Icon />}>
+  Save
+</Button>
+
+// Full width button
+<Button fullWidth={true}>
+  Submit
+</Button>
+
+// Outline button
+<Button variant="outline">
+  Cancel
+</Button>
+```
+
 **Variants**:
 - `primary`: Blue background, white text
 - `secondary`: Gray background, white text
 - `danger`: Red background, white text
 - `success`: Green background, white text
-- `outline`: Transparent background, bordered
+- `outline`: Transparent background, border
 
 **Sizes**:
-- `sm`: Small padding and text
-- `md`: Medium padding and text (default)
-- `lg`: Large padding and text
-
-**Usage**:
-```tsx
-import Button from '@/components/ui/Button';
-
-// Basic button
-<Button onClick={handleClick}>Click me</Button>
-
-// Button with icon
-<Button icon={<Icon />} variant="primary">
-  Save
-</Button>
-
-// Loading button
-<Button loading={isLoading} variant="success">
-  Processing...
-</Button>
-
-// Full width button
-<Button fullWidth variant="outline">
-  Cancel
-</Button>
-```
+- `sm`: Small padding, small text
+- `md`: Medium padding, base text
+- `lg`: Large padding, large text
 
 ### LoadingSpinner
-**File**: `src/components/ui/LoadingSpinner.tsx`
 
-Loading spinner component with customizable size and text.
+**Location**: `src/components/ui/LoadingSpinner.tsx`
 
-**Props**:
+A loading indicator with optional text.
+
 ```typescript
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -116,49 +130,30 @@ interface LoadingSpinnerProps {
 }
 ```
 
-**Usage**:
-```tsx
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+**Usage Examples**:
 
+```typescript
 // Basic spinner
 <LoadingSpinner />
 
 // Spinner with text
-<LoadingSpinner text="Loading analysis..." size="lg" />
+<LoadingSpinner text="Loading..." />
+
+// Large spinner
+<LoadingSpinner size="lg" text="Processing video..." />
 ```
 
-### ProgressBar
-**File**: `src/components/ui/ProgressBar.tsx`
-
-Progress bar component with step indication.
-
-**Props**:
-```typescript
-interface ProgressBarProps {
-  progress: number;
-  step?: string;
-  className?: string;
-  showPercentage?: boolean;
-}
-```
-
-**Usage**:
-```tsx
-import ProgressBar from '@/components/ui/ProgressBar';
-
-<ProgressBar 
-  progress={75} 
-  step="Analyzing swing..." 
-  showPercentage={true} 
-/>
-```
+**Sizes**:
+- `sm`: 16px × 16px
+- `md`: 24px × 24px
+- `lg`: 32px × 32px
 
 ### ErrorAlert
-**File**: `src/components/ui/ErrorAlert.tsx`
 
-Error alert component with dismiss functionality.
+**Location**: `src/components/ui/ErrorAlert.tsx`
 
-**Props**:
+An alert component for displaying error messages.
+
 ```typescript
 interface ErrorAlertProps {
   message: string;
@@ -168,41 +163,72 @@ interface ErrorAlertProps {
 }
 ```
 
-**Usage**:
-```tsx
-import ErrorAlert from '@/components/ui/ErrorAlert';
+**Usage Examples**:
 
+```typescript
+// Error alert
+<ErrorAlert message="Something went wrong!" />
+
+// Dismissible warning
 <ErrorAlert 
-  message="Analysis failed. Please try again." 
-  onDismiss={() => setError(null)}
-  type="error"
+  type="warning" 
+  message="Please check your input"
+  onDismiss={() => setShowAlert(false)}
+/>
+
+// Info alert
+<ErrorAlert 
+  type="info" 
+  message="Analysis complete!"
 />
 ```
 
-### EnvironmentBanner
-**File**: `src/components/ui/EnvironmentBanner.tsx`
+**Types**:
+- `error`: Red styling with error icon
+- `warning`: Yellow styling with warning icon
+- `info`: Blue styling with info icon
 
-Environment indicator banner for development/production.
+### ProgressBar
 
-**Features**:
-- Automatic environment detection
-- Connection status testing
-- Development-only display
-- Supabase connection validation
+**Location**: `src/components/ui/ProgressBar.tsx`
 
-**Usage**:
-```tsx
-import EnvironmentBanner from '@/components/ui/EnvironmentBanner';
+A progress bar component for showing completion status.
 
-<EnvironmentBanner />
+```typescript
+interface ProgressBarProps {
+  progress: number;
+  step?: string;
+  className?: string;
+  showPercentage?: boolean;
+}
 ```
 
+**Usage Examples**:
+
+```typescript
+// Basic progress bar
+<ProgressBar progress={75} />
+
+// With step description
+<ProgressBar 
+  progress={50} 
+  step="Processing video..."
+  showPercentage={true}
+/>
+```
+
+**Features**:
+- Smooth animations
+- Optional step description
+- Percentage display
+- Responsive design
+
 ### Tooltip
-**File**: `src/components/ui/Tooltip.tsx`
 
-Tooltip component with customizable positioning and delay.
+**Location**: `src/components/ui/Tooltip.tsx`
 
-**Props**:
+A tooltip component for providing additional information.
+
 ```typescript
 interface TooltipProps {
   content: string;
@@ -213,269 +239,202 @@ interface TooltipProps {
 }
 ```
 
-**Usage**:
-```tsx
-import Tooltip from '@/components/ui/Tooltip';
+**Usage Examples**:
 
-<Tooltip content="Real-time pose detection and analysis" position="top">
-  <button>Live Analysis</button>
+```typescript
+// Basic tooltip
+<Tooltip content="Click to start recording">
+  <Button>Record</Button>
+</Tooltip>
+
+// Tooltip with custom position
+<Tooltip 
+  content="Upload your golf swing video"
+  position="bottom"
+  delay={500}
+>
+  <Button>Upload</Button>
 </Tooltip>
 ```
 
-### ThemeToggle
-**File**: `src/components/ui/ThemeToggle.tsx`
+**Positions**:
+- `top`: Above the element
+- `bottom`: Below the element
+- `left`: To the left of the element
+- `right`: To the right of the element
 
-Theme toggle component for dark/light mode switching.
+## Page Components
 
-**Features**:
-- System preference detection
-- Local storage persistence
-- Smooth transitions
-- Accessible design
+### Home Page
 
-**Usage**:
-```tsx
-import ThemeToggle from '@/components/ui/ThemeToggle';
+**Location**: `src/app/page.tsx`
 
-<ThemeToggle />
-```
-
-### Skeleton
-**File**: `src/components/ui/Skeleton.tsx`
-
-Loading skeleton component for better UX during data loading.
-
-**Props**:
-```typescript
-interface SkeletonProps {
-  className?: string;
-  variant?: 'text' | 'rectangular' | 'circular';
-  width?: string | number;
-  height?: string | number;
-  animation?: 'pulse' | 'wave' | 'none';
-}
-```
-
-**Predefined Components**:
-- `SkeletonCard`: Card-shaped skeleton
-- `SkeletonTable`: Table-shaped skeleton
-- `SkeletonList`: List-shaped skeleton
-
-**Usage**:
-```tsx
-import Skeleton, { SkeletonCard, SkeletonTable } from '@/components/ui/Skeleton';
-
-// Basic skeleton
-<Skeleton width={200} height={20} />
-
-// Card skeleton
-<SkeletonCard />
-
-// Table skeleton
-<SkeletonTable />
-```
-
-## Specialized Components
-
-### ExportDialog
-**File**: `src/components/ui/ExportDialog.tsx`
-
-Modal dialog for export options with progress feedback.
-
-**Props**:
-```typescript
-interface ExportDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  swingData: ExportData;
-  onExportComplete?: () => void;
-}
-```
+The main dashboard page with navigation to key features.
 
 **Features**:
-- Export format selection (JSON/CSV)
-- Data inclusion options
-- Progress tracking
-- Error handling
+- Welcome message
+- Feature navigation buttons
+- Responsive design
+- Call-to-action buttons
 
-**Usage**:
-```tsx
-import ExportDialog from '@/components/ui/ExportDialog';
+### Camera Page
 
-<ExportDialog
-  isOpen={showExportDialog}
-  onClose={() => setShowExportDialog(false)}
-  swingData={swingData}
-  onExportComplete={() => console.log('Export complete')}
-/>
-```
+**Location**: `src/app/camera/page.tsx`
 
-### MonitoringDashboard
-**File**: `src/components/ui/MonitoringDashboard.tsx`
-
-Monitoring dashboard for logs and performance metrics.
-
-**Props**:
-```typescript
-interface MonitoringDashboardProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-```
+The camera analysis interface page.
 
 **Features**:
-- Live log viewing
-- Performance metrics display
-- Log filtering and search
-- Export capabilities
+- Camera access interface
+- Recording controls
+- Settings options
+- Navigation back to home
 
-**Usage**:
-```tsx
-import MonitoringDashboard from '@/components/ui/MonitoringDashboard';
+### Upload Page
 
-<MonitoringDashboard
-  isOpen={showMonitoring}
-  onClose={() => setShowMonitoring(false)}
-/>
-```
+**Location**: `src/app/upload/page.tsx`
 
-## Component Patterns
+The video upload interface page.
 
-### Consistent Styling
-All components follow consistent styling patterns:
-
-```tsx
-// Base classes for consistency
-const baseClasses = 'transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
-
-// Variant-based styling
-const variantClasses = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700',
-  secondary: 'bg-gray-600 text-white hover:bg-gray-700',
-  // ...
-};
-
-// Size-based styling
-const sizeClasses = {
-  sm: 'px-3 py-2 text-sm',
-  md: 'px-4 py-2 text-base',
-  lg: 'px-6 py-3 text-lg'
-};
-```
-
-### Accessibility
-All components include proper accessibility features:
-
-```tsx
-// ARIA labels
-<button aria-label="Close dialog" onClick={onClose}>
-
-// Focus management
-useEffect(() => {
-  if (isOpen) {
-    const firstFocusable = dialogRef.current?.querySelector('[tabindex="0"]');
-    firstFocusable?.focus();
-  }
-}, [isOpen]);
-
-// Keyboard navigation
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    onClose();
-  }
-};
-```
-
-### Error Boundaries
-Components are wrapped in error boundaries for graceful error handling:
-
-```tsx
-<ErrorBoundary fallback={<ErrorAlert message="Something went wrong" />}>
-  <ComponentThatMightError />
-</ErrorBoundary>
-```
+**Features**:
+- File upload area
+- Analysis controls
+- Navigation back to home
 
 ## Styling Guidelines
 
-### Tailwind CSS Classes
-Use Tailwind CSS for consistent styling:
+### Design System
 
-```tsx
-// Responsive design
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+**Colors**:
+- Primary: `#10B981` (Green)
+- Secondary: `#3B82F6` (Blue)
+- Success: `#10B981` (Green)
+- Danger: `#EF4444` (Red)
+- Warning: `#F59E0B` (Yellow)
+- Info: `#3B82F6` (Blue)
 
-// Dark mode support
-<div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+**Typography**:
+- Font Family: Inter (Google Fonts)
+- Headings: Font weights 600-700
+- Body: Font weight 400-500
+- Small text: Font weight 400
 
-// Hover states
-<button className="hover:bg-blue-700 transition-colors">
+**Spacing**:
+- Consistent use of Tailwind spacing scale
+- 4px base unit (0.25rem)
+- Responsive spacing with `sm:`, `md:`, `lg:` prefixes
 
-// Focus states
-<input className="focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+**Shadows**:
+- Subtle shadows for depth
+- Hover effects with enhanced shadows
+- Consistent shadow patterns across components
+
+### Responsive Design
+
+All components are built with mobile-first responsive design:
+
+```typescript
+// Example responsive classes
+className="flex flex-col sm:flex-row gap-4 sm:gap-6"
 ```
 
-### Color Palette
-Use the defined color palette for consistency:
+**Breakpoints**:
+- `sm`: 640px and up
+- `md`: 768px and up
+- `lg`: 1024px and up
+- `xl`: 1280px and up
 
-```tsx
-// Primary colors
-'bg-blue-600', 'text-blue-600', 'border-blue-600'
+### Accessibility
 
-// Success colors
-'bg-green-600', 'text-green-600', 'border-green-600'
+All components include accessibility features:
 
-// Error colors
-'bg-red-600', 'text-red-600', 'border-red-600'
+- **ARIA labels**: Screen reader support
+- **Keyboard navigation**: Tab and focus management
+- **Color contrast**: WCAG AA compliant
+- **Semantic HTML**: Proper element usage
 
-// Warning colors
-'bg-yellow-600', 'text-yellow-600', 'border-yellow-600'
+### Animation
+
+Consistent animation patterns:
+
+```typescript
+// Hover effects
+className="transition-all duration-200 hover:shadow-lg"
+
+// Loading states
+className="animate-spin"
+
+// Transform effects
+className="transform hover:-translate-y-1"
 ```
 
-### Spacing
-Use consistent spacing scale:
-
-```tsx
-// Padding
-'p-2', 'p-4', 'p-6', 'p-8'
-
-// Margin
-'m-2', 'm-4', 'm-6', 'm-8'
-
-// Gap
-'gap-2', 'gap-4', 'gap-6', 'gap-8'
-```
-
-## Best Practices
+## Usage Best Practices
 
 ### Component Composition
-- Use composition over inheritance
-- Keep components small and focused
-- Extract reusable logic into custom hooks
 
-### Performance
-- Use React.memo for expensive components
-- Implement proper key props for lists
-- Avoid unnecessary re-renders
+```typescript
+// Good: Composing components
+<div className="space-y-4">
+  <ErrorAlert message="Error occurred" />
+  <Button variant="primary">Retry</Button>
+</div>
 
-### Testing
-- Write tests for component behavior
-- Test accessibility features
-- Mock external dependencies
+// Good: Using props for customization
+<Button 
+  variant="success" 
+  size="lg" 
+  fullWidth={true}
+  loading={isLoading}
+>
+  Save Changes
+</Button>
+```
 
-### Documentation
-- Document all props and their types
-- Provide usage examples
-- Include accessibility notes
+### State Management
 
-## Contributing
+```typescript
+// Good: Local state for UI
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
 
-When adding new components:
+// Good: Conditional rendering
+{error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+{isLoading && <LoadingSpinner text="Processing..." />}
+```
 
-1. Follow the established patterns
-2. Include proper TypeScript types
-3. Add accessibility features
-4. Write comprehensive tests
-5. Update this documentation
-6. Follow the styling guidelines
+### Error Handling
 
-For questions or suggestions, please open an issue or submit a pull request.
+```typescript
+// Good: Error boundaries and user feedback
+try {
+  await processVideo();
+} catch (error) {
+  setError('Failed to process video. Please try again.');
+}
+```
+
+## Future Components
+
+### Planned Components
+
+1. **VideoPlayer**: Custom video player with analysis overlays
+2. **SwingAnalysis**: Display swing metrics and feedback
+3. **UserProfile**: User account management
+4. **SettingsPanel**: Application settings
+5. **NotificationToast**: Toast notifications
+6. **Modal**: Modal dialog component
+7. **Form**: Form components with validation
+8. **Chart**: Data visualization components
+
+### Component Development Guidelines
+
+1. **TypeScript**: Always use TypeScript interfaces
+2. **Props**: Use descriptive prop names
+3. **Default Values**: Provide sensible defaults
+4. **Accessibility**: Include ARIA attributes
+5. **Responsive**: Mobile-first design
+6. **Testing**: Include test cases
+7. **Documentation**: Document all props and usage
+
+---
+
+This components guide will be updated as new components are added and existing ones are modified.

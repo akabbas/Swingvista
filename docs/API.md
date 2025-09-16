@@ -1,172 +1,244 @@
-# API Documentation
+# SwingVista API Documentation
 
 ## Overview
 
-SwingVista provides a RESTful API for managing golf swing data and analysis. All endpoints are prefixed with `/api/`.
+SwingVista is currently a frontend-only application built with Next.js 15. This document outlines the current API structure and planned backend integration.
 
-## Authentication
+## Current Status
 
-Currently, the API uses a simple user ID system. In production, implement proper authentication.
+**Frontend Only**: The current version of SwingVista is a client-side application with no backend API endpoints. All functionality is implemented in the browser using:
 
-## Endpoints
+- Next.js 15 with App Router
+- React 19 components
+- TypeScript for type safety
+- Tailwind CSS for styling
 
-### Swings
+## Planned API Endpoints
 
-#### `POST /api/swings`
-
-Create a new swing record.
-
-**Request Body:**
-```json
-{
-  "club": "driver",
-  "metrics": {
-    "swingPlaneAngle": 12.5,
-    "tempoRatio": 2.1,
-    "hipRotation": 30.0,
-    "shoulderRotation": 45.0,
-    "impactFrame": 15,
-    "backswingTime": 1.2,
-    "downswingTime": 0.6
-  },
-  "feedback": ["Good tempo", "Rotate more"]
-}
+### Authentication
+```
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/auth/register
+GET  /api/auth/me
 ```
 
-**Response:**
-```json
-{
-  "id": "uuid",
-  "user_id": "demo-user",
-  "club": "driver",
-  "metrics": { ... },
-  "feedback": [ ... ],
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
+### Swing Analysis
+```
+POST /api/swings/analyze
+GET  /api/swings/:id
+GET  /api/swings/user/:userId
+PUT  /api/swings/:id
+DELETE /api/swings/:id
 ```
 
-#### `GET /api/swings`
-
-Get swing history for a user.
-
-**Query Parameters:**
-- `type=stats` - Get club statistics instead of individual swings
-
-**Response:**
-```json
-[
-  {
-    "id": "uuid",
-    "club": "driver",
-    "metrics": { ... },
-    "feedback": [ ... ],
-    "created_at": "2024-01-01T00:00:00Z"
-  }
-]
+### Video Processing
+```
+POST /api/videos/upload
+GET  /api/videos/:id/status
+GET  /api/videos/:id/analysis
+DELETE /api/videos/:id
 ```
 
-#### `GET /api/swings/[id]`
-
-Get specific swing details.
-
-**Response:**
-```json
-{
-  "id": "uuid",
-  "user_id": "demo-user",
-  "club": "driver",
-  "metrics": { ... },
-  "feedback": [ ... ],
-  "video_url": "optional_video_url",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
+### User Management
+```
+GET  /api/users/profile
+PUT  /api/users/profile
+GET  /api/users/swings
 ```
 
-### Ball Detection
+## Current Frontend Routes
 
-#### `POST /api/infer/ball`
+### Pages
+- `/` - Home dashboard
+- `/camera` - Camera analysis interface
+- `/upload` - Video upload interface
 
-Mock ball detection endpoint (ready for YOLOv8 integration).
+### Components API
 
-**Request Body:**
-```json
-{
-  "image": "base64_encoded_image"
-}
+#### Layout Components
+```typescript
+// Header component
+<Header />
+// Props: None
+// Features: Navigation, logo, responsive design
+
+// Footer component  
+<Footer />
+// Props: None
+// Features: Copyright, navigation links
 ```
 
-**Response:**
-```json
-{
-  "detected": true,
-  "confidence": 0.95,
-  "bounding_box": {
-    "x": 100,
-    "y": 200,
-    "width": 50,
-    "height": 50
-  }
-}
+#### UI Components
+```typescript
+// Button component
+<Button 
+  variant="primary" | "secondary" | "outline"
+  size="sm" | "md" | "lg"
+  disabled?: boolean
+  onClick?: () => void
+  children: React.ReactNode
+/>
+
+// LoadingSpinner component
+<LoadingSpinner 
+  size?: "sm" | "md" | "lg"
+  text?: string
+/>
+
+// ErrorAlert component
+<ErrorAlert 
+  message: string
+  onDismiss?: () => void
+/>
+
+// ProgressBar component
+<ProgressBar 
+  progress: number // 0-100
+  label?: string
+/>
+```
+
+## Data Flow
+
+### Current Implementation
+1. **User Interaction** → React Component
+2. **State Management** → React Hooks (useState, useEffect)
+3. **UI Updates** → Re-render with new state
+4. **Styling** → Tailwind CSS classes
+
+### Planned Backend Integration
+1. **User Action** → Frontend Component
+2. **API Request** → Next.js API Route
+3. **Processing** → Backend Service (Python/Node.js)
+4. **Response** → Frontend State Update
+5. **UI Update** → Component Re-render
+
+## Technology Stack
+
+### Frontend
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS 4
+- **State**: React Hooks
+- **HTTP Client**: Fetch API (planned)
+
+### Planned Backend
+- **Runtime**: Node.js or Python
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth
+- **File Storage**: Supabase Storage
+- **AI Processing**: MediaPipe, TensorFlow.js
+
+## Environment Variables
+
+### Current
+```bash
+# No environment variables currently required
+```
+
+### Planned
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# API Configuration
+API_BASE_URL=http://localhost:3000/api
+UPLOAD_MAX_SIZE=100MB
+
+# AI Processing
+MEDIAPIPE_MODEL_PATH=/models/pose_landmarker.task
 ```
 
 ## Error Handling
 
-All endpoints return appropriate HTTP status codes:
+### Current
+- Client-side error boundaries
+- Form validation
+- Network error handling (planned)
 
-- `200` - Success
-- `400` - Bad Request
-- `404` - Not Found
-- `500` - Internal Server Error
+### Planned
+- API error responses
+- Retry mechanisms
+- User-friendly error messages
+- Logging and monitoring
 
-Error responses include a message:
+## Performance Considerations
 
-```json
-{
-  "error": "Error message"
-}
+### Current Optimizations
+- Critical CSS inlined
+- Font preloading
+- Image optimization
+- Code splitting
+
+### Planned Optimizations
+- API response caching
+- Background processing
+- Progressive loading
+- CDN integration
+
+## Security
+
+### Current
+- Client-side validation
+- XSS protection via React
+- CSRF protection via Next.js
+
+### Planned
+- JWT authentication
+- API rate limiting
+- Input sanitization
+- File upload validation
+
+## Development
+
+### Local Development
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm run start
 ```
 
-## Rate Limiting
+### Testing
+```bash
+# Run linting
+npm run lint
 
-Currently no rate limiting is implemented. Consider adding rate limiting for production use.
+# Run tests (planned)
+npm run test
 
-## Data Models
-
-### SwingRecord
-
-```typescript
-interface SwingRecord {
-  id: string;
-  user_id: string;
-  club: string;
-  metrics: {
-    swingPlaneAngle: number;
-    tempoRatio: number;
-    hipRotation: number;
-    shoulderRotation: number;
-    impactFrame: number;
-    backswingTime: number;
-    downswingTime: number;
-  };
-  feedback: string[];
-  video_url?: string;
-  created_at: string;
-  updated_at: string;
-}
+# Run type checking
+npx tsc --noEmit
 ```
 
-### ClubStats
+## Deployment
 
-```typescript
-interface ClubStats {
-  club: string;
-  total_swings: number;
-  avg_swing_plane: number;
-  avg_tempo_ratio: number;
-  avg_hip_rotation: number;
-  avg_shoulder_rotation: number;
-  last_swing: string;
-}
-```
+### Current
+- Static site generation
+- Vercel/Netlify compatible
+- No server requirements
+
+### Planned
+- Full-stack deployment
+- Database migrations
+- Environment configuration
+- Monitoring and logging
+
+## Future Enhancements
+
+1. **Real-time Analysis**: WebSocket connections for live camera feed
+2. **AI Integration**: MediaPipe pose detection
+3. **User Accounts**: Authentication and data persistence
+4. **Mobile App**: React Native version
+5. **Analytics**: User behavior tracking
+6. **Social Features**: Share analysis results
+
+---
+
+**Note**: This API documentation will be updated as backend functionality is implemented. Currently, SwingVista is a frontend-only application focused on UI/UX and performance optimization.

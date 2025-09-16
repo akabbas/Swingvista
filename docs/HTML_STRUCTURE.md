@@ -1,337 +1,202 @@
-# HTML Structure and Component Architecture
+# SwingVista HTML Structure Documentation
 
-This document outlines the improved HTML structure, component architecture, and environment awareness implemented in SwingVista.
+This document outlines the HTML structure, semantic markup, and accessibility features of the SwingVista application.
 
-## 🏗️ Component Architecture
+## Application Architecture
 
-### Layout Components
+SwingVista is built with Next.js 15 using the App Router, which generates semantic HTML with proper structure and accessibility features.
 
-#### Header Component (`src/components/layout/Header.tsx`)
-- **Purpose**: Navigation header with environment status indicator
-- **Features**:
-  - Responsive navigation with mobile menu
-  - Environment connection status (development only)
-  - Active page highlighting
-  - Breadcrumb navigation
+## Root Layout Structure
 
-```tsx
-<Header environment="development" />
+### HTML Document Structure
+
+```html
+<!DOCTYPE html>
+<html lang="en" class="inter-font inter-variable">
+<head>
+  <!-- Critical CSS inlined to prevent FOUC -->
+  <style>
+    html { background-color: #FAFAFA !important; }
+    body { margin: 0 !important; background-color: #FAFAFA !important; }
+    .fouc-prevention { background-color: #FAFAFA !important; }
+  </style>
+  
+  <!-- Meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10B981">
+  
+  <!-- Title and description -->
+  <title>SwingVista - Golf Swing Analysis</title>
+  <meta name="description" content="Advanced golf swing analysis with AI-powered insights">
+</head>
+<body class="min-h-screen bg-white text-gray-900 antialiased fouc-prevention">
+  <header class="border-b border-gray-200 bg-white">
+    <!-- Header content -->
+  </header>
+  
+  <main class="min-h-screen bg-white">
+    <!-- Page content -->
+  </main>
+  
+  <footer class="border-t border-gray-200 bg-white">
+    <!-- Footer content -->
+  </footer>
+</body>
+</html>
 ```
 
-#### Footer Component (`src/components/layout/Footer.tsx`)
-- **Purpose**: Site footer with links and branding
-- **Features**:
-  - Quick links to main pages
-  - Support links
-  - Environment indicator
-  - Social links and contact information
+## Page Structure
 
-```tsx
-<Footer environment="production" />
+### Home Page (`/`)
+
+```html
+<main class="max-w-5xl mx-auto px-4 py-16">
+  <div class="text-center">
+    <h1 class="text-5xl font-bold mb-6 text-gray-900">
+      Welcome to <span class="text-green-600">SwingVista</span>
+    </h1>
+    <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+      Advanced golf swing analysis with AI-powered insights.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12">
+      <a href="/camera" class="w-full sm:w-auto bg-green-600 text-white px-10 py-4 rounded-xl font-semibold hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]">
+        📹 Start Camera Analysis
+      </a>
+      <a href="/upload" class="w-full sm:w-auto bg-gray-100 text-gray-900 px-10 py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]">
+        📤 Upload Video
+      </a>
+    </div>
+  </div>
+</main>
 ```
 
-### UI Components
+## Component Structure
 
-#### Button Component (`src/components/ui/Button.tsx`)
-- **Purpose**: Consistent button styling across the application
-- **Variants**: `primary`, `secondary`, `danger`, `success`, `outline`
-- **Sizes**: `sm`, `md`, `lg`
-- **Features**:
-  - Loading states
-  - Icon support
-  - Full width option
-  - AsChild support for Link components
+### Header Component
 
-```tsx
-<Button 
-  variant="primary" 
-  size="lg" 
-  loading={isLoading}
-  icon={<Icon />}
-  fullWidth
->
-  Click Me
-</Button>
+```html
+<header class="border-b border-gray-200 bg-white">
+  <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+    <a href="/" class="flex items-center space-x-2">
+      <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+        <span class="text-white font-bold text-sm">SV</span>
+      </div>
+      <span class="font-bold text-xl text-gray-800">SwingVista</span>
+    </a>
+    <nav class="flex items-center gap-8 text-sm font-medium">
+      <a href="/" class="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200">
+        🏠 Home
+      </a>
+      <a href="/camera" class="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200">
+        📹 Camera
+      </a>
+      <a href="/upload" class="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200">
+        📤 Upload
+      </a>
+    </nav>
+  </div>
+</header>
 ```
 
-#### LoadingSpinner Component (`src/components/ui/LoadingSpinner.tsx`)
-- **Purpose**: Consistent loading indicators
-- **Sizes**: `sm`, `md`, `lg`
-- **Features**:
-  - Optional text
-  - Customizable styling
+## Semantic HTML Elements
 
-```tsx
-<LoadingSpinner size="md" text="Loading..." />
+### Document Structure
+- `<html>`: Root element with language attribute
+- `<head>`: Document metadata and resources
+- `<body>`: Document content with accessibility classes
+
+### Content Structure
+- `<header>`: Site header with navigation
+- `<main>`: Main content area
+- `<footer>`: Site footer with links
+- `<nav>`: Navigation sections
+
+### Heading Hierarchy
+```html
+<h1>Welcome to SwingVista</h1>          <!-- Page title -->
+  <h2>Camera Ready</h2>                  <!-- Section title -->
+  <h2>Upload Area</h2>                   <!-- Section title -->
 ```
 
-#### ProgressBar Component (`src/components/ui/ProgressBar.tsx`)
-- **Purpose**: Progress indication for long operations
-- **Features**:
-  - Step text display
-  - Percentage display
-  - Smooth animations
+## Accessibility Features
 
-```tsx
-<ProgressBar 
-  progress={75} 
-  step="Processing video..." 
-  showPercentage={true}
-/>
+### ARIA Attributes
+```html
+<button disabled aria-label="Processing, please wait">
+  Processing...
+</button>
+
+<nav role="navigation" aria-label="Main navigation">
+  <a href="/" aria-current="page">Home</a>
+</nav>
 ```
 
-#### ErrorAlert Component (`src/components/ui/ErrorAlert.tsx`)
-- **Purpose**: User-friendly error messages
-- **Types**: `error`, `warning`, `info`
-- **Features**:
-  - Dismissible alerts
-  - Icon indicators
-  - Custom styling
-
-```tsx
-<ErrorAlert 
-  message="Something went wrong" 
-  onDismiss={() => setError(null)}
-  type="error"
-/>
+### Focus Management
+```html
+<button tabindex="0" onkeydown="handleKeyDown">
+  Start Recording
+</button>
 ```
 
-## 🌍 Environment Awareness
-
-### Environment Configuration (`src/lib/environment.ts`)
-
-The environment system provides dynamic configuration based on the current environment:
-
-```typescript
-interface EnvironmentConfig {
-  isDevelopment: boolean;
-  isProduction: boolean;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-  apiBaseUrl: string;
-  appName: string;
-  version: string;
-}
-```
-
-#### Features:
-- **Dynamic API URLs**: Automatically switches between local and production endpoints
-- **Connection Testing**: Validates Supabase and API connections
-- **Environment Banners**: Development-only status indicators
-- **Console Logging**: Debug information in development mode
-
-#### Usage:
-```typescript
-import { getEnvironmentConfig, testEnvironmentConnection } from '@/lib/environment';
-
-const config = getEnvironmentConfig();
-const connectionTest = await testEnvironmentConnection();
-```
-
-### Environment Banner (`src/components/ui/EnvironmentBanner.tsx`)
-- **Purpose**: Development environment status indicator
-- **Features**:
-  - Connection status display
-  - Version information
-  - Dismissible banner
-  - Real-time connection testing
-
-## 📱 Responsive Design
+## Responsive Design Structure
 
 ### Mobile-First Approach
-All components are designed with mobile-first principles:
-
-```css
-/* Mobile first */
-.grid-cols-1
-
-/* Tablet */
-.md:grid-cols-2
-
-/* Desktop */
-.lg:grid-cols-3
+```html
+<div class="flex flex-col sm:flex-row gap-6 justify-center items-center">
+  <button class="w-full sm:w-auto ...">Mobile Full Width</button>
+  <button class="w-full sm:w-auto ...">Desktop Auto Width</button>
+</div>
 ```
 
-### Breakpoints
-- **Mobile**: `< 768px`
-- **Tablet**: `768px - 1024px`
-- **Desktop**: `> 1024px`
+### Breakpoint Classes
+- `sm:` (640px+): Small screens and up
+- `md:` (768px+): Medium screens and up
+- `lg:` (1024px+): Large screens and up
+- `xl:` (1280px+): Extra large screens and up
 
-### Responsive Navigation
-- **Desktop**: Horizontal navigation bar
-- **Mobile**: Collapsible hamburger menu
-- **Touch-friendly**: Large tap targets (44px minimum)
+## Performance Optimizations
 
-## ♿ Accessibility Features
-
-### Semantic HTML5 Elements
-- `<header>`: Page headers and navigation
-- `<nav>`: Navigation sections
-- `<main>`: Main content area
-- `<section>`: Content sections
-- `<article>`: Self-contained content
-- `<aside>`: Sidebar content
-- `<footer>`: Page footers
-
-### ARIA Support
-- **Labels**: Proper form labels with `for` attributes
-- **Descriptions**: `aria-describedby` for help text
-- **Live Regions**: `aria-live` for dynamic content
-- **Roles**: `role` attributes for custom components
-- **States**: `aria-expanded`, `aria-selected`, etc.
-
-### Keyboard Navigation
-- **Tab Order**: Logical tab sequence
-- **Focus Management**: Visible focus indicators
-- **Skip Links**: Jump to main content
-- **Keyboard Shortcuts**: Common actions accessible via keyboard
-
-### Screen Reader Support
-- **Alt Text**: Descriptive image alternatives
-- **Headings**: Proper heading hierarchy (h1 → h2 → h3)
-- **Landmarks**: ARIA landmarks for navigation
-- **Descriptions**: Context for interactive elements
-
-## 🧪 Testing Strategy
-
-### HTML Structure Tests (`src/__tests__/html-structure.test.ts`)
-Comprehensive tests for:
-- Semantic HTML5 elements
-- Accessibility features
-- Responsive design classes
-- Form validation
-- SEO and meta tags
-- Performance optimizations
-
-### Component Tests
-Each component includes:
-- **Unit Tests**: Individual component functionality
-- **Accessibility Tests**: ARIA compliance
-- **Responsive Tests**: Breakpoint behavior
-- **Integration Tests**: Component interaction
-
-### DOM Mocking
-Proper DOM mocking for testing:
-```typescript
-const mockDocument = {
-  createElement: vi.fn(),
-  body: {
-    appendChild: vi.fn(),
-    removeChild: vi.fn()
-  }
-};
+### Critical CSS Inlining
+```html
+<style>
+  html { background-color: #FAFAFA !important; }
+  body { margin: 0 !important; }
+  .fouc-prevention { background-color: #FAFAFA !important; }
+</style>
 ```
 
-## 🎨 Styling Guidelines
-
-### Tailwind CSS Classes
-Consistent use of Tailwind utility classes:
-
-```css
-/* Layout */
-.max-w-7xl .mx-auto .px-4 .sm:px-6 .lg:px-8
-
-/* Spacing */
-.space-y-4 .space-x-2 .py-8 .px-6
-
-/* Colors */
-.bg-blue-600 .text-white .hover:bg-blue-700
-
-/* Responsive */
-.grid .grid-cols-1 .md:grid-cols-2 .lg:grid-cols-3
+### Font Loading
+```html
+<link rel="preload" href="/_next/static/media/inter.woff2" as="font" type="font/woff2" crossorigin>
 ```
 
-### Component Styling
-- **Consistent Spacing**: 4px grid system
-- **Color Palette**: Semantic color usage
-- **Typography**: Consistent font sizes and weights
-- **Shadows**: Subtle depth indicators
-- **Transitions**: Smooth state changes
+## SEO Structure
 
-## 📊 Performance Optimizations
-
-### Image Optimization
-```tsx
-<img 
-  src="/image.jpg" 
-  alt="Descriptive text"
-  loading="lazy"
-  width={800}
-  height={600}
-/>
+### Meta Tags
+```html
+<head>
+  <title>SwingVista - Golf Swing Analysis</title>
+  <meta name="description" content="Advanced golf swing analysis with AI-powered insights">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10B981">
+</head>
 ```
 
-### Video Optimization
-```tsx
-<video 
-  muted 
-  playsInline 
-  preload="metadata"
-  controls
->
-  <source src="/video.mp4" type="video/mp4" />
-</video>
-```
+## Future HTML Enhancements
 
-### Bundle Optimization
-- **Code Splitting**: Dynamic imports for heavy components
-- **Tree Shaking**: Unused code elimination
-- **Lazy Loading**: Components loaded on demand
+### Planned Features
+1. **Video Elements**: `<video>` tags for swing analysis
+2. **Form Elements**: Input fields for user data
+3. **Canvas Elements**: For swing visualization
+4. **WebRTC Elements**: For camera access
 
-## 🔧 Development Guidelines
-
-### Adding New Components
-1. Create component in appropriate directory (`ui/` or `layout/`)
-2. Add TypeScript interfaces
-3. Include accessibility features
-4. Add responsive design
-5. Write comprehensive tests
-6. Update documentation
-
-### Environment Variables
-Required environment variables:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_API_URL=your_api_url (optional)
-NEXT_PUBLIC_APP_VERSION=1.0.0 (optional)
-```
-
-### Code Standards
-- **TypeScript**: Strict type checking
-- **ESLint**: Code quality enforcement
-- **Prettier**: Code formatting
-- **Husky**: Pre-commit hooks
-- **Conventional Commits**: Standardized commit messages
-
-## 🚀 Deployment Considerations
-
-### Production Build
-- **Environment Detection**: Automatic production/development detection
-- **Asset Optimization**: Minified CSS and JavaScript
-- **Image Optimization**: WebP format with fallbacks
-- **CDN Integration**: Static asset delivery
-
-### Performance Monitoring
-- **Core Web Vitals**: LCP, FID, CLS tracking
-- **Bundle Analysis**: Size monitoring
-- **Error Tracking**: Runtime error collection
-- **User Analytics**: Usage pattern analysis
-
-## 📚 Resources
-
-### Documentation
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [React Accessibility](https://reactjs.org/docs/accessibility.html)
-- [ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
-
-### Tools
-- [axe DevTools](https://www.deque.com/axe/devtools/) - Accessibility testing
-- [Lighthouse](https://developers.google.com/web/tools/lighthouse) - Performance auditing
-- [WAVE](https://wave.webaim.org/) - Web accessibility evaluation
-- [Color Contrast Checker](https://webaim.org/resources/contrastchecker/) - Color accessibility
+### Accessibility Improvements
+1. **Skip Links**: Navigation shortcuts
+2. **Landmark Roles**: Better screen reader support
+3. **Live Regions**: Dynamic content announcements
+4. **High Contrast**: Better color contrast options
 
 ---
 
-This architecture ensures SwingVista is accessible, performant, and maintainable across all devices and environments.
+This HTML structure documentation will be updated as new features and accessibility improvements are added to the application.
