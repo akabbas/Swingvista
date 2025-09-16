@@ -13,7 +13,8 @@ import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
 
 // Lazy load heavy components
 const DrillRecommendations = lazy(() => import('@/components/analysis/DrillRecommendations'));
-const GolfGradeCard = lazy(() => import('@/components/analysis/GolfGradeCard'));
+// Lazy load GolfGradeCard for future use
+const _GolfGradeCard = lazy(() => import('@/components/analysis/GolfGradeCard'));
 const ProgressChart = lazy(() => import('@/components/analysis/ProgressChart'));
 import { extractPosesFromVideo } from '@/lib/video-poses';
 import { lazyAIAnalyzer } from '@/lib/lazy-ai-analyzer';
@@ -269,13 +270,12 @@ export default function UploadPage() {
   }, []);
 
   const analyze = useCallback(async () => {
-    const currentState = {
+    console.log('Analyze button clicked, current state:', {
       file: state.file?.name,
       isAnalyzing: state.isAnalyzing,
       error: state.error,
       step: state.step
-    };
-    console.log('Analyze button clicked, current state:', currentState);
+    });
     
     if (!state.file) { 
       console.log('No file selected, showing error');
