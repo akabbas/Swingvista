@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openAIClient: OpenAI | null = null;
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  if (!openAIClient) {
+    openAIClient = new OpenAI({ apiKey });
+  }
+  return openAIClient;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +45,27 @@ Please provide:
 Format your response as JSON with these keys: overallAssessment, strengths, improvements, keyTip, recordingTips
 `;
 
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+
+    // Fallback: if no API key is configured at build/runtime, return a basic structured response
+    if (!client) {
+      const fallback = {
+        overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
+        strengths: [
+          swingMetrics.plane?.consistency ? `Plane consistency ${(swingMetrics.plane.consistency * 100).toFixed(0)}%` : 'Solid rhythm'
+        ],
+        improvements: [
+          swingMetrics.tempo?.ratio && swingMetrics.tempo.ratio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
+          swingMetrics.rotation?.shoulders && swingMetrics.rotation.shoulders < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
+        ],
+        keyTip: 'Work one priority at a time; film from down-the-line in good light.',
+        recordingTips: recordingQuality?.score && recordingQuality.score < 0.7 ? ['Record in brighter light', 'Ensure full body in frame'] : []
+      };
+
+      return NextResponse.json({ success: true, analysis: fallback, timestamp: new Date().toISOString() });
+    }
+
+    const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
