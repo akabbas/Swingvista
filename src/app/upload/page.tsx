@@ -9,6 +9,7 @@ import { lazy, Suspense } from 'react';
 import SwingFeedback from '@/components/analysis/SwingFeedback';
 import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
 import PoseOverlay from '@/components/analysis/PoseOverlay';
+import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
 
 // Lazy load heavy components
 const DrillRecommendations = lazy(() => import('@/components/analysis/DrillRecommendations'));
@@ -471,14 +472,24 @@ export default function UploadPage() {
 
             {state.activeTab === 'video' && videoUrl && state.poses && (
               <div className="mb-10">
-                <h2 className="text-xl font-semibold mb-4">Your Swing with Pose Detection</h2>
-                <PoseOverlay videoUrl={videoUrl} poseData={state.poses} className="mb-6" />
+                <h2 className="text-xl font-semibold mb-4">Your Swing Analysis</h2>
+                {state.result ? (
+                  <SwingAnalysisOverlay 
+                    videoUrl={videoUrl} 
+                    poseData={state.poses} 
+                    metrics={state.result.metrics}
+                    className="mb-6" 
+                  />
+                ) : (
+                  <PoseOverlay videoUrl={videoUrl} poseData={state.poses} className="mb-6" />
+                )}
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-medium mb-2">How to interpret this visualization:</h3>
+                  <h3 className="font-medium mb-2">Real-time Analysis Guide:</h3>
                   <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Green dots show your body's key positions throughout the swing</li>
-                    <li>Blue lines connect related joints to show alignment</li>
-                    <li>Look for smooth, connected movement without sudden jerks</li>
+                    <li>Green dots show body position tracking</li>
+                    <li>Blue lines indicate body alignment</li>
+                    <li>Watch for phase-specific feedback as the video plays</li>
+                    <li>Metrics update based on your position in the swing</li>
                   </ul>
                 </div>
               </div>
