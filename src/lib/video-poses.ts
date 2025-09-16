@@ -79,21 +79,22 @@ export async function extractPosesFromVideo(
 
   // Define video processing function
   const processVideo = async () => {
-    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-      console.log('Using modern video frame callback');
-      // Modern path: process frames while playing
-      video.currentTime = 0;
-      try {
-        await video.play();
-        console.log('Video playback started');
-      } catch (error) {
-        console.error('Video playback failed:', error);
-        // Continue even if autoplay fails - we can still process frames
-      }
+    try {
+      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+        console.log('Using modern video frame callback');
+        // Modern path: process frames while playing
+        video.currentTime = 0;
+        try {
+          await video.play();
+          console.log('Video playback started');
+        } catch (error) {
+          console.error('Video playback failed:', error);
+          // Continue even if autoplay fails - we can still process frames
+        }
 
-      let lastProcessedMediaTime = -1;
-      const minDelta = 1 / sampleFps;
-      let isStopped = false;
+        let lastProcessedMediaTime = -1;
+        const minDelta = 1 / sampleFps;
+        let isStopped = false;
 
       await new Promise<void>((resolve) => {
         const handler = async (_now: number, metadata: any) => {
@@ -139,29 +140,34 @@ export async function extractPosesFromVideo(
         (video as any).requestVideoFrameCallback(handler);
       });
     } else {
-      // Fallback path: seek in fixed increments
-      const step = 1 / sampleFps;
-      for (let t = 0; t <= duration; t += step) {
-        if (poses.length >= MAX_POSES) break;
-        // Guard against NaN duration videos
-        if (!(duration > 0)) break;
-        video.currentTime = t;
-        await waitForSeeked(video);
-        const result = await detector.detectPose(video);
-        if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
-          result.timestamp = Math.round(t * 1000);
-          poses.push(result);
-        } else if (result) {
-          const quality = assessPoseQuality(result, minConfidence);
-          if (quality?.score && quality.score < qualityThreshold) {
-            qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
+        console.log('Using fallback frame processing');
+        // Fallback path: seek in fixed increments
+        const step = 1 / sampleFps;
+        for (let t = 0; t <= duration; t += step) {
+          if (poses.length >= MAX_POSES) break;
+          // Guard against NaN duration videos
+          if (!(duration > 0)) break;
+          video.currentTime = t;
+          await waitForSeeked(video);
+          const result = await detector.detectPose(video);
+          if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
+            result.timestamp = Math.round(t * 1000);
+            poses.push(result);
+          } else if (result) {
+            const quality = assessPoseQuality(result, minConfidence);
+            if (quality?.score && quality.score < qualityThreshold) {
+              qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
+            }
           }
+          const progress = Math.min(99, (t / duration) * 100);
+          onProgress?.('Reading video frames...', progress);
         }
-        const progress = Math.min(99, (t / duration) * 100);
-        onProgress?.('Reading video frames...', progress);
       }
-    }
-  } finally {
+      return poses;
+    } catch (error) {
+      console.error('Error in processVideo:', error);
+      throw error;
+    } finally {
     // Clean up resources properly
     clearTimeout(timeoutHandle);
     detector.destroy();
