@@ -159,10 +159,14 @@ export default function UploadPage() {
     loadProgressHistory();
   }, [loadProgressHistory]);
 
-  const onChooseFile = () => inputRef.current?.click();
+  const onChooseFile = () => {
+    console.log('Choose file button clicked');
+    inputRef.current?.click();
+  };
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
+    console.log('File selected:', f?.name, f?.size);
     dispatch({ type: 'SET_FILE', payload: f });
     dispatch({ type: 'SET_RESULT', payload: null });
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -217,7 +221,9 @@ export default function UploadPage() {
   }, []);
 
   const analyze = useCallback(async () => {
+    console.log('Analyze button clicked, file:', state.file?.name);
     if (!state.file) { 
+      console.log('No file selected, showing error');
       dispatch({ type: 'SET_ERROR', payload: 'Please choose a video file first.' }); 
       return; 
     }

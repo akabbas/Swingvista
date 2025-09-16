@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Upload Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .button:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Test Upload Page Functionality</h1>
+    
+    <div class="test-section">
+        <h2>File Input Test</h2>
+        <input type="file" id="fileInput" accept="video/*" style="display: none;">
+        <button class="button" onclick="document.getElementById('fileInput').click()">📁 Choose File</button>
+        <button class="button" id="analyzeBtn" onclick="analyzeVideo()" disabled>🔍 Analyze Video</button>
+        <p id="fileInfo">No file selected</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Test</h2>
+        <button class="button" onclick="testConsole()">Test Console Log</button>
+        <p>Check browser console for output</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Worker Test</h2>
+        <button class="button" onclick="testWorker()">Test Worker Pool</button>
+        <p id="workerStatus">Not tested</p>
+    </div>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const workerStatus = document.getElementById('workerStatus');
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                analyzeBtn.disabled = false;
+            } else {
+                fileInfo.textContent = 'No file selected';
+                analyzeBtn.disabled = true;
+            }
+        });
+        
+        function analyzeVideo() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+            console.log('Analyze button clicked for file:', file.name);
+            alert('Analyze function called! Check console for details.');
+        }
+        
+        function testConsole() {
+            console.log('Console test successful!');
+            console.log('Current time:', new Date().toISOString());
+            alert('Console test completed. Check browser console.');
+        }
+        
+        function testWorker() {
+            try {
+                // Test if we can create a worker
+                const worker = new Worker(new URL('../src/workers/unified-analysis.worker.ts', import.meta.url));
+                workerStatus.textContent = 'Worker created successfully';
+                worker.terminate();
+            } catch (error) {
+                workerStatus.textContent = 'Worker creation failed: ' + error.message;
+                console.error('Worker test failed:', error);
+            }
+        }
+        
+        console.log('Test page loaded successfully');
+    </script>
+</body>
+</html>
