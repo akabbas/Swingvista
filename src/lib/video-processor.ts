@@ -1,9 +1,10 @@
 /**
- * Video Processing Worker for Slow-Motion Swing Analysis
- * Handles video processing, overlay generation, and slow-motion effects
+ * Video Processor - Main Thread Implementation
+ * Handles video processing without Web Workers for better Next.js compatibility
  */
 
-import { PoseResult, SwingPhase } from '../lib/mediapipe';
+import { PoseResult } from './mediapipe';
+import { SwingPhase } from './swing-phases';
 
 export interface VideoProcessingOptions {
   slowMotionFactor: number; // 2-4x slower
@@ -77,15 +78,17 @@ const phaseAdvice: Record<string, PhaseAdvice> = {
   }
 };
 
-class VideoProcessor {
-  private canvas: OffscreenCanvas;
-  private ctx: OffscreenCanvasRenderingContext2D;
+export class VideoProcessor {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
   private video: HTMLVideoElement;
   private options: VideoProcessingOptions;
   private onProgress: (progress: VideoProcessingProgress) => void;
+  private isProcessing: boolean = false;
+  private abortController: AbortController | null = null;
 
   constructor(
-    canvas: OffscreenCanvas,
+    canvas: HTMLCanvasElement,
     video: HTMLVideoElement,
     options: VideoProcessingOptions,
     onProgress: (progress: VideoProcessingProgress) => void
@@ -102,6 +105,13 @@ class VideoProcessor {
     phases: SwingPhase[],
     timestamps: number[]
   ): Promise<Blob> {
+    if (this.isProcessing) {
+      throw new Error('Video processing already in progress');
+    }
+
+    this.isProcessing = true;
+    this.abortController = new AbortController();
+
     try {
       this.onProgress({
         stage: 'initializing',
@@ -149,6 +159,7 @@ class VideoProcessor {
             currentFrame: totalFrames,
             totalFrames
           });
+          this.isProcessing = false;
           resolve(blob);
         };
 
@@ -160,6 +171,7 @@ class VideoProcessor {
             currentFrame: 0,
             totalFrames
           });
+          this.isProcessing = false;
           reject(error);
         };
 
@@ -169,11 +181,17 @@ class VideoProcessor {
         // Process frames
         this.processFrames(poses, phases, timestamps, totalFrames, fps)
           .then(() => {
-            mediaRecorder.stop();
+            if (!this.abortController?.signal.aborted) {
+              mediaRecorder.stop();
+            }
           })
-          .catch(reject);
+          .catch((error) => {
+            this.isProcessing = false;
+            reject(error);
+          });
       });
     } catch (error) {
+      this.isProcessing = false;
       this.onProgress({
         stage: 'error',
         progress: 0,
@@ -183,6 +201,13 @@ class VideoProcessor {
       });
       throw error;
     }
+  }
+
+  cancel(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.isProcessing = false;
   }
 
   private async processFrames(
@@ -196,6 +221,11 @@ class VideoProcessor {
     const slowMotionFrameDuration = frameDuration / this.options.slowMotionFactor;
 
     for (let frame = 0; frame < totalFrames; frame++) {
+      // Check for cancellation
+      if (this.abortController?.signal.aborted) {
+        throw new Error('Processing cancelled');
+      }
+
       const currentTime = frame * slowMotionFrameDuration;
       const originalTime = currentTime / this.options.slowMotionFactor;
 
@@ -301,7 +331,7 @@ class VideoProcessor {
       const startPoint = pose.landmarks![start];
       const endPoint = pose.landmarks![end];
       
-      if (startPoint && endPoint && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
+      if (startPoint && endPoint && startPoint.visibility && endPoint.visibility && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
         this.ctx.beginPath();
         this.ctx.moveTo(startPoint.x * this.canvas.width, startPoint.y * this.canvas.height);
         this.ctx.lineTo(endPoint.x * this.canvas.width, endPoint.y * this.canvas.height);
@@ -311,7 +341,7 @@ class VideoProcessor {
 
     // Draw landmarks
     pose.landmarks.forEach(landmark => {
-      if (landmark.visibility > 0.5) {
+      if (landmark.visibility && landmark.visibility > 0.5) {
         this.ctx.beginPath();
         this.ctx.arc(
           landmark.x * this.canvas.width,
@@ -376,7 +406,7 @@ class VideoProcessor {
     // Progress bar
     const phaseProgress = (currentTime - phase.startTime) / (phase.endTime - phase.startTime);
     this.ctx.fillStyle = advice.color;
-    this.ctx.fillRect(20, 90, (this.canvas.width - 40) * phaseProgress, 8);
+    this.ctx.fillRect(20, 90, (this.canvas.width - 40) * Math.max(0, Math.min(1, phaseProgress)), 8);
   }
 
   private drawTimestampOverlay(currentTime: number, frameNumber: number): void {
@@ -421,49 +451,3 @@ class VideoProcessor {
     }
   }
 }
-
-// Worker message handling
-self.onmessage = async (event) => {
-  const { type, data } = event.data;
-
-  try {
-    switch (type) {
-      case 'processVideo': {
-        const {
-          canvas,
-          video,
-          options,
-          poses,
-          phases,
-          timestamps
-        } = data;
-
-        const processor = new VideoProcessor(
-          canvas,
-          video,
-          options,
-          (progress) => {
-            self.postMessage({ type: 'progress', data: progress });
-          }
-        );
-
-        const result = await processor.processVideo(poses, phases, timestamps);
-        
-        self.postMessage({
-          type: 'complete',
-          data: { blob: result }
-        });
-        break;
-      }
-      default:
-        throw new Error(`Unknown message type: ${type}`);
-    }
-  } catch (error) {
-    self.postMessage({
-      type: 'error',
-      data: { error: error.message }
-    });
-  }
-};
-
-export {};

@@ -4,8 +4,10 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { PoseResult, SwingPhase } from '../../lib/mediapipe';
-import { VideoProcessorManager, VideoProcessingError, formatFileSize, estimateProcessingTime } from '../../lib/video-processing-utils';
+import { PoseResult } from '../../lib/mediapipe';
+import { SwingPhase } from '../../lib/swing-phases';
+import { VideoProcessor, VideoProcessingOptions, VideoProcessingProgress } from '../../lib/video-processor';
+import { VideoProcessingError, formatFileSize, estimateProcessingTime } from '../../lib/video-processing-utils';
 
 export interface ProcessedVideoPlayerProps {
   videoUrl: string;
@@ -22,14 +24,6 @@ export interface ProcessedVideoPlayerProps {
   onProcessingProgress?: (progress: number, message: string) => void;
 }
 
-export interface VideoProcessingOptions {
-  slowMotionFactor: number;
-  showOverlays: boolean;
-  showGrades: boolean;
-  showAdvice: boolean;
-  showTimestamps: boolean;
-  quality: 'low' | 'medium' | 'high';
-}
 
 export interface PhaseAdvice {
   grade: string;
@@ -93,7 +87,7 @@ export const ProcessedVideoPlayer: React.FC<ProcessedVideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const processorManagerRef = useRef<VideoProcessorManager | null>(null);
+  const processorRef = useRef<VideoProcessor | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingMessage, setProcessingMessage] = useState('');
@@ -107,16 +101,36 @@ export const ProcessedVideoPlayer: React.FC<ProcessedVideoPlayerProps> = ({
   const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
   const [processedFileSize, setProcessedFileSize] = useState<number | null>(null);
 
-  // Initialize video processor manager
+  // Initialize video processor
   useEffect(() => {
-    processorManagerRef.current = VideoProcessorManager.getInstance();
+    if (canvasRef.current && videoRef.current) {
+      const options: VideoProcessingOptions = {
+        slowMotionFactor,
+        showOverlays,
+        showGrades,
+        showAdvice,
+        showTimestamps,
+        quality: 'medium'
+      };
+
+      processorRef.current = new VideoProcessor(
+        canvasRef.current,
+        videoRef.current,
+        options,
+        (progress: VideoProcessingProgress) => {
+          setProcessingProgress(progress.progress);
+          setProcessingMessage(progress.message);
+          onProcessingProgress?.(progress.progress, progress.message);
+        }
+      );
+    }
     
     return () => {
-      if (processorManagerRef.current) {
-        processorManagerRef.current.destroy();
+      if (processorRef.current) {
+        processorRef.current.cancel();
       }
     };
-  }, []);
+  }, [slowMotionFactor, showOverlays, showGrades, showAdvice, showTimestamps, onProcessingProgress]);
 
   // Calculate estimated processing time when video loads
   useEffect(() => {
@@ -201,7 +215,7 @@ export const ProcessedVideoPlayer: React.FC<ProcessedVideoPlayerProps> = ({
 
   // Start video processing
   const startProcessing = useCallback(async () => {
-    if (!videoRef.current || !processorManagerRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !processorRef.current) return;
 
     setIsProcessing(true);
     setProcessingProgress(0);
@@ -209,27 +223,7 @@ export const ProcessedVideoPlayer: React.FC<ProcessedVideoPlayerProps> = ({
     setError(null);
 
     try {
-      const options = {
-        slowMotionFactor,
-        showOverlays,
-        showGrades,
-        showAdvice,
-        showTimestamps,
-        quality: 'medium' as const
-      };
-
-      const blob = await processorManagerRef.current.processVideo(
-        videoRef.current,
-        poses,
-        phases,
-        timestamps,
-        options,
-        (progress, message) => {
-          setProcessingProgress(progress);
-          setProcessingMessage(message);
-          onProcessingProgress?.(progress, message);
-        }
-      );
+      const blob = await processorRef.current.processVideo(poses, phases, timestamps);
 
       const url = URL.createObjectURL(blob);
       setProcessedVideoUrl(url);
@@ -238,10 +232,10 @@ export const ProcessedVideoPlayer: React.FC<ProcessedVideoPlayerProps> = ({
       onProcessingComplete?.(blob);
     } catch (error) {
       console.error('Error processing video:', error);
-      setError(error instanceof VideoProcessingError ? error.message : 'Video processing failed');
+      setError(error instanceof Error ? error.message : 'Video processing failed');
       setIsProcessing(false);
     }
-  }, [slowMotionFactor, showOverlays, showGrades, showAdvice, showTimestamps, poses, phases, timestamps, onProcessingComplete, onProcessingProgress]);
+  }, [poses, phases, timestamps, onProcessingComplete]);
 
   // Download processed video
   const downloadProcessedVideo = useCallback(() => {
@@ -391,7 +385,7 @@ function drawPoseOverlay(
     const startPoint = pose.landmarks![start];
     const endPoint = pose.landmarks![end];
     
-    if (startPoint && endPoint && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
+    if (startPoint && endPoint && startPoint.visibility && endPoint.visibility && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
       ctx.beginPath();
       ctx.moveTo(startPoint.x * canvasWidth, startPoint.y * canvasHeight);
       ctx.lineTo(endPoint.x * canvasWidth, endPoint.y * canvasHeight);
@@ -401,7 +395,7 @@ function drawPoseOverlay(
 
   // Draw landmarks
   pose.landmarks.forEach(landmark => {
-    if (landmark.visibility > 0.5) {
+    if (landmark.visibility && landmark.visibility > 0.5) {
       ctx.beginPath();
       ctx.arc(
         landmark.x * canvasWidth,
