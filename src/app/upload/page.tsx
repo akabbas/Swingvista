@@ -480,7 +480,11 @@ export default function UploadPage() {
       }
       
       if (extracted.length < 5) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
+      
+      console.log('Setting poses in state:', extracted.length, 'poses');
       dispatch({ type: 'SET_POSES', payload: extracted });
+      console.log('Poses set in state, current state after SET_POSES:', state.poses?.length);
+      
       dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
       
       try {
@@ -682,7 +686,8 @@ export default function UploadPage() {
         activeTab: state.activeTab,
         phases: normalizedAnalysis?.phases?.length || 0,
         metrics: !!normalizedAnalysis?.metrics,
-        trajectory: !!normalizedAnalysis?.trajectory
+        trajectory: !!normalizedAnalysis?.trajectory,
+        landmarksInResult: normalizedAnalysis?.landmarks?.length || 0
       });
       
       // Ensure poses are set in the result for video analysis
