@@ -71,7 +71,7 @@ export async function extractPosesFromVideo(
   // More generous timeout for video processing
   const frameTimeoutMs = Math.max(45000, duration * 3000 + 15000); // 45s minimum or video duration * 3 + 15s
   console.log(`Video processing timeout set to ${frameTimeoutMs}ms for ${duration}s video`);
-  let timeoutHandle: ReturnType<typeof setTimeout>;
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
       console.error(`Frame processing timeout after ${frameTimeoutMs}ms for ${duration}s video`);
@@ -210,7 +210,7 @@ export async function extractPosesFromVideo(
     throw error instanceof Error ? error : new Error('Unknown video processing error');
   } finally {
     // Clean up resources properly
-    clearTimeout(timeoutHandle);
+    if (timeoutHandle) clearTimeout(timeoutHandle);
     clearInterval(progressCheckInterval);
     detector.destroy();
     URL.revokeObjectURL(objectUrl);

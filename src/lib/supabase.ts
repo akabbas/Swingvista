@@ -117,15 +117,14 @@ function convertToDbFormat(swingData: UnifiedSwingData): any {
     video_url: swingData.videoUrl || null,
     
     // Core metrics - ensure they're numbers
-    swing_plane_angle: Number(swingData.metrics?.swingPlaneAngle ?? 0),
-    tempo_ratio: Number(swingData.metrics?.tempoRatio ?? 1.0),
-    hip_rotation: Number(swingData.metrics?.hipRotation ?? 0),
-    shoulder_rotation: Number(swingData.metrics?.shoulderRotation ?? 0),
-    impact_frame: Number(swingData.metrics?.impactFrame ?? 0),
-    backswing_time: Number(swingData.metrics?.backswingTime ?? 0),
-    downswing_time: Number(swingData.metrics?.downswingTime ?? 0),
-    clubhead_speed: Number(swingData.metrics?.clubheadSpeed ?? 0),
-    swing_path: Number(swingData.metrics?.swingPath ?? 0),
+    swing_plane_angle: Number(swingData.metrics?.swingPlane?.shaftAngle ?? 0),
+    tempo_ratio: Number(swingData.metrics?.tempo?.tempoRatio ?? 1.0),
+    hip_rotation: Number(swingData.metrics?.rotation?.hipTurn ?? 0),
+    shoulder_rotation: Number(swingData.metrics?.rotation?.shoulderTurn ?? 0),
+    backswing_time: Number(swingData.metrics?.tempo?.backswingTime ?? 0),
+    downswing_time: Number(swingData.metrics?.tempo?.downswingTime ?? 0),
+    metrics_overall_score: Number(swingData.metrics?.overallScore ?? 0),
+    letter_grade: String(swingData.metrics?.letterGrade ?? 'C'),
     
     // AI feedback
     overall_score: String(swingData.aiFeedback?.overallScore ?? 'C'),

@@ -708,13 +708,39 @@ export default function UploadPage() {
                           {state.result.aiFeedback && (
                             <SwingFeedback 
                               analysis={{
-                                swingMetrics: state.result.metrics,
+                                swingMetrics: {
+                                  tempo: {
+                                    ratio: state.result.metrics.tempo.tempoRatio,
+                                    backswingTime: state.result.metrics.tempo.backswingTime,
+                                    downswingTime: state.result.metrics.tempo.downswingTime,
+                                    assessment: state.result.metrics.tempo.tempoRatio > 3.0 ? 'Good tempo' : 'Work on tempo'
+                                  },
+                                  rotation: {
+                                    shoulders: state.result.metrics.rotation.shoulderTurn,
+                                    hips: state.result.metrics.rotation.hipTurn,
+                                    xFactor: state.result.metrics.rotation.xFactor,
+                                    assessment: state.result.metrics.rotation.xFactor > 35 ? 'Good separation' : 'Increase separation'
+                                  },
+                                  balance: {
+                                    score: state.result.metrics.weightTransfer.score,
+                                    assessment: state.result.metrics.weightTransfer.score > 80 ? 'Good balance' : 'Work on balance'
+                                  },
+                                  plane: {
+                                    angle: state.result.metrics.swingPlane.shaftAngle,
+                                    consistency: 100 - state.result.metrics.swingPlane.planeDeviation,
+                                    assessment: state.result.metrics.swingPlane.planeDeviation < 5 ? 'Consistent plane' : 'Work on plane consistency'
+                                  }
+                                },
                                 overallScore: state.result.aiFeedback.overallScore,
                                 strengths: state.result.aiFeedback.strengths,
                                 improvements: state.result.aiFeedback.improvements,
                                 technicalNotes: state.result.aiFeedback.technicalNotes || [],
                                 recordingQuality: { angle: 'side', score: 80, recommendations: [] },
-                                openAI: true
+                                openAI: {
+                                  overallAssessment: 'AI analysis completed',
+                                  keyTip: 'Focus on maintaining tempo and balance',
+                                  recordingTips: ['Ensure good lighting and full body visibility']
+                                }
                               }}
                             />
                           )}
@@ -722,7 +748,7 @@ export default function UploadPage() {
                         <div>
                           <h3 className="text-xl font-semibold mb-4">Drill Recommendations</h3>
                           <Suspense fallback={<LoadingSpinner text="Loading recommendations..." />}>
-                            <DrillRecommendations feedback={state.result.aiFeedback} />
+                            <DrillRecommendations metrics={state.result.metrics} />
                           </Suspense>
                         </div>
                       </div>
