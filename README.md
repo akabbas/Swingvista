@@ -16,6 +16,12 @@ A modern, responsive web application for golf swing analysis built with Next.js 
 - ✅ Mobile-optimized interface for recording and analysis
 - ✅ Quality assessment and recording angle detection
 
+## 📚 Documentation
+
+- **[Golf Grading System](./docs/GOLF_GRADING_SYSTEM.md)** - Comprehensive guide to how swings are analyzed and graded
+- **[Quick Reference](./docs/QUICK_REFERENCE.md)** - Quick reference for metrics and improvement tips
+- **[Grading Flowchart](./docs/GRADING_FLOWCHART.md)** - Visual representation of the analysis process
+
 ## 🏌️ Features
 
 ### 🤖 AI-Powered Analysis
