@@ -1,6 +1,7 @@
 "use client";
 import Link from 'next/link';
 import React, { useMemo, useRef, useReducer, useCallback, useEffect } from 'react';
+import VideoPreview from '@/components/ui/VideoPreview';
 import ProgressBar from '@/components/ui/ProgressBar';
 import ErrorAlert from '@/components/ui/ErrorAlert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -417,7 +418,10 @@ export default function UploadPage() {
               🇺🇸 Use Homa Sample
             </button>
             {state.file && (
-              <span className="text-sm text-gray-600 truncate">Selected: {state.file.name}</span>
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-gray-600 truncate">Selected: {state.file.name}</span>
+                <VideoPreview file={state.file} className="mt-4" />
+              </div>
             )}
           </div>
 

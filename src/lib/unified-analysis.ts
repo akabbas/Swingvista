@@ -50,18 +50,30 @@ export async function analyzeSwing(
 ): Promise<UnifiedSwingData> {
   const startTime = Date.now();
   if (input.poses.length < 10) throw new Error('Insufficient pose data for analysis. Please record a longer swing.');
-  onProgress?.('Converting poses to trajectory...', 20);
-  const trajectory = convertPosesToTrajectory(input.poses);
-  onProgress?.('Detecting swing phases...', 40);
-  const phaseDetector = new SwingPhaseDetector();
+  // More granular progress updates
+  onProgress?.('Preparing pose data...', 10);
   const landmarksArray = input.poses.map(pose => pose.landmarks);
   const timestamps = input.poses.map(pose => pose.timestamp || 0);
+  
+  onProgress?.('Converting poses to trajectory...', 20);
+  const trajectory = convertPosesToTrajectory(input.poses);
+  
+  onProgress?.('Initializing phase detection...', 30);
+  const phaseDetector = new SwingPhaseDetector();
+  
+  onProgress?.('Detecting swing phases...', 40);
   const phaseAnalysis = phaseDetector.detectPhases(landmarksArray, trajectory, timestamps);
   const phases = phaseAnalysis.phases;
-  onProgress?.('Analyzing trajectory...', 60);
+  
+  onProgress?.('Initializing trajectory analysis...', 50);
   const trajectoryAnalyzer = new TrajectoryAnalyzer();
+  
+  onProgress?.('Analyzing trajectory...', 60);
   const trajectoryMetrics = trajectoryAnalyzer.analyzeTrajectory(trajectory.rightWrist);
+  
+  onProgress?.('Analyzing swing path...', 70);
   const swingPathAnalysis = trajectoryAnalyzer.analyzeSwingPath(trajectory, phases);
+  
   onProgress?.('Generating AI analysis...', 80);
   const reportCard = VistaSwingAI.analyzeSwing({ landmarks: landmarksArray, timestamps, club: input.club, swingId: input.swingId });
   const swingPlaneAngle = Math.abs(swingPathAnalysis.swingPlane);

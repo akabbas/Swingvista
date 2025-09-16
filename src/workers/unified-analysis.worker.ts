@@ -94,7 +94,17 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
           poses: compressPoseData(data.poses || [])
         };
         
-        const result = await analyzeSwing(compressedData, batchedProgress);
+        // Update progress more frequently
+        const result = await analyzeSwing(compressedData, (step, progress) => {
+          batchedProgress(step, progress);
+          // Force flush progress every 10%
+          if (progress % 10 === 0) {
+            if (progressTimeout) {
+              clearTimeout(progressTimeout);
+              flushProgressBatch();
+            }
+          }
+        });
         
         // Flush any remaining progress updates
         if (progressTimeout) {
