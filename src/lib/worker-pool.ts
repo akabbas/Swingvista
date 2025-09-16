@@ -87,22 +87,25 @@ export class WorkerPool {
 
     const onMessage = (event: MessageEvent<WorkerResponse>) => {
       console.log('Worker response received:', event.data.type);
-      clearTimeout(timeoutId);
-      worker.removeEventListener('message', onMessage);
-      this.cleanupWorker(worker);
       
       const { type, data } = event.data;
       
       if (type === 'SWING_ANALYZED') {
         console.log('Swing analysis completed successfully');
+        clearTimeout(timeoutId);
+        worker.removeEventListener('message', onMessage);
+        this.cleanupWorker(worker);
         task.resolve(data);
       } else if (type === 'ERROR') {
         console.error('Worker error:', data?.error);
+        clearTimeout(timeoutId);
+        worker.removeEventListener('message', onMessage);
+        this.cleanupWorker(worker);
         task.reject(new Error(data?.error || 'Worker error'));
       } else if (type === 'PROGRESS') {
         console.log('Worker progress:', data);
         // Progress updates are handled by the main thread
-        // This is just to keep the worker alive
+        // This is just to keep the worker alive - don't clean up yet
       }
     };
 

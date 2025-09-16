@@ -189,6 +189,11 @@ export default function UploadPage() {
   console.log('UploadPage component mounted');
   const [state, dispatch] = useReducer(uploadReducer, initialState);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Debug state changes
+  React.useEffect(() => {
+    console.log('UploadPage state changed:', { isAnalyzing: state.isAnalyzing, progress: state.progress, step: state.step });
+  }, [state.isAnalyzing, state.progress, state.step]);
 
   // Debug mount state
   useEffect(() => {
@@ -217,6 +222,7 @@ export default function UploadPage() {
 
   // Load progress history on component mount
   React.useEffect(() => {
+    console.log('UploadPage useEffect: loadProgressHistory');
     loadProgressHistory();
   }, [loadProgressHistory]);
 
