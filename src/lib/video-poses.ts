@@ -21,7 +21,7 @@ export async function extractPosesFromVideo(
   onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> {
   // Reduce frame rate and quality requirements for faster processing
-  const { sampleFps = 15, maxFrames = 150, minConfidence = 0.6, qualityThreshold = 0.5 } = options;
+  const { sampleFps = 10, maxFrames = 50, minConfidence = 0.5, qualityThreshold = 0.4 } = options;
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.src = objectUrl;
@@ -38,6 +38,7 @@ export async function extractPosesFromVideo(
 
   // Use maxFrames directly as MAX_POSES
   const MAX_POSES = maxFrames;
+  console.log(`Processing video: ${duration}s, max ${MAX_POSES} poses, ${sampleFps} fps`);
   const poses: PoseResult[] = [];
   const qualityWarnings: string[] = [];
   
@@ -68,7 +69,7 @@ export async function extractPosesFromVideo(
   }
 
   // More generous timeout for video processing
-  const frameTimeoutMs = Math.max(30000, duration * 2000 + 10000); // 30s minimum or video duration * 2 + 10s
+  const frameTimeoutMs = Math.max(45000, duration * 3000 + 15000); // 45s minimum or video duration * 3 + 15s
   console.log(`Video processing timeout set to ${frameTimeoutMs}ms for ${duration}s video`);
   let timeoutHandle: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -89,6 +90,11 @@ export async function extractPosesFromVideo(
     } else if (poses.length > lastPoseCount) {
       lastPoseCount = poses.length;
       lastProgressTime = now;
+    }
+    
+    // If we have enough poses, we can proceed
+    if (poses.length >= 10) {
+      console.log(`Sufficient poses detected (${poses.length}), proceeding with analysis`);
     }
   }, 1000);
 
@@ -151,6 +157,15 @@ export async function extractPosesFromVideo(
                      isStopped = true;
                      video.pause();
                      console.log(`Video processing completed: ${poses.length} poses extracted`);
+                     resolve();
+                     return;
+                   }
+                   
+                   // Early exit if we have enough poses for analysis
+                   if (poses.length >= 10) {
+                     console.log(`Early exit: sufficient poses (${poses.length}) for analysis`);
+                     isStopped = true;
+                     video.pause();
                      resolve();
                      return;
                    }

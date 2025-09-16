@@ -434,7 +434,7 @@ export default function UploadPage() {
         throw error;
       }
       
-      if (extracted.length < 10) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
+      if (extracted.length < 5) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
       dispatch({ type: 'SET_POSES', payload: extracted });
       dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
       await setCachedPoses(cacheKey, extracted);
