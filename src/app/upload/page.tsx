@@ -418,6 +418,9 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
       dispatch({ type: 'SET_PROGRESS', payload: 10 });
       
+      console.log('Starting pose extraction with enhanced settings...');
+      console.log('Video file:', state.file?.name, 'Size:', state.file?.size, 'bytes');
+      
       let extracted;
       try {
         extracted = await extractPosesFromVideo(state.file, { sampleFps: 15, maxFrames: 150 }, (s, p) => { 
@@ -428,6 +431,12 @@ export default function UploadPage() {
           dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
           console.log(`Progress update: ${message} (${Math.round(mappedProgress)}%)`);
         });
+        
+        console.log('Pose extraction completed!');
+        console.log('Total poses extracted:', extracted.length);
+        console.log('Pose quality warnings:', (extracted as any).qualityWarnings?.length || 0);
+        console.log('Recording angle detected:', (extracted as any).recordingAngle || 'unknown');
+        console.log('Overall quality score:', (extracted as any).overallQuality?.score || 'unknown');
       } catch (error) {
         if (error instanceof Error) {
           if (error.message.includes('too long')) {

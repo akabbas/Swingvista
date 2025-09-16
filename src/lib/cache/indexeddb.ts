@@ -1,7 +1,8 @@
 const DB_NAME = 'swingvista-cache';
-const DB_VERSION = 1; // bump to invalidate
+const DB_VERSION = 2; // bump to invalidate old cache
 const STORE_POSES = 'poses';
 const STORE_ANALYSIS = 'analysis';
+const APP_VERSION = '2.0.0'; // Add app version for cache busting
 
 export interface CachedItem<T> {
   key: string; // content hash
@@ -9,6 +10,7 @@ export interface CachedItem<T> {
   size: number; // bytes approx
   createdAt: number;
   lastAccessedAt: number;
+  appVersion?: string; // Add app version for validation
 }
 
 export interface LruConfig {
@@ -116,7 +118,14 @@ export async function setCachedPoses<T = any>(key: string, value: T, lru: LruCon
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_POSES, 'readwrite');
     const store = tx.objectStore(STORE_POSES);
-    const item: CachedItem<T> = { key, value, size, createdAt: Date.now(), lastAccessedAt: Date.now() };
+    const item: CachedItem<T> = { 
+      key, 
+      value, 
+      size, 
+      createdAt: Date.now(), 
+      lastAccessedAt: Date.now(),
+      appVersion: APP_VERSION
+    };
     const req = store.put(item);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
@@ -147,7 +156,14 @@ export async function setCachedAnalysis<T = any>(key: string, value: T, lru: Lru
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_ANALYSIS, 'readwrite');
     const store = tx.objectStore(STORE_ANALYSIS);
-    const item: CachedItem<T> = { key, value, size, createdAt: Date.now(), lastAccessedAt: Date.now() };
+    const item: CachedItem<T> = { 
+      key, 
+      value, 
+      size, 
+      createdAt: Date.now(), 
+      lastAccessedAt: Date.now(),
+      appVersion: APP_VERSION
+    };
     const req = store.put(item);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
@@ -158,5 +174,78 @@ export const CacheSchema = {
   appVersion: '2.0.0',
   schemaVersion: DB_VERSION,
 };
+
+// Cache validation functions
+export function validateCachedPoses(poses: any[]): boolean {
+  if (!Array.isArray(poses)) return false;
+  if (poses.length < 5) return false; // Minimum poses required
+  
+  // Check if poses have required structure
+  return poses.every(pose => 
+    pose && 
+    typeof pose === 'object' && 
+    Array.isArray(pose.landmarks) && 
+    pose.landmarks.length > 0 &&
+    typeof pose.timestamp === 'number'
+  );
+}
+
+export function validateCachedAnalysis(analysis: any): boolean {
+  if (!analysis || typeof analysis !== 'object') return false;
+  
+  // Check for required analysis properties
+  return !!(
+    analysis.swingId &&
+    analysis.metrics &&
+    analysis.phases &&
+    Array.isArray(analysis.phases)
+  );
+}
+
+export function isCacheValid<T>(item: CachedItem<T> | null, validator?: (value: T) => boolean): boolean {
+  if (!item) return false;
+  
+  // Check app version compatibility
+  if (item.appVersion && item.appVersion !== APP_VERSION) {
+    console.log('Cache item from different app version, invalidating');
+    return false;
+  }
+  
+  // Check age (7 days max)
+  const age = Date.now() - item.createdAt;
+  if (age > 7 * 24 * 60 * 60 * 1000) {
+    console.log('Cache item too old, invalidating');
+    return false;
+  }
+  
+  // Run custom validator if provided
+  if (validator && !validator(item.value)) {
+    console.log('Cache item failed validation, invalidating');
+    return false;
+  }
+  
+  return true;
+}
+
+// Clear all cache data
+export async function clearAllCache(): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction([STORE_POSES, STORE_ANALYSIS], 'readwrite');
+  
+  await Promise.all([
+    new Promise<void>((resolve, reject) => {
+      const req = tx.objectStore(STORE_POSES).clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    }),
+    new Promise<void>((resolve, reject) => {
+      const req = tx.objectStore(STORE_ANALYSIS).clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    })
+  ]);
+  
+  console.log('All cache data cleared');
+}
 
 

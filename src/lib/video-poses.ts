@@ -20,8 +20,8 @@ export async function extractPosesFromVideo(
   options: VideoToPoseOptions = {},
   onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> {
-  // Reduce frame rate and quality requirements for faster processing
-  const { sampleFps = 10, maxFrames = 50, minConfidence = 0.5, qualityThreshold = 0.4 } = options;
+  // Increase frame rate and max frames for better analysis
+  const { sampleFps = 15, maxFrames = 150, minConfidence = 0.5, qualityThreshold = 0.4 } = options;
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.src = objectUrl;
@@ -93,7 +93,7 @@ export async function extractPosesFromVideo(
     }
     
     // If we have enough poses, we can proceed
-    if (poses.length >= 10) {
+    if (poses.length >= 30) {
       console.log(`Sufficient poses detected (${poses.length}), proceeding with analysis`);
     }
   }, 1000);
@@ -161,8 +161,8 @@ export async function extractPosesFromVideo(
                      return;
                    }
                    
-                   // Early exit if we have enough poses for analysis
-                   if (poses.length >= 10) {
+                   // Early exit if we have enough poses for analysis (increased threshold)
+                   if (poses.length >= 30) {
                      console.log(`Early exit: sufficient poses (${poses.length}) for analysis`);
                      isStopped = true;
                      video.pause();
