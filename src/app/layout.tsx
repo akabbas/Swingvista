@@ -25,12 +25,23 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "SwingVista - Golf Swing Analysis",
   description: "Advanced golf swing analysis with AI-powered insights",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SwingVista"
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#10B981",
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#3B82F6",
 };
 
 export default function RootLayout({

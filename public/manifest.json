@@ -1,0 +1,33 @@
+{
+  "name": "SwingVista - Golf Swing Analyzer",
+  "short_name": "SwingVista",
+  "description": "Real-time golf swing analysis using AI pose detection",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/vercel.svg", 
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["sports", "education", "utilities"],
+  "screenshots": [
+    {
+      "src": "/window.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ]
+}
