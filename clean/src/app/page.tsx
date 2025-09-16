@@ -9,18 +9,18 @@ export default function Dashboard() {
           Advanced golf swing analysis with AI-powered insights. 
           Capture your swing and get instant feedback to improve your game.
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12">
           <a 
             href="/camera" 
-            className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+            className="w-full sm:w-auto bg-green-600 text-white px-10 py-4 rounded-xl font-semibold hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]"
           >
-            Start Camera Analysis
+            📹 Start Camera Analysis
           </a>
           <a 
             href="/upload" 
-            className="bg-gray-100 text-gray-900 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+            className="w-full sm:w-auto bg-gray-100 text-gray-900 px-10 py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]"
           >
-            Upload Video
+            📤 Upload Video
           </a>
         </div>
       </div>

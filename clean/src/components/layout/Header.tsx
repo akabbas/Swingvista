@@ -10,10 +10,25 @@ export default function Header() {
           </div>
           <span className="font-bold text-xl text-gray-800">SwingVista</span>
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-medium">
-          <Link href="/" className="text-gray-600 hover:text-gray-900">Home</Link>
-          <Link href="/camera" className="text-gray-600 hover:text-gray-900">Camera</Link>
-          <Link href="/upload" className="text-gray-600 hover:text-gray-900">Upload</Link>
+        <nav className="flex items-center gap-8 text-sm font-medium">
+          <Link 
+            href="/" 
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
+          >
+            🏠 Home
+          </Link>
+          <Link 
+            href="/camera" 
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
+          >
+            📹 Camera
+          </Link>
+          <Link 
+            href="/upload" 
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
+          >
+            📤 Upload
+          </Link>
         </nav>
       </div>
     </header>
