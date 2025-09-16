@@ -76,20 +76,19 @@ export async function extractPosesFromVideo(
     }, frameTimeoutMs);
   });
 
-  try {
-    // Race between video processing and timeout
-    const processVideo = async () => {
-      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-        console.log('Using modern video frame callback');
-        // Modern path: process frames while playing
-        video.currentTime = 0;
-        try {
-          await video.play();
-          console.log('Video playback started');
-        } catch (error) {
-          console.error('Video playback failed:', error);
-          // Continue even if autoplay fails - we can still process frames
-        }
+  // Define video processing function
+  const processVideo = async () => {
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      console.log('Using modern video frame callback');
+      // Modern path: process frames while playing
+      video.currentTime = 0;
+      try {
+        await video.play();
+        console.log('Video playback started');
+      } catch (error) {
+        console.error('Video playback failed:', error);
+        // Continue even if autoplay fails - we can still process frames
+      }
 
       let lastProcessedMediaTime = -1;
       const minDelta = 1 / sampleFps;
@@ -170,10 +169,14 @@ export async function extractPosesFromVideo(
     video.remove();
   }
 
-  // Process video and handle timeout
-  await Promise.race([processVideo(), timeoutPromise]);
-
-  onProgress?.('Frames captured', 100);
+  // Process video with timeout protection
+  try {
+    await Promise.race([processVideo(), timeoutPromise]);
+    onProgress?.('Frames captured', 100);
+  } catch (error) {
+    console.error('Video processing failed:', error);
+    throw error instanceof Error ? error : new Error('Unknown video processing error');
+  }
 
   // Filter out any accidental nulls and ensure we have enough frames for analysis pipeline
   const valid = poses.filter(Boolean);
