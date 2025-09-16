@@ -117,6 +117,8 @@ interface UploadState {
   activeTab: 'video' | 'metrics' | 'progress';
   isAnalyzing: boolean;
   progressHistory: ProgressEntry[];
+  analysisStartTime: number | null;
+  elapsedTime: number;
 }
 
 type UploadAction = 
@@ -130,6 +132,8 @@ type UploadAction =
   | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'metrics' | 'progress' }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_PROGRESS_HISTORY'; payload: ProgressEntry[] }
+  | { type: 'SET_ANALYSIS_START_TIME'; payload: number | null }
+  | { type: 'SET_ELAPSED_TIME'; payload: number }
   | { type: 'RESET' };
 
 const initialState: UploadState = {
@@ -142,7 +146,9 @@ const initialState: UploadState = {
   aiAnalysis: null,
   activeTab: 'video',
   isAnalyzing: false,
-  progressHistory: []
+  progressHistory: [],
+  analysisStartTime: null,
+  elapsedTime: 0
 };
 
 function uploadReducer(state: UploadState, action: UploadAction): UploadState {
@@ -167,6 +173,10 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
       return { ...state, isAnalyzing: action.payload };
     case 'SET_PROGRESS_HISTORY':
       return { ...state, progressHistory: action.payload };
+    case 'SET_ANALYSIS_START_TIME':
+      return { ...state, analysisStartTime: action.payload };
+    case 'SET_ELAPSED_TIME':
+      return { ...state, elapsedTime: action.payload };
     case 'RESET':
       return { ...initialState, progressHistory: state.progressHistory };
     default:
@@ -208,6 +218,39 @@ export default function UploadPage() {
   React.useEffect(() => {
     loadProgressHistory();
   }, [loadProgressHistory]);
+
+  // Timer effect for analysis
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (state.isAnalyzing && state.analysisStartTime) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - state.analysisStartTime!) / 1000);
+        dispatch({ type: 'SET_ELAPSED_TIME', payload: elapsed });
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [state.isAnalyzing, state.analysisStartTime]);
+
+  // Calculate estimated time remaining
+  const getEstimatedTimeRemaining = () => {
+    if (!state.isAnalyzing || !state.analysisStartTime || state.progress === 0) return null;
+    
+    const elapsed = state.elapsedTime;
+    const progress = state.progress / 100;
+    
+    if (progress === 0) return null;
+    
+    const totalEstimated = Math.ceil(elapsed / progress);
+    const remaining = Math.max(0, totalEstimated - elapsed);
+    
+    return remaining;
+  };
+
+  const estimatedRemaining = getEstimatedTimeRemaining();
 
   const onChooseFile = () => {
     console.log('Choose file button clicked');
@@ -311,12 +354,15 @@ export default function UploadPage() {
     }
     reset();
     dispatch({ type: 'SET_ANALYZING', payload: true });
+    dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: Date.now() });
+    dispatch({ type: 'SET_ELAPSED_TIME', payload: 0 });
     
     // Add timeout protection with longer duration for processing
     const timeoutId = setTimeout(() => {
       console.error('Analysis timeout triggered');
       dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
       dispatch({ type: 'SET_ANALYZING', payload: false });
+      dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
     }, 180000); // 3 minute timeout for total analysis
     
     try {
@@ -446,6 +492,7 @@ export default function UploadPage() {
       clearTimeout(timeoutId);
     } finally {
       dispatch({ type: 'SET_ANALYZING', payload: false });
+      dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
     }
   }, [state.file, workerPool, videoUrl, reset, loadProgressHistory]);
 
@@ -468,7 +515,7 @@ export default function UploadPage() {
               📁 {state.file ? 'Change File' : 'Choose File'}
             </button>
             <button onClick={analyze} disabled={!state.file || state.isAnalyzing} className="w-full md:w-auto bg-blue-600 disabled:bg-blue-300 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow">
-              🔍 {state.isAnalyzing ? 'Analyzing...' : 'Analyze Video'}
+              🔍 {state.isAnalyzing ? `Analyzing... (${state.elapsedTime}s)` : 'Analyze Video'}
             </button>
             <button onClick={useTigerSample} disabled={state.isAnalyzing} className="w-full md:w-auto bg-purple-600 disabled:bg-purple-300 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-700 transition-all shadow">
               🐯 Use Tiger Woods Sample
@@ -490,7 +537,24 @@ export default function UploadPage() {
           {(state.isAnalyzing || state.progress > 0) && (
             <div className="mt-6">
               <ProgressBar progress={state.progress} step={state.step} />
-              {state.isAnalyzing && <LoadingSpinner className="mt-3" size="sm" text="Processing in background" />}
+              {state.isAnalyzing && (
+                <div className="mt-3 flex items-center justify-between">
+                  <LoadingSpinner size="sm" text="Processing in background" />
+                  <div className="text-sm text-gray-600">
+                    ⏱️ Elapsed: {state.elapsedTime}s
+                    {estimatedRemaining !== null && (
+                      <span className="ml-2">
+                        | ⏳ Est. remaining: {estimatedRemaining}s
+                      </span>
+                    )}
+                    {state.analysisStartTime && (
+                      <span className="ml-2">
+                        | Started: {new Date(state.analysisStartTime).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
