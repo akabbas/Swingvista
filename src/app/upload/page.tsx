@@ -11,6 +11,7 @@ import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
 import PoseOverlay from '@/components/analysis/PoseOverlay';
 import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
 import VideoAnalysisPlayer from '@/components/analysis/VideoAnalysisPlayer';
+import ProcessedVideoPlayer from '@/components/analysis/ProcessedVideoPlayer';
 
 // Lazy load heavy components
 const DrillRecommendations = lazy(() => import('@/components/analysis/DrillRecommendations'));
@@ -33,6 +34,7 @@ interface AnalysisResult {
   trajectory: any;
   phases: any[];
   landmarks: PoseResult[];
+  timestamps?: number[];
   metrics: {
     tempo: {
       backswingTime: number;
@@ -115,7 +117,7 @@ interface UploadState {
   result: AnalysisResult | null;
   poses: PoseResult[] | null;
   aiAnalysis: AIAnalysisResult | null;
-  activeTab: 'video' | 'video-analysis' | 'metrics' | 'progress';
+  activeTab: 'video' | 'video-analysis' | 'metrics' | 'progress' | 'processed-video';
   isAnalyzing: boolean;
   progressHistory: ProgressEntry[];
   analysisStartTime: number | null;
@@ -130,7 +132,7 @@ type UploadAction =
   | { type: 'SET_RESULT'; payload: AnalysisResult | null }
   | { type: 'SET_POSES'; payload: PoseResult[] | null }
   | { type: 'SET_AI_ANALYSIS'; payload: AIAnalysisResult | null }
-  | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'video-analysis' | 'metrics' | 'progress' }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'video-analysis' | 'metrics' | 'progress' | 'processed-video' }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_PROGRESS_HISTORY'; payload: ProgressEntry[] }
   | { type: 'SET_ANALYSIS_START_TIME'; payload: number | null }
@@ -701,6 +703,12 @@ export default function UploadPage() {
               >
                 Progress Tracking
               </button>
+              <button
+                className={`py-2 px-4 font-medium ${state.activeTab === 'processed-video' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'processed-video' })}
+              >
+                Processed Video
+              </button>
             </div>
 
             {state.activeTab === 'video' && videoUrl && state.poses && (
@@ -928,6 +936,60 @@ export default function UploadPage() {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {state.activeTab === 'processed-video' && videoUrl && state.poses && state.result && (
+              <div className="space-y-8">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Slow-Motion Swing Analysis</h2>
+                  <p className="text-gray-600">Generate a professional slow-motion video with phase overlays and analysis</p>
+                </div>
+
+                <div className="bg-white rounded-lg border p-6">
+                  <ProcessedVideoPlayer
+                    videoUrl={videoUrl}
+                    poses={state.poses}
+                    phases={state.result.phases || []}
+                    timestamps={state.result.timestamps || []}
+                    slowMotionFactor={3}
+                    showOverlays={true}
+                    showGrades={true}
+                    showAdvice={true}
+                    showTimestamps={true}
+                    onProcessingComplete={(blob) => {
+                      console.log('Video processing complete:', blob.size, 'bytes');
+                      // You could save the blob to IndexedDB or show a success message
+                    }}
+                    onProcessingProgress={(progress, message) => {
+                      console.log(`Processing: ${message} (${progress}%)`);
+                    }}
+                  />
+                </div>
+
+                <div className="bg-blue-50 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4">Features of Processed Video:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-blue-900 mb-2">Visual Overlays</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• Real-time pose detection stick figure</li>
+                        <li>• Swing phase identification</li>
+                        <li>• Grade indicators for each phase</li>
+                        <li>• Phase-specific advice and tips</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-blue-900 mb-2">Slow Motion Effects</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• 3x slower playback for detailed analysis</li>
+                        <li>• Timestamp and frame number display</li>
+                        <li>• Professional video quality output</li>
+                        <li>• Download as WebM format</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
