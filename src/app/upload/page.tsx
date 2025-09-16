@@ -26,6 +26,7 @@ import type { PoseResult } from '@/lib/mediapipe';
 import { PerformanceMonitor } from '@/lib/performance-monitoring';
 import { hashVideoFile } from '@/lib/cache/video-hash';
 import { getCachedAnalysis, getCachedPoses, setCachedAnalysis, setCachedPoses, CacheSchema } from '@/lib/cache/indexeddb';
+import { getCachedPosesFallback, setCachedPosesFallback, getCachedAnalysisFallback, setCachedAnalysisFallback } from '@/lib/cache/fallback-cache';
 import { trackEvent } from '@/lib/analytics';
 
 // WorkerResponse type is imported but not used in this component
@@ -386,20 +387,20 @@ export default function UploadPage() {
       
       let contentHash, cacheKey, cachedPoses, cachedAnalysis;
       
-      try {
-        contentHash = await hashVideoFile(state.file);
-        cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
-        console.log('Cache key generated:', cacheKey);
-        
-        cachedPoses = await getCachedPoses<PoseResult[]>(cacheKey);
-        cachedAnalysis = await getCachedAnalysis<any>(cacheKey);
-        console.log('Cache operations completed successfully');
-      } catch (error) {
-        console.error('Cache operation failed:', error);
-        console.log('Skipping cache due to error, proceeding with fresh analysis');
-        cachedPoses = null;
-        cachedAnalysis = null;
-      }
+        try {
+          contentHash = await hashVideoFile(state.file);
+          cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
+          console.log('Cache key generated:', cacheKey);
+          
+          cachedPoses = await getCachedPosesFallback<PoseResult[]>(cacheKey);
+          cachedAnalysis = await getCachedAnalysisFallback<any>(cacheKey);
+          console.log('Cache operations completed successfully');
+        } catch (error) {
+          console.error('Cache operation failed:', error);
+          console.log('Skipping cache due to error, proceeding with fresh analysis');
+          cachedPoses = null;
+          cachedAnalysis = null;
+        }
       
       console.log('Cache check results:', {
         cacheKey,
@@ -492,7 +493,7 @@ export default function UploadPage() {
       
       try {
         if (cacheKey && typeof cacheKey === 'string') {
-          await setCachedPoses(cacheKey, extracted);
+          await setCachedPosesFallback(cacheKey, extracted);
           console.log('Poses saved to cache successfully');
         } else {
           console.log('No cache key available, skipping pose cache save');
@@ -639,7 +640,7 @@ export default function UploadPage() {
       
       try {
         if (cacheKey && typeof cacheKey === 'string') {
-          await setCachedAnalysis(cacheKey, normalizedAnalysis);
+          await setCachedAnalysisFallback(cacheKey, normalizedAnalysis);
           console.log('Analysis result saved to cache successfully');
         } else {
           console.log('No cache key available, skipping cache save');
@@ -701,6 +702,12 @@ export default function UploadPage() {
         // Also store poses in a more accessible way
         (normalizedAnalysis as any).poses = extracted;
         console.log('Poses also stored as poses property:', (normalizedAnalysis as any).poses?.length, 'poses');
+        
+        // Store video URL in the analysis result for video display
+        if (videoUrl) {
+          (normalizedAnalysis as any).videoUrl = videoUrl;
+          console.log('Video URL stored in analysis result:', videoUrl);
+        }
       }
       
       // Force a small delay to ensure state is updated
@@ -855,13 +862,14 @@ export default function UploadPage() {
               </div>
             )}
 
-        {state.activeTab === 'video-analysis' && videoUrl && state.result && (
+        {state.activeTab === 'video-analysis' && state.result && (
           <div className="mb-10">
             <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
             {(() => {
               const posesToUse = state.poses || state.result?.landmarks || (state.result as any)?.poses || [];
+              const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
               console.log('Rendering VideoAnalysisPlayer with:', { 
-                videoUrl, 
+                videoUrl: videoUrlToUse, 
                 posesCount: posesToUse.length, 
                 result: !!state.result, 
                 phases: state.result?.phases?.length || 0,
@@ -870,17 +878,33 @@ export default function UploadPage() {
                 usingResultPosesProperty: !!(state.result as any)?.poses,
                 statePoses: state.poses?.length || 0,
                 resultLandmarks: state.result?.landmarks?.length || 0,
-                resultPoses: (state.result as any)?.poses?.length || 0
+                resultPoses: (state.result as any)?.poses?.length || 0,
+                usingResultVideoUrl: !videoUrl && !!(state.result as any)?.videoUrl
               });
               return null;
             })()}
-            <VideoAnalysisPlayer
-              videoUrl={videoUrl}
-              poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
-              metrics={state.result.metrics || {}}
-              phases={state.result.phases || []}
-              className="mb-6"
-            />
+            {(() => {
+              const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
+              if (!videoUrlToUse) {
+                return (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 className="text-red-800 font-medium mb-2">Video Not Available</h3>
+                    <p className="text-red-700 text-sm">
+                      The video file could not be loaded. Please try uploading the video again.
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <VideoAnalysisPlayer
+                  videoUrl={videoUrlToUse}
+                  poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
+                  metrics={state.result.metrics || {}}
+                  phases={state.result.phases || []}
+                  className="mb-6"
+                />
+              );
+            })()}
                 <div className="bg-green-50 p-4 rounded-lg">
                   <h3 className="font-medium mb-2">Video Analysis Features:</h3>
                   <ul className="list-disc list-inside text-sm space-y-1">
@@ -1074,7 +1098,7 @@ export default function UploadPage() {
               </div>
             )}
 
-        {state.activeTab === 'processed-video' && videoUrl && state.result && (
+        {state.activeTab === 'processed-video' && state.result && (
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Slow-Motion Swing Analysis</h2>
@@ -1082,24 +1106,39 @@ export default function UploadPage() {
             </div>
 
             <div className="bg-white rounded-lg border p-6">
-              <ProcessedVideoPlayer
-                videoUrl={videoUrl}
-                poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
-                phases={state.result.phases || []}
-                timestamps={state.result.timestamps || []}
-                slowMotionFactor={3}
-                showOverlays={true}
-                showGrades={true}
-                showAdvice={true}
-                showTimestamps={true}
-                onProcessingComplete={(blob) => {
-                  console.log('Video processing complete:', blob.size, 'bytes');
-                  // You could save the blob to IndexedDB or show a success message
-                }}
-                onProcessingProgress={(progress, message) => {
-                  console.log(`Processing: ${message} (${progress}%)`);
-                }}
-              />
+              {(() => {
+                const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
+                if (!videoUrlToUse) {
+                  return (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h3 className="text-red-800 font-medium mb-2">Video Not Available</h3>
+                      <p className="text-red-700 text-sm">
+                        The video file could not be loaded. Please try uploading the video again.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <ProcessedVideoPlayer
+                    videoUrl={videoUrlToUse}
+                    poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
+                    phases={state.result.phases || []}
+                    timestamps={state.result.timestamps || []}
+                    slowMotionFactor={3}
+                    showOverlays={true}
+                    showGrades={true}
+                    showAdvice={true}
+                    showTimestamps={true}
+                    onProcessingComplete={(blob) => {
+                      console.log('Video processing complete:', blob.size, 'bytes');
+                      // You could save the blob to IndexedDB or show a success message
+                    }}
+                    onProcessingProgress={(progress, message) => {
+                      console.log(`Processing: ${message} (${progress}%)`);
+                    }}
+                  />
+                );
+              })()}
             </div>
 
                 <div className="bg-blue-50 p-6 rounded-lg">

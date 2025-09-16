@@ -25,6 +25,58 @@ export default function VideoAnalysisPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showOverlays, setShowOverlays] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  // Video debugging and error handling
+  useEffect(() => {
+    console.log('VideoAnalysisPlayer mounted with:', {
+      videoUrl: videoUrl?.substring(0, 50) + '...',
+      posesCount: poses?.length || 0,
+      metricsKeys: Object.keys(metrics || {}),
+      phasesCount: _phases?.length || 0
+    });
+  }, [videoUrl, poses, metrics, _phases]);
+
+  // Video event handlers
+  const handleVideoLoad = useCallback(() => {
+    const video = videoRef.current;
+    if (video) {
+      console.log('Video loaded successfully:', {
+        duration: video.duration,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        readyState: video.readyState,
+        networkState: video.networkState
+      });
+      setVideoLoaded(true);
+      setVideoError(null);
+    }
+  }, []);
+
+  const handleVideoError = useCallback((e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    const error = video.error;
+    console.error('Video error:', {
+      error: error?.code,
+      message: error?.message,
+      networkState: video.networkState,
+      readyState: video.readyState,
+      src: video.src
+    });
+    
+    let errorMessage = 'Unknown video error';
+    if (error) {
+      switch (error.code) {
+        case 1: errorMessage = 'Video loading aborted'; break;
+        case 2: errorMessage = 'Network error while loading video'; break;
+        case 3: errorMessage = 'Video decoding error'; break;
+        case 4: errorMessage = 'Video format not supported'; break;
+      }
+    }
+    setVideoError(errorMessage);
+    setVideoLoaded(false);
+  }, []);
 
   // Find the closest pose to current video time
   const findClosestPose = useCallback((time: number): PoseResult | null => {
@@ -274,6 +326,14 @@ export default function VideoAnalysisPlayer({
 
   return (
     <div className={`relative ${className}`}>
+      {videoError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <h3 className="text-red-800 font-medium mb-2">Video Error</h3>
+          <p className="text-red-700 text-sm">{videoError}</p>
+          <p className="text-red-600 text-xs mt-2">Video URL: {videoUrl?.substring(0, 100)}...</p>
+        </div>
+      )}
+      
       <div className="relative">
         <video
           ref={videoRef}
@@ -281,14 +341,27 @@ export default function VideoAnalysisPlayer({
           className="w-full h-auto rounded-lg"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
+          onLoadedData={handleVideoLoad}
+          onError={handleVideoError}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
+          controls
+          preload="metadata"
         />
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 w-full h-full pointer-events-none"
           style={{ imageRendering: 'pixelated' }}
         />
+        
+        {!videoLoaded && !videoError && (
+          <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 text-sm">Loading video...</p>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Controls */}
