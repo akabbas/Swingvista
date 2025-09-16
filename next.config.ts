@@ -15,10 +15,6 @@ const nextConfig: NextConfig = {
     // Keep console logs for debugging
     removeConsole: false,
   },
-  // Increase build memory limit
-  env: {
-    NODE_OPTIONS: '--max-old-space-size=4096'
-  },
 };
 
 export default nextConfig;
