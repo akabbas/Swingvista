@@ -13,6 +13,7 @@ export default function CameraPage() {
   const frameHandleRef = useRef<number | null>(null);
   const detectorRef = useRef<MediaPipePoseDetector | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const isRunningRef = useRef(false);
   const [fps, setFps] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string>('Ready');
   const [liveFeedback, setLiveFeedback] = useState<string>('');
@@ -333,21 +334,13 @@ export default function CameraPage() {
   const stopCamera = useCallback(() => {
     console.log('Stopping camera...');
     setIsRunning(false);
+    isRunningRef.current = false;
     if (frameHandleRef.current) {
-      if ((videoRef.current as any)?.cancelVideoFrameCallback) {
-        try { 
-          console.log('Canceling video frame callback');
-          (videoRef.current as any).cancelVideoFrameCallback(frameHandleRef.current); 
-        } catch (e) {
-          console.log('Error canceling video frame callback:', e);
-        }
-      } else {
-        try {
-          console.log('Canceling animation frame');
-          cancelAnimationFrame(frameHandleRef.current);
-        } catch (e) {
-          console.log('Error canceling animation frame:', e);
-        }
+      try {
+        console.log('Canceling animation frame');
+        cancelAnimationFrame(frameHandleRef.current);
+      } catch (e) {
+        console.log('Error canceling animation frame:', e);
       }
     }
     frameHandleRef.current = null;
@@ -365,6 +358,7 @@ export default function CameraPage() {
   const startCamera = useCallback(async () => {
     if (isRunning) return;
     setIsRunning(true);
+    isRunningRef.current = true;
     try {
       const video = videoRef.current;
       if (!video) return;
@@ -386,6 +380,18 @@ export default function CameraPage() {
       // Test canvas immediately
       console.log('Testing canvas immediately...');
       drawPose(null); // This should draw the test stick figure
+      
+      // Additional debug drawing
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = 'lime';
+          ctx.font = '24px Arial';
+          ctx.fillText('CAMERA WORKING!', 50, 100);
+          console.log('Debug text drawn to canvas');
+        }
+      }
 
       const detector = MediaPipePoseDetector.getInstance();
       console.log('Initializing MediaPipe detector...');
@@ -393,51 +399,59 @@ export default function CameraPage() {
       console.log('MediaPipe detector initialized successfully');
       detectorRef.current = detector;
 
-      // Throttle to ~25fps using mediaTime delta
-      let lastTime = -1;
-      const targetDelta = 1 / 25; // ~25fps
+      // Use requestAnimationFrame for reliable pose detection
+      let lastProcessedTime = 0;
+      const targetFPS = 30;
+      const frameInterval = 1000 / targetFPS;
+      
+      console.log('Starting pose detection loop with requestAnimationFrame');
 
-      const loop = async (_now: number, metadata?: { mediaTime?: number }) => {
-        console.log('Detection loop running, isRunning:', isRunning);
-        if (!isRunning) return; // stop if state changed
-        const v = videoRef.current;
-        if (!v) {
-          console.log('No video element in loop');
+      const processFrame = async (timestamp: number) => {
+        // Check if we should continue processing
+        if (!isRunningRef.current) {
+          console.log('Stopping pose detection loop - isRunningRef is false');
           return;
         }
-        const mediaTime = metadata && typeof metadata.mediaTime === 'number' ? metadata.mediaTime : v.currentTime;
-        console.log('Media time:', mediaTime, 'Last time:', lastTime, 'Delta:', mediaTime - lastTime);
         
-        if (lastTime < 0 || (mediaTime - lastTime) >= targetDelta) {
-          console.log('Processing frame...');
-          const t0 = performance.now();
-          const pose = await detector.detectPose(v);
-          console.log('Pose detection result:', pose ? 'SUCCESS' : 'FAILED');
-          if (pose) {
-            console.log('Pose confidence:', pose.landmarks ? pose.landmarks.length : 'no landmarks');
-          }
-          drawPose(pose);
-          const t1 = performance.now();
-          const instantFps = 1000 / Math.max(1, (t1 - t0));
-          updateFps(instantFps);
-          lastTime = mediaTime;
+        const v = videoRef.current;
+        if (!v) {
+          console.log('No video element, stopping loop');
+          return;
         }
-        frameHandleRef.current = (v as any).requestVideoFrameCallback(loop);
+
+        // Throttle to target FPS
+        if (timestamp - lastProcessedTime > frameInterval) {
+          console.log('Processing frame at timestamp:', timestamp);
+          
+          try {
+            const t0 = performance.now();
+            const pose = await detector.detectPose(v);
+            console.log('Pose detection result:', pose ? 'SUCCESS' : 'FAILED');
+            
+            if (pose && pose.landmarks) {
+              console.log('Landmarks detected:', pose.landmarks.length);
+              console.log('First landmark:', pose.landmarks[0]);
+            } else {
+              console.log('No pose or landmarks detected');
+            }
+            
+            drawPose(pose);
+            
+            const t1 = performance.now();
+            const instantFps = 1000 / Math.max(1, (t1 - t0));
+            updateFps(instantFps);
+            lastProcessedTime = timestamp;
+          } catch (error) {
+            console.error('Error in pose detection:', error);
+          }
+        }
+        
+        // Continue the loop
+        frameHandleRef.current = requestAnimationFrame(processFrame);
       };
 
-      // Try requestVideoFrameCallback first, fallback to requestAnimationFrame
-      if ((video as any).requestVideoFrameCallback) {
-        console.log('Using requestVideoFrameCallback');
-        (video as any).requestVideoFrameCallback(loop);
-      } else {
-        console.log('requestVideoFrameCallback not supported, using requestAnimationFrame');
-        const animationLoop = () => {
-          if (!isRunning) return;
-          loop(performance.now());
-          frameHandleRef.current = requestAnimationFrame(animationLoop);
-        };
-        frameHandleRef.current = requestAnimationFrame(animationLoop);
-      }
+      // Start the detection loop
+      frameHandleRef.current = requestAnimationFrame(processFrame);
       try { trackEvent('camera_session_start'); } catch {}
     } catch (err) {
       console.error('Camera start failed', err);
