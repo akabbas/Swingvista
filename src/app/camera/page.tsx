@@ -189,24 +189,38 @@ export default function CameraPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (video.videoWidth && video.videoHeight) {
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
+    // Ensure canvas matches video dimensions exactly
+    const videoWidth = video.videoWidth || video.clientWidth;
+    const videoHeight = video.videoHeight || video.clientHeight;
+    
+    if (videoWidth && videoHeight) {
+      if (canvas.width !== videoWidth || canvas.height !== videoHeight) {
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        console.log('Canvas resized to match video:', canvas.width, 'x', canvas.height);
       }
+    } else {
+      console.log('Video dimensions not available yet:', { 
+        videoWidth, 
+        videoHeight, 
+        actualVideoWidth: video.videoWidth, 
+        actualVideoHeight: video.videoHeight, 
+        clientWidth: video.clientWidth, 
+        clientHeight: video.clientHeight 
+      });
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Debug: Draw a test circle to verify canvas is working
     ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, 20, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.arc(canvas.width / 2, canvas.height / 2, 30, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
     ctx.fill();
     ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.fillText('Canvas Working', 10, 30);
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText('CANVAS WORKING!', 10, 40);
+    ctx.fillText(`Size: ${canvas.width}x${canvas.height}`, 10, 70);
     
     // Debug logging
     console.log('Drawing pose:', pose ? 'pose detected' : 'no pose');
@@ -412,23 +426,19 @@ export default function CameraPage() {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
       video.srcObject = stream;
+      
+      // Wait for video metadata to load before starting detection
+      video.addEventListener('loadedmetadata', () => {
+        console.log('Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
+        // Test canvas after video is ready
+        drawPose(null); // This should draw the test stick figure
+      });
+      
       await video.play();
       
-      // Test canvas immediately
+      // Test canvas immediately as fallback
       console.log('Testing canvas immediately...');
       drawPose(null); // This should draw the test stick figure
-      
-      // Additional debug drawing
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = 'lime';
-          ctx.font = '24px Arial';
-          ctx.fillText('CAMERA WORKING!', 50, 100);
-          console.log('Debug text drawn to canvas');
-        }
-      }
 
       const detector = MediaPipePoseDetector.getInstance();
       console.log('Initializing MediaPipe detector...');
@@ -496,6 +506,40 @@ export default function CameraPage() {
     }
   }, [drawPose, isRunning, stopCamera, updateFps]);
 
+  // Handle canvas resizing when video dimensions change
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (!video || !canvas) return;
+    
+    const resizeCanvas = () => {
+      const videoWidth = video.videoWidth || video.clientWidth;
+      const videoHeight = video.videoHeight || video.clientHeight;
+      
+      if (videoWidth && videoHeight && (canvas.width !== videoWidth || canvas.height !== videoHeight)) {
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        console.log('Canvas resized via observer:', canvas.width, 'x', canvas.height);
+        // Redraw the test figure
+        drawPose(null);
+      }
+    };
+    
+    // Listen for video resize events
+    video.addEventListener('resize', resizeCanvas);
+    video.addEventListener('loadedmetadata', resizeCanvas);
+    
+    // Also check periodically in case events don't fire
+    const interval = setInterval(resizeCanvas, 1000);
+    
+    return () => {
+      video.removeEventListener('resize', resizeCanvas);
+      video.removeEventListener('loadedmetadata', resizeCanvas);
+      clearInterval(interval);
+    };
+  }, [drawPose]);
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -515,7 +559,11 @@ export default function CameraPage() {
         <div className="bg-gray-50 rounded-2xl p-6 mb-8">
           <div className="relative w-full max-w-3xl mx-auto">
             <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline muted />
-            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+            <canvas 
+              ref={canvasRef} 
+              className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" 
+              style={{ imageRendering: 'pixelated' }}
+            />
             
             {/* Live feedback overlay */}
             <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white p-3 rounded-lg max-w-xs">
