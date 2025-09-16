@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if OpenAI API key is available
-    const openAIClient = await getOpenAIClient();
-    if (!openAIClient) {
+    const client = await getOpenAIClient();
+    if (!client) {
       console.warn('OpenAI API key not available, returning fallback analysis');
       return NextResponse.json({
         overallScore: 75,
@@ -63,7 +63,7 @@ Format your response as JSON with these keys: overallAssessment, strengths, impr
 `;
 
     // Fallback: if no API key is configured at build/runtime, return a basic structured response
-    if (!openAIClient) {
+    if (!client) {
       const fallback = {
         overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
         strengths: [
@@ -80,7 +80,7 @@ Format your response as JSON with these keys: overallAssessment, strengths, impr
       return NextResponse.json({ success: true, analysis: fallback, timestamp: new Date().toISOString() });
     }
 
-    const completion = await openAIClient.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
