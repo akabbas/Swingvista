@@ -10,6 +10,7 @@ import SwingFeedback from '@/components/analysis/SwingFeedback';
 import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
 import PoseOverlay from '@/components/analysis/PoseOverlay';
 import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
+import VideoAnalysisPlayer from '@/components/analysis/VideoAnalysisPlayer';
 
 // Lazy load heavy components
 const DrillRecommendations = lazy(() => import('@/components/analysis/DrillRecommendations'));
@@ -114,7 +115,7 @@ interface UploadState {
   result: AnalysisResult | null;
   poses: PoseResult[] | null;
   aiAnalysis: AIAnalysisResult | null;
-  activeTab: 'video' | 'metrics' | 'progress';
+  activeTab: 'video' | 'video-analysis' | 'metrics' | 'progress';
   isAnalyzing: boolean;
   progressHistory: ProgressEntry[];
   analysisStartTime: number | null;
@@ -129,7 +130,7 @@ type UploadAction =
   | { type: 'SET_RESULT'; payload: AnalysisResult | null }
   | { type: 'SET_POSES'; payload: PoseResult[] | null }
   | { type: 'SET_AI_ANALYSIS'; payload: AIAnalysisResult | null }
-  | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'metrics' | 'progress' }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'video-analysis' | 'metrics' | 'progress' }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_PROGRESS_HISTORY'; payload: ProgressEntry[] }
   | { type: 'SET_ANALYSIS_START_TIME'; payload: number | null }
@@ -357,15 +358,15 @@ export default function UploadPage() {
     dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: Date.now() });
     dispatch({ type: 'SET_ELAPSED_TIME', payload: 0 });
     
-    // Add timeout protection with longer duration for worker processing
-    const timeoutId = setTimeout(() => {
-      console.error('Analysis timeout triggered after 120 seconds');
-      console.error('Current step:', state.step);
-      console.error('Current progress:', state.progress);
-      dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
-      dispatch({ type: 'SET_ANALYZING', payload: false });
-      dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
-    }, 120000); // 2 minute timeout for worker processing
+      // Add timeout protection with longer duration for worker processing
+      const timeoutId = setTimeout(() => {
+        console.error('Analysis timeout triggered after 180 seconds');
+        console.error('Current step:', state.step);
+        console.error('Current progress:', state.progress);
+        dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
+        dispatch({ type: 'SET_ANALYZING', payload: false });
+        dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
+      }, 180000); // 3 minute timeout for worker processing
     
     try {
       dispatch({ type: 'SET_STEP', payload: 'Initializing...' }); 
@@ -474,9 +475,9 @@ export default function UploadPage() {
         
         // Add specific timeout for worker processing
         const workerTimeout = setTimeout(() => {
-          console.error('Worker processing timeout after 60 seconds (fallback to main thread)');
+          console.error('Worker processing timeout after 90 seconds (fallback to main thread)');
           throw new Error('Swing mechanics analysis timed out. Please try again.');
-        }, 60000);
+        }, 90000);
         
         try {
           // Use worker with timeout, no race condition needed
@@ -665,6 +666,12 @@ export default function UploadPage() {
                 className={`py-2 px-4 font-medium ${state.activeTab === 'video' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
                 onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video' })}
               >
+                Swing Analysis
+              </button>
+              <button
+                className={`py-2 px-4 font-medium ${state.activeTab === 'video-analysis' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' })}
+              >
                 Video Analysis
               </button>
               <button
@@ -701,6 +708,29 @@ export default function UploadPage() {
                     <li>Blue lines indicate body alignment</li>
                     <li>Watch for phase-specific feedback as the video plays</li>
                     <li>Metrics update based on your position in the swing</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {state.activeTab === 'video-analysis' && videoUrl && state.poses && state.result && (
+              <div className="mb-10">
+                <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
+                <VideoAnalysisPlayer
+                  videoUrl={videoUrl}
+                  poses={state.poses}
+                  metrics={state.result.metrics}
+                  phases={state.result.phases || []}
+                  className="mb-6"
+                />
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-medium mb-2">Video Analysis Features:</h3>
+                  <ul className="list-disc list-inside text-sm space-y-1">
+                    <li>Green dots and lines show pose detection and body connections</li>
+                    <li>Red dashed line indicates your swing plane angle</li>
+                    <li>Real-time metrics overlay shows key swing data</li>
+                    <li>Use controls to play/pause and scrub through the video</li>
+                    <li>Toggle overlays on/off to see clean video or analysis</li>
                   </ul>
                 </div>
               </div>
