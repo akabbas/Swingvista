@@ -85,17 +85,24 @@ const compressPoseData = (poses: any[]) => {
 
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const { type, data } = event.data;
+  console.log('Worker received message:', type, data);
+  
   try {
     switch (type) {
       case 'ANALYZE_SWING': {
+        console.log('Starting swing analysis in worker...');
+        
         // Compress pose data to reduce memory usage
         const compressedData = {
           ...data,
           poses: compressPoseData(data.poses || [])
         };
         
+        console.log('Compressed data:', compressedData);
+        
         // Update progress more frequently
         const result = await analyzeSwing(compressedData, (step, progress) => {
+          console.log('Worker progress:', step, progress);
           batchedProgress(step, progress);
           // Force flush progress every 10%
           if (progress % 10 === 0) {
@@ -105,6 +112,8 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
             }
           }
         });
+        
+        console.log('Analysis complete, sending result...');
         
         // Flush any remaining progress updates
         if (progressTimeout) {

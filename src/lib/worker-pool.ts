@@ -34,12 +34,17 @@ export class WorkerPool {
   }
 
   async processMessage(message: WorkerMessage): Promise<any> {
+    console.log('WorkerPool processing message:', message.type);
+    console.log('WorkerPool stats:', this.getStats());
+    
     return new Promise((resolve, reject) => {
       const task = { resolve, reject, message };
       
       if (this.availableWorkers.length > 0) {
+        console.log('Executing task immediately with available worker');
         this.executeTask(task);
       } else {
+        console.log('No available workers, queuing task');
         this.pendingTasks.push(task);
       }
     });
@@ -52,13 +57,17 @@ export class WorkerPool {
   }) {
     const worker = this.availableWorkers.pop()!;
     this.busyWorkers.add(worker);
+    
+    console.log('Executing task with worker, message:', task.message);
 
     const timeoutId = setTimeout(() => {
+      console.error('Worker timeout after', this.options.timeout, 'ms');
       this.cleanupWorker(worker);
       task.reject(new Error('Worker timeout'));
     }, this.options.timeout);
 
     const onMessage = (event: MessageEvent<WorkerResponse>) => {
+      console.log('Worker response received:', event.data.type);
       clearTimeout(timeoutId);
       worker.removeEventListener('message', onMessage);
       this.cleanupWorker(worker);
@@ -66,10 +75,13 @@ export class WorkerPool {
       const { type, data } = event.data;
       
       if (type === 'SWING_ANALYZED') {
+        console.log('Swing analysis completed successfully');
         task.resolve(data);
       } else if (type === 'ERROR') {
+        console.error('Worker error:', data?.error);
         task.reject(new Error(data?.error || 'Worker error'));
       } else if (type === 'PROGRESS') {
+        console.log('Worker progress:', data);
         // Progress updates are handled by the main thread
         // This is just to keep the worker alive
       }
@@ -77,6 +89,7 @@ export class WorkerPool {
 
     worker.addEventListener('message', onMessage);
     worker.postMessage(task.message);
+    console.log('Message sent to worker');
   }
 
   private cleanupWorker(worker: Worker) {
