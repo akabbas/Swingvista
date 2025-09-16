@@ -237,12 +237,13 @@ export default function UploadPage() {
   }, []);
 
   const analyze = useCallback(async () => {
-    console.log('Analyze button clicked, current state:', {
+    const currentState = {
       file: state.file?.name,
       isAnalyzing: state.isAnalyzing,
       error: state.error,
       step: state.step
-    });
+    };
+    console.log('Analyze button clicked, current state:', currentState);
     
     if (!state.file) { 
       console.log('No file selected, showing error');
