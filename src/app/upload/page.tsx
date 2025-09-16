@@ -191,8 +191,9 @@ export default function UploadPage() {
   const useTigerSample = useCallback(async () => {
     try {
       dispatch({ type: 'SET_ERROR', payload: null });
-      const res = await fetch('/fixtures/swings/tiger-iron.mp4');
-      if (!res.ok) throw new Error('Sample video not found. Please add it to public/fixtures/swings/tiger-iron.mp4');
+      // Use Åberg sample as Tiger sample for now
+      const res = await fetch('/fixtures/swings/ludvig_aberg_driver.mp4');
+      if (!res.ok) throw new Error('Sample video not found. Please add it to public/fixtures/swings/ludvig_aberg_driver.mp4');
       const blob = await res.blob();
       const sampleFile = new File([blob], 'tiger-iron.mp4', { type: blob.type || 'video/mp4' });
       dispatch({ type: 'SET_FILE', payload: sampleFile });
@@ -206,32 +207,42 @@ export default function UploadPage() {
 
   const useAbergSample = useCallback(async () => {
     try {
+      console.log('Loading Åberg sample video...');
       dispatch({ type: 'SET_ERROR', payload: null });
       const res = await fetch('/fixtures/swings/ludvig_aberg_driver.mp4');
+      console.log('Fetch response:', res.status, res.ok);
       if (!res.ok) throw new Error('Sample video not found. Please add it to public/fixtures/swings/ludvig_aberg_driver.mp4');
       const blob = await res.blob();
+      console.log('Blob created:', blob.size, 'bytes');
       const sampleFile = new File([blob], 'ludvig_aberg_driver.mp4', { type: blob.type || 'video/mp4' });
       dispatch({ type: 'SET_FILE', payload: sampleFile });
       dispatch({ type: 'SET_RESULT', payload: null });
       dispatch({ type: 'SET_POSES', payload: null });
       if (inputRef.current) inputRef.current.value = '';
+      console.log('Åberg sample loaded successfully');
     } catch (err: any) {
+      console.error('Error loading Åberg sample:', err);
       dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to load sample video' });
     }
   }, []);
 
   const useHomaSample = useCallback(async () => {
     try {
+      console.log('Loading Homa sample video...');
       dispatch({ type: 'SET_ERROR', payload: null });
       const res = await fetch('/fixtures/swings/max_homa_iron.mp4');
+      console.log('Fetch response:', res.status, res.ok);
       if (!res.ok) throw new Error('Sample video not found. Please add it to public/fixtures/swings/max_homa_iron.mp4');
       const blob = await res.blob();
+      console.log('Blob created:', blob.size, 'bytes');
       const sampleFile = new File([blob], 'max_homa_iron.mp4', { type: blob.type || 'video/mp4' });
       dispatch({ type: 'SET_FILE', payload: sampleFile });
       dispatch({ type: 'SET_RESULT', payload: null });
       dispatch({ type: 'SET_POSES', payload: null });
       if (inputRef.current) inputRef.current.value = '';
+      console.log('Homa sample loaded successfully');
     } catch (err: any) {
+      console.error('Error loading Homa sample:', err);
       dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to load sample video' });
     }
   }, []);
