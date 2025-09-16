@@ -11,6 +11,7 @@ import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
 import PoseOverlay from '@/components/analysis/PoseOverlay';
 import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
 import VideoAnalysisPlayer from '@/components/analysis/VideoAnalysisPlayer';
+import EnhancedVideoAnalysisPlayer from '@/components/analysis/EnhancedVideoAnalysisPlayer';
 import ProcessedVideoPlayer from '@/components/analysis/ProcessedVideoPlayer';
 
 // Lazy load heavy components
@@ -28,12 +29,14 @@ import { hashVideoFile } from '@/lib/cache/video-hash';
 import { getCachedAnalysis, getCachedPoses, setCachedAnalysis, setCachedPoses, CacheSchema } from '@/lib/cache/indexeddb';
 import { getCachedPosesFallback, setCachedPosesFallback, getCachedAnalysisFallback, setCachedAnalysisFallback } from '@/lib/cache/fallback-cache';
 import { trackEvent } from '@/lib/analytics';
+import { EnhancedSwingPhaseDetector, EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
 
 // WorkerResponse type is imported but not used in this component
 
 interface AnalysisResult {
   trajectory: any;
   phases: any[];
+  enhancedPhases?: EnhancedSwingPhase[];
   landmarks: PoseResult[];
   timestamps?: number[];
   metrics: {
@@ -610,10 +613,22 @@ export default function UploadPage() {
         landmarksCount: analysis?.landmarks?.length || 0
       });
       
+      // Create enhanced swing phases
+      dispatch({ type: 'SET_STEP', payload: 'Analyzing swing phases...' });
+      const phaseDetector = new EnhancedSwingPhaseDetector();
+      const enhancedPhases = phaseDetector.detectPhases(
+        extracted.map(p => p.landmarks || []),
+        analysis.trajectory || { clubhead: [], rightWrist: [] },
+        analysis.timestamps || extracted.map(p => p.timestamp || 0)
+      );
+      
+      console.log('Enhanced phases detected:', enhancedPhases.length);
+      
       // Ensure analysis result has the correct structure
       const normalizedAnalysis = {
         ...analysis,
         phases: analysis?.phases || [],
+        enhancedPhases: enhancedPhases,
         timestamps: analysis?.timestamps || extracted.map(p => p.timestamp || 0),
         metrics: analysis?.metrics || {},
         trajectory: analysis?.trajectory || { clubhead: [], rightWrist: [] },
@@ -864,15 +879,17 @@ export default function UploadPage() {
 
         {state.activeTab === 'video-analysis' && state.result && (
           <div className="mb-10">
-            <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
+            <h2 className="text-xl font-semibold mb-4">Enhanced Video Analysis with Phase Detection</h2>
             {(() => {
               const posesToUse = state.poses || state.result?.landmarks || (state.result as any)?.poses || [];
               const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
-              console.log('Rendering VideoAnalysisPlayer with:', { 
+              const enhancedPhases = state.result?.enhancedPhases || [];
+              console.log('Rendering EnhancedVideoAnalysisPlayer with:', { 
                 videoUrl: videoUrlToUse, 
                 posesCount: posesToUse.length, 
                 result: !!state.result, 
                 phases: state.result?.phases?.length || 0,
+                enhancedPhases: enhancedPhases.length,
                 metrics: !!state.result?.metrics,
                 usingResultPoses: !state.poses && !!state.result?.landmarks,
                 usingResultPosesProperty: !!(state.result as any)?.poses,
@@ -896,11 +913,11 @@ export default function UploadPage() {
                 );
               }
               return (
-                <VideoAnalysisPlayer
+                <EnhancedVideoAnalysisPlayer
                   videoUrl={videoUrlToUse}
                   poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
                   metrics={state.result.metrics || {}}
-                  phases={state.result.phases || []}
+                  phases={state.result?.enhancedPhases || []}
                   className="mb-6"
                 />
               );
