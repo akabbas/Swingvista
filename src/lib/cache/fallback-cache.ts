@@ -100,7 +100,9 @@ export class FallbackCache {
           this.memoryCache.set(memoryKey, item);
           if (this.memoryCache.size > this.maxMemoryItems) {
             const firstKey = this.memoryCache.keys().next().value;
-            this.memoryCache.delete(firstKey);
+            if (firstKey) {
+              this.memoryCache.delete(firstKey);
+            }
           }
           
           console.log(`Fallback cache hit (localStorage): ${type}`, key);
@@ -130,7 +132,9 @@ export class FallbackCache {
     this.memoryCache.set(memoryKey, item);
     if (this.memoryCache.size > this.maxMemoryItems) {
       const firstKey = this.memoryCache.keys().next().value;
-      this.memoryCache.delete(firstKey);
+      if (firstKey) {
+        this.memoryCache.delete(firstKey);
+      }
     }
 
     // Store in localStorage if available

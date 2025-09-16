@@ -17,7 +17,7 @@ export default function VideoAnalysisPlayer({
   videoUrl, 
   poses, 
   metrics, 
-  phases: _phases, 
+  phases, 
   className = '' 
 }: VideoAnalysisPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -34,9 +34,9 @@ export default function VideoAnalysisPlayer({
       videoUrl: videoUrl?.substring(0, 50) + '...',
       posesCount: poses?.length || 0,
       metricsKeys: Object.keys(metrics || {}),
-      phasesCount: _phases?.length || 0
+      phasesCount: phases?.length || 0
     });
-  }, [videoUrl, poses, metrics, _phases]);
+  }, [videoUrl, poses, metrics, phases]);
 
   // Video event handlers
   const handleVideoLoad = useCallback(() => {
@@ -237,6 +237,65 @@ export default function VideoAnalysisPlayer({
     ctx.setLineDash([]);
   }, [metrics]);
 
+  // Draw current swing phase overlay
+  const drawPhaseOverlay = useCallback((ctx: CanvasRenderingContext2D) => {
+    const { width, height } = ctx.canvas;
+    
+    if (!phases || phases.length === 0) return;
+    
+    // Find current phase based on video time
+    const currentPhase = phases.find(phase => 
+      currentTime >= phase.startTime && currentTime <= phase.endTime
+    );
+    
+    if (!currentPhase) return;
+    
+    // Draw phase indicator
+    const phaseColors = {
+      address: '#3B82F6',
+      backswing: '#10B981', 
+      top: '#F59E0B',
+      downswing: '#EF4444',
+      impact: '#DC2626',
+      'follow-through': '#8B5CF6'
+    };
+    
+    const phaseColor = phaseColors[currentPhase.name] || '#6B7280';
+    const phaseProgress = (currentTime - currentPhase.startTime) / (currentPhase.endTime - currentPhase.startTime);
+    
+    // Draw phase background
+    ctx.fillStyle = `${phaseColor}20`;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw phase name and progress
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(20, 20, 400, 120);
+    
+    ctx.fillStyle = phaseColor;
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(currentPhase.name.toUpperCase(), 30, 50);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px Arial';
+    ctx.fillText(currentPhase.description, 30, 75);
+    
+    // Draw progress bar
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(30, 90, 360, 8);
+    
+    ctx.fillStyle = phaseColor;
+    ctx.fillRect(30, 90, 360 * phaseProgress, 8);
+    
+    // Draw phase timing
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px Arial';
+    const timeText = `${(currentPhase.startTime / 1000).toFixed(1)}s - ${(currentPhase.endTime / 1000).toFixed(1)}s`;
+    ctx.fillText(timeText, 30, 110);
+    
+    // Draw confidence score
+    ctx.fillText(`Confidence: ${(currentPhase.confidence * 100).toFixed(0)}%`, 200, 110);
+  }, [phases, currentTime]);
+
   // Draw metrics overlay
   const drawMetricsOverlay = useCallback((ctx: CanvasRenderingContext2D) => {
     const { width, height } = ctx.canvas;
@@ -273,6 +332,9 @@ export default function VideoAnalysisPlayer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (showOverlays) {
+      // Draw current swing phase overlay first (background)
+      drawPhaseOverlay(ctx);
+      
       // Draw pose overlay
       const closestPose = findClosestPose(currentTime);
       console.log('VideoAnalysisPlayer - Current time:', currentTime, 'Closest pose:', closestPose ? 'found' : 'none');
@@ -289,7 +351,7 @@ export default function VideoAnalysisPlayer({
       // Draw metrics overlay
       drawMetricsOverlay(ctx);
     }
-  }, [currentTime, showOverlays, findClosestPose, drawPoseOverlay, drawSwingPlane, drawMetricsOverlay]);
+  }, [currentTime, showOverlays, findClosestPose, drawPhaseOverlay, drawPoseOverlay, drawSwingPlane, drawMetricsOverlay]);
 
   // Handle video time updates
   const handleTimeUpdate = useCallback(() => {
@@ -407,6 +469,43 @@ export default function VideoAnalysisPlayer({
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
         />
       </div>
+      
+      {/* Phase Timeline */}
+      {phases && phases.length > 0 && (
+        <div className="mt-6 bg-gray-50 rounded-lg p-4">
+          <h3 className="text-lg font-semibold mb-4">Swing Phase Timeline</h3>
+          <div className="flex flex-wrap gap-2">
+            {phases.map((phase, index) => {
+              const isActive = currentTime >= phase.startTime && currentTime <= phase.endTime;
+              const phaseColors = {
+                address: 'bg-blue-500',
+                backswing: 'bg-green-500', 
+                top: 'bg-yellow-500',
+                downswing: 'bg-red-500',
+                impact: 'bg-red-700',
+                'follow-through': 'bg-purple-500'
+              };
+              
+              return (
+                <div
+                  key={phase.name}
+                  className={`px-3 py-2 rounded-lg text-white text-sm font-medium transition-all ${
+                    phaseColors[phase.name] || 'bg-gray-500'
+                  } ${isActive ? 'ring-2 ring-white ring-opacity-50' : 'opacity-70'}`}
+                >
+                  <div className="font-bold">{phase.name.toUpperCase()}</div>
+                  <div className="text-xs opacity-90">
+                    {(phase.startTime / 1000).toFixed(1)}s - {(phase.endTime / 1000).toFixed(1)}s
+                  </div>
+                  <div className="text-xs opacity-75">
+                    {(phase.duration / 1000).toFixed(1)}s • {(phase.confidence * 100).toFixed(0)}%
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
