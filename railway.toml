@@ -9,7 +9,7 @@ healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 
 [nixpacks]
-node-version = "18"
+node-version = "20"
 install-command = "npm ci"
 
 [build.args]

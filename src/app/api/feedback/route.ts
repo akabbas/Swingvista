@@ -11,10 +11,11 @@ export async function POST(request: NextRequest) {
 
     // Attempt to save to Supabase if configured; otherwise just log
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url && key) {
+    // Prefer service role on the server if available, fallback to anon/publishable
+    const serverKey = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && serverKey) {
       try {
-        const supabase = createClient(url, key);
+        const supabase = createClient(url, serverKey);
         const payload: any = { feedback, timestamp: ts };
         if (email && typeof email === 'string') payload.email = email;
         await supabase
@@ -37,9 +38,9 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url && key) {
-      const supabase = createClient(url, key);
+    const serverKey = process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && serverKey) {
+      const supabase = createClient(url, serverKey);
       const { data, error } = await supabase
         .from('feedback')
         .select('*')
