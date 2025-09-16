@@ -142,8 +142,8 @@ export async function extractPosesFromVideo(
     video.remove();
   }
 
-  // Return the result of the race between processing and timeout
-  return Promise.race([processVideo(), timeoutPromise]);
+  // Process video and handle timeout
+  await Promise.race([processVideo(), timeoutPromise]);
 
   onProgress?.('Frames captured', 100);
 
