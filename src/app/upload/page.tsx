@@ -388,7 +388,20 @@ export default function UploadPage() {
 
       const cachedPoses = await getCachedPoses<PoseResult[]>(cacheKey);
       const cachedAnalysis = await getCachedAnalysis<any>(cacheKey);
-      if (cachedPoses && cachedAnalysis) {
+      
+      console.log('Cache check results:', {
+        cacheKey,
+        hasCachedPoses: !!cachedPoses,
+        hasCachedAnalysis: !!cachedAnalysis,
+        posesCount: cachedPoses?.length || 0,
+        analysisKeys: cachedAnalysis ? Object.keys(cachedAnalysis) : []
+      });
+      
+      // Force fresh analysis for sample videos to ensure proper results
+      const isSampleVideo = state.file?.name?.includes('max_homa') || state.file?.name?.includes('ludvig_aberg');
+      if (isSampleVideo) {
+        console.log('Sample video detected, skipping cache for fresh analysis');
+      } else if (cachedPoses && cachedAnalysis) {
         dispatch({ type: 'SET_STEP', payload: 'Loaded from cache' });
         dispatch({ type: 'SET_POSES', payload: cachedPoses });
         dispatch({ type: 'SET_RESULT', payload: cachedAnalysis });
@@ -555,6 +568,14 @@ export default function UploadPage() {
       }
       
       console.log('Setting analysis result:', analysis);
+      console.log('Analysis structure check:', {
+        hasPhases: !!analysis?.phases,
+        phasesCount: analysis?.phases?.length || 0,
+        hasMetrics: !!analysis?.metrics,
+        hasTrajectory: !!analysis?.trajectory,
+        hasLandmarks: !!analysis?.landmarks,
+        landmarksCount: analysis?.landmarks?.length || 0
+      });
       
       // Ensure analysis result has the correct structure
       const normalizedAnalysis = {
@@ -565,6 +586,14 @@ export default function UploadPage() {
         trajectory: analysis?.trajectory || { clubhead: [], rightWrist: [] },
         landmarks: analysis?.landmarks || extracted
       };
+      
+      console.log('Normalized analysis structure:', {
+        phasesCount: normalizedAnalysis.phases.length,
+        timestampsCount: normalizedAnalysis.timestamps.length,
+        metricsKeys: Object.keys(normalizedAnalysis.metrics),
+        trajectoryKeys: Object.keys(normalizedAnalysis.trajectory),
+        landmarksCount: normalizedAnalysis.landmarks.length
+      });
       
       dispatch({ type: 'SET_RESULT', payload: normalizedAnalysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
@@ -607,9 +636,16 @@ export default function UploadPage() {
         poses: state.poses?.length, 
         result: !!normalizedAnalysis, 
         activeTab: state.activeTab,
-        phases: normalizedAnalysis?.phases?.length || 0
+        phases: normalizedAnalysis?.phases?.length || 0,
+        metrics: !!normalizedAnalysis?.metrics,
+        trajectory: !!normalizedAnalysis?.trajectory
       });
-      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' });
+      
+      // Force a small delay to ensure state is updated
+      setTimeout(() => {
+        console.log('Dispatching tab switch to video-analysis');
+        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' });
+      }, 100);
       
       clearTimeout(timeoutId);
     } catch (err: any) {
