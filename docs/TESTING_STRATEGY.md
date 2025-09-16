@@ -407,27 +407,21 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: clean/package-lock.json
+          cache-dependency-path: package-lock.json
       
       - name: Install dependencies
-        run: |
-          cd clean
-          npm ci
+        run: npm ci
       
       - name: Run unit tests
-        run: |
-          cd clean
-          npm run test:coverage
+        run: npm run test:coverage
       
       - name: Run E2E tests
-        run: |
-          cd clean
-          npm run test:e2e
+        run: npm run test:e2e
       
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
-          file: ./clean/coverage/lcov.info
+          file: ./coverage/lcov.info
 ```
 
 ## Test Data Management

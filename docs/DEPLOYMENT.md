@@ -139,9 +139,9 @@ Netlify supports Next.js with some configuration.
    - Select your repository
 
 2. **Configure Build Settings**
-   - **Base directory**: `clean`
+   - **Base directory**: `.` (root)
    - **Build command**: `npm run build`
-   - **Publish directory**: `clean/.next`
+   - **Publish directory**: `.next`
 
 3. **Deploy**
    - Click "Deploy site"
@@ -438,17 +438,13 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: clean/package-lock.json
+          cache-dependency-path: package-lock.json
       
       - name: Install dependencies
-        run: |
-          cd clean
-          npm ci
-      
+        run: npm ci
+
       - name: Build application
-        run: |
-          cd clean
-          npm run build
+        run: npm run build
       
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
@@ -456,7 +452,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.ORG_ID }}
           vercel-project-id: ${{ secrets.PROJECT_ID }}
-          working-directory: ./clean
+          working-directory: ./
 ```
 
 ## Rollback Strategy
