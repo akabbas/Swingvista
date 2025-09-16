@@ -469,12 +469,68 @@ export default function EnhancedVideoAnalysisPlayer({
       </div>
       
       {/* Phase Navigator */}
-      <SwingPhaseNavigator
-        phases={phases}
-        currentTime={currentTime}
-        onPhaseSelect={handlePhaseSelect}
-        onSlowMotionToggle={handleSlowMotionToggle}
-      />
+      {(() => {
+        // Debug logging to identify the issue
+        console.log('DEBUG - Phases data structure:', phases);
+        console.log('DEBUG - Phases type:', typeof phases);
+        console.log('DEBUG - Phases length:', phases?.length);
+        console.log('DEBUG - Phases keys:', phases ? Object.keys(phases) : 'No phases');
+        
+        // Safety check and data validation
+        if (!phases || !Array.isArray(phases) || phases.length === 0) {
+          console.log('DEBUG - No valid phases data, skipping navigator');
+          return null;
+        }
+        
+        // Validate each phase object
+        const validPhases = phases.filter(phase => {
+          if (!phase || typeof phase !== 'object') {
+            console.warn('DEBUG - Invalid phase object:', phase);
+            return false;
+          }
+          
+          // Check for required properties
+          const hasRequiredProps = 'name' in phase && 'startTime' in phase && 'endTime' in phase;
+          if (!hasRequiredProps) {
+            console.warn('DEBUG - Phase missing required properties:', phase);
+            return false;
+          }
+          
+          // Check for any object properties that might cause rendering issues
+          if (phase.metrics && typeof phase.metrics === 'object') {
+            // Ensure metrics don't contain PoseLandmark objects
+            Object.keys(phase.metrics).forEach(key => {
+              const value = (phase.metrics as any)[key];
+              if (value && typeof value === 'object' && 'x' in value && 'y' in value && 'z' in value) {
+                console.warn('DEBUG - Phase metrics contains PoseLandmark object:', key, 'in phase:', phase.name);
+                // Convert to safe format
+                (phase.metrics as any)[key] = { x: value.x, y: value.y, z: value.z || 0 };
+              }
+            });
+          }
+          
+          return true;
+        });
+        
+        console.log('DEBUG - Valid phases count:', validPhases.length);
+        
+        if (validPhases.length === 0) {
+          return (
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800 text-sm">No valid swing phases detected for navigation.</p>
+            </div>
+          );
+        }
+        
+        return (
+          <SwingPhaseNavigator
+            phases={validPhases}
+            currentTime={currentTime}
+            onPhaseSelect={handlePhaseSelect}
+            onSlowMotionToggle={handleSlowMotionToggle}
+          />
+        );
+      })()}
     </div>
   );
 }

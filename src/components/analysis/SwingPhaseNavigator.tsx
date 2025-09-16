@@ -3,6 +3,43 @@
 import React, { useCallback, useState } from 'react';
 import { EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('SwingPhaseNavigator Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 text-sm">Error displaying phase navigation. Please try refreshing the page.</p>
+          {process.env.NODE_ENV === 'development' && this.state.error && (
+            <details className="mt-2 text-xs text-red-600">
+              <summary>Error Details</summary>
+              <pre>{this.state.error.toString()}</pre>
+            </details>
+          )}
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 interface SwingPhaseNavigatorProps {
   phases: EnhancedSwingPhase[];
   currentTime: number;
@@ -69,8 +106,27 @@ export default function SwingPhaseNavigator({
   const currentPhase = getCurrentPhase();
   const totalDuration = phases.length > 0 ? phases[phases.length - 1].endTime : 0;
 
+  // Safety checks and data validation
+  if (!phases || !Array.isArray(phases)) {
+    console.error('SwingPhaseNavigator: Invalid phases data:', phases);
+    return (
+      <div className={`mt-6 bg-red-50 border border-red-200 rounded-lg p-4 ${className}`}>
+        <p className="text-red-800 text-sm">Error: Invalid phase data provided to navigator.</p>
+      </div>
+    );
+  }
+
+  if (phases.length === 0) {
+    return (
+      <div className={`mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4 ${className}`}>
+        <p className="text-gray-600 text-sm">No swing phases available for navigation.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className={`space-y-6 ${className}`}>
+    <ErrorBoundary>
+      <div className={`space-y-6 ${className}`}>
       {/* Phase Timeline */}
       <div className="bg-white rounded-lg border p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -130,12 +186,26 @@ export default function SwingPhaseNavigator({
         {/* Phase Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {phases.map((phase) => {
-            const isActive = currentPhase?.name === phase.name;
-            const isSlowMotion = slowMotionPhases.has(phase.name);
+            // Safety checks for phase data
+            if (!phase || typeof phase !== 'object') {
+              console.warn('SwingPhaseNavigator: Invalid phase object:', phase);
+              return null;
+            }
+            
+            // Safe property access with fallbacks
+            const phaseName = phase.name || 'Unknown';
+            const phaseGrade = phase.grade || 'N/A';
+            const phaseDuration = typeof phase.duration === 'number' ? phase.duration : 0;
+            const phaseConfidence = typeof phase.confidence === 'number' ? phase.confidence : 0;
+            const phaseDescription = typeof phase.description === 'string' ? phase.description : '';
+            const phaseMetrics = phase.metrics && typeof phase.metrics === 'object' ? phase.metrics : {};
+            
+            const isActive = currentPhase?.name === phaseName;
+            const isSlowMotion = slowMotionPhases.has(phaseName);
             
             return (
               <div
-                key={phase.name}
+                key={phaseName}
                 className={`p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
                   isActive 
                     ? 'border-blue-500 bg-blue-50' 
@@ -145,59 +215,61 @@ export default function SwingPhaseNavigator({
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center">
-                    <span className="text-2xl mr-2">{getPhaseIcon(phase.name)}</span>
-                    <h4 className="font-semibold text-gray-900 capitalize">{phase.name}</h4>
+                    <span className="text-2xl mr-2">{getPhaseIcon(phaseName)}</span>
+                    <h4 className="font-semibold text-gray-900 capitalize">{phaseName}</h4>
                   </div>
                   <div className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    phase.grade === 'A' ? 'bg-green-100 text-green-800' :
-                    phase.grade === 'B' ? 'bg-blue-100 text-blue-800' :
-                    phase.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
-                    phase.grade === 'D' ? 'bg-orange-100 text-orange-800' :
+                    phaseGrade === 'A' ? 'bg-green-100 text-green-800' :
+                    phaseGrade === 'B' ? 'bg-blue-100 text-blue-800' :
+                    phaseGrade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                    phaseGrade === 'D' ? 'bg-orange-100 text-orange-800' :
                     'bg-red-100 text-red-800'
                   }`}>
-                    {phase.grade}
+                    {phaseGrade}
                   </div>
                 </div>
                 
                 <div className="text-sm text-gray-600 mb-2">
-                  <div>Duration: {(phase.duration / 1000).toFixed(1)}s</div>
-                  <div>Confidence: {(phase.confidence * 100).toFixed(0)}%</div>
+                  <div>Duration: {(phaseDuration / 1000).toFixed(1)}s</div>
+                  <div>Confidence: {(phaseConfidence * 100).toFixed(0)}%</div>
                 </div>
                 
-                <div className="text-xs text-gray-500 mb-3">
-                  {phase.description}
-                </div>
+                {phaseDescription && (
+                  <div className="text-xs text-gray-500 mb-3">
+                    {phaseDescription}
+                  </div>
+                )}
                 
                 {/* Key Metrics */}
                 <div className="space-y-1 mb-3">
-                  {phase.name === 'address' && phase.metrics.spineAngle && (
+                  {phaseName === 'address' && phaseMetrics.spineAngle && typeof phaseMetrics.spineAngle === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">Spine Angle:</span> {phase.metrics.spineAngle.toFixed(1)}°
+                      <span className="font-medium">Spine Angle:</span> {phaseMetrics.spineAngle.toFixed(1)}°
                     </div>
                   )}
-                  {phase.name === 'backswing' && phase.metrics.shoulderRotation && (
+                  {phaseName === 'backswing' && phaseMetrics.shoulderRotation && typeof phaseMetrics.shoulderRotation === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">Shoulder Turn:</span> {phase.metrics.shoulderRotation.toFixed(1)}°
+                      <span className="font-medium">Shoulder Turn:</span> {phaseMetrics.shoulderRotation.toFixed(1)}°
                     </div>
                   )}
-                  {phase.name === 'top' && phase.metrics.xFactor && (
+                  {phaseName === 'top' && phaseMetrics.xFactor && typeof phaseMetrics.xFactor === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">X-Factor:</span> {phase.metrics.xFactor.toFixed(1)}°
+                      <span className="font-medium">X-Factor:</span> {phaseMetrics.xFactor.toFixed(1)}°
                     </div>
                   )}
-                  {phase.name === 'downswing' && phase.metrics.tempoRatio && (
+                  {phaseName === 'downswing' && phaseMetrics.tempoRatio && typeof phaseMetrics.tempoRatio === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">Tempo:</span> {phase.metrics.tempoRatio.toFixed(1)}:1
+                      <span className="font-medium">Tempo:</span> {phaseMetrics.tempoRatio.toFixed(1)}:1
                     </div>
                   )}
-                  {phase.name === 'impact' && phase.metrics.weightTransfer && (
+                  {phaseName === 'impact' && phaseMetrics.weightTransfer && typeof phaseMetrics.weightTransfer === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">Weight Transfer:</span> {phase.metrics.weightTransfer.toFixed(0)}%
+                      <span className="font-medium">Weight Transfer:</span> {phaseMetrics.weightTransfer.toFixed(0)}%
                     </div>
                   )}
-                  {phase.name === 'follow-through' && phase.metrics.finishBalance && (
+                  {phaseName === 'follow-through' && phaseMetrics.finishBalance && typeof phaseMetrics.finishBalance === 'number' && (
                     <div className="text-xs">
-                      <span className="font-medium">Balance:</span> {phase.metrics.finishBalance.toFixed(0)}%
+                      <span className="font-medium">Balance:</span> {phaseMetrics.finishBalance.toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -318,6 +390,7 @@ export default function SwingPhaseNavigator({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
