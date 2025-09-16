@@ -483,7 +483,10 @@ export default function UploadPage() {
       
       console.log('Setting poses in state:', extracted.length, 'poses');
       dispatch({ type: 'SET_POSES', payload: extracted });
-      console.log('Poses set in state, current state after SET_POSES:', state.poses?.length);
+      
+      // Store poses in a ref to prevent loss during re-mounts
+      const posesRef = { current: extracted };
+      console.log('Poses stored in ref:', posesRef.current.length, 'poses');
       
       dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
       
@@ -694,6 +697,10 @@ export default function UploadPage() {
       if (normalizedAnalysis && extracted) {
         normalizedAnalysis.landmarks = extracted;
         console.log('Ensuring poses are in analysis result:', extracted.length, 'poses');
+        
+        // Also store poses in a more accessible way
+        (normalizedAnalysis as any).poses = extracted;
+        console.log('Poses also stored as poses property:', (normalizedAnalysis as any).poses?.length, 'poses');
       }
       
       // Force a small delay to ensure state is updated
@@ -852,20 +859,24 @@ export default function UploadPage() {
           <div className="mb-10">
             <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
             {(() => {
-              const posesToUse = state.poses || state.result?.landmarks || [];
+              const posesToUse = state.poses || state.result?.landmarks || (state.result as any)?.poses || [];
               console.log('Rendering VideoAnalysisPlayer with:', { 
                 videoUrl, 
                 posesCount: posesToUse.length, 
                 result: !!state.result, 
                 phases: state.result?.phases?.length || 0,
                 metrics: !!state.result?.metrics,
-                usingResultPoses: !state.poses && !!state.result?.landmarks
+                usingResultPoses: !state.poses && !!state.result?.landmarks,
+                usingResultPosesProperty: !!(state.result as any)?.poses,
+                statePoses: state.poses?.length || 0,
+                resultLandmarks: state.result?.landmarks?.length || 0,
+                resultPoses: (state.result as any)?.poses?.length || 0
               });
               return null;
             })()}
             <VideoAnalysisPlayer
               videoUrl={videoUrl}
-              poses={state.poses || state.result?.landmarks || []}
+              poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
               metrics={state.result.metrics || {}}
               phases={state.result.phases || []}
               className="mb-6"
@@ -1073,7 +1084,7 @@ export default function UploadPage() {
             <div className="bg-white rounded-lg border p-6">
               <ProcessedVideoPlayer
                 videoUrl={videoUrl}
-                poses={state.poses || state.result?.landmarks || []}
+                poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
                 phases={state.result.phases || []}
                 timestamps={state.result.timestamps || []}
                 slowMotionFactor={3}
