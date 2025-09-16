@@ -3,14 +3,48 @@
 import Tooltip from '../ui/Tooltip';
 import type { AISwingAnalysis } from '@/lib/ai-swing-analyzer';
 
+interface FeedbackData {
+  strengths?: string[];
+  focusAreas?: string[];
+  recommendations?: string[];
+}
+
 interface SwingFeedbackProps {
   title?: string;
-  analysis: AISwingAnalysis;
+  analysis?: AISwingAnalysis;
 }
 
 export default function SwingFeedback({ title = 'Your Swing Analysis', analysis }: SwingFeedbackProps) {
-  const { swingMetrics, overallScore, strengths, improvements, technicalNotes, recordingQuality, openAI } = analysis;
-  const tempoText = `${swingMetrics.tempo.backswingTime.toFixed(2)}s : ${swingMetrics.tempo.downswingTime.toFixed(2)}s`;
+  // Add comprehensive error handling and loading state
+  if (!analysis) {
+    return (
+      <div className="w-full space-y-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="text-center text-gray-500">Loading analysis...</div>
+        </div>
+      </div>
+    );
+  }
+
+  try {
+    // Add default values to prevent undefined errors
+    const strengths = analysis.strengths || [];
+    const improvements = analysis.improvements || [];
+    const technicalNotes = analysis.technicalNotes || [];
+    const recordingQuality = analysis.recordingQuality || { score: 1, angle: 'unknown', recommendations: [] };
+    const openAI = analysis.openAI || null;
+    const swingMetrics = analysis.swingMetrics || {
+      tempo: { backswingTime: 0, downswingTime: 0, ratio: 0, assessment: 'No data available' },
+      rotation: { shoulders: 0, xFactor: 0, assessment: 'No data available' },
+      balance: { score: 0, assessment: 'No data available' },
+      plane: { assessment: 'No data available' }
+    };
+    const overallScore = analysis.overallScore || 0;
+    
+    // Safe tempo text calculation
+    const tempoText = swingMetrics.tempo ? 
+      `${swingMetrics.tempo.backswingTime?.toFixed(2) || '0.00'}s : ${swingMetrics.tempo.downswingTime?.toFixed(2) || '0.00'}s` :
+      '0.00s : 0.00s';
 
   return (
     <div className="w-full space-y-6">
@@ -45,7 +79,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
             </Tooltip>
           </div>
           <p className="text-sm text-gray-600">Times: {tempoText}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{swingMetrics.tempo.ratio.toFixed(2)} : 1</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{swingMetrics.tempo?.ratio?.toFixed(2) || '0.00'} : 1</p>
           <p className="text-xs text-gray-500 mt-1">Ideal ≈ 3.0 : 1</p>
         </div>
 
@@ -56,7 +90,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
               <span className="text-xs text-gray-500">Info</span>
             </Tooltip>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation.shoulders.toFixed(1)}°</p>
+          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation?.shoulders?.toFixed(1) || '0.0'}°</p>
           <p className="text-xs text-gray-500 mt-1">Target 90–100°</p>
         </div>
 
@@ -67,7 +101,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
               <span className="text-xs text-gray-500">Info</span>
             </Tooltip>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation.xFactor.toFixed(1)}°</p>
+          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation?.xFactor?.toFixed(1) || '0.0'}°</p>
           <p className="text-xs text-gray-500 mt-1">Target 20–30°</p>
         </div>
 
@@ -78,7 +112,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
               <span className="text-xs text-gray-500">Info</span>
             </Tooltip>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{(swingMetrics.balance.score * 100).toFixed(0)}%</p>
+          <p className="text-2xl font-bold text-gray-900">{((swingMetrics.balance?.score || 0) * 100).toFixed(0)}%</p>
           <p className="text-xs text-gray-500 mt-1">Stability Score</p>
         </div>
       </div>
@@ -125,7 +159,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
       {/* AI-Generated Feedback */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Strengths */}
-        {strengths.length > 0 && (
+        {strengths && strengths.length > 0 && (
           <div className="rounded-xl border p-4 bg-green-50 border-green-200">
             <h4 className="font-medium text-green-800 mb-3">✅ Strengths</h4>
             <ul className="space-y-2">
@@ -140,7 +174,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
         )}
 
         {/* Improvements */}
-        {improvements.length > 0 && (
+        {improvements && improvements.length > 0 && (
           <div className="rounded-xl border p-4 bg-blue-50 border-blue-200">
             <h4 className="font-medium text-blue-800 mb-3">🎯 Focus Areas</h4>
             <ul className="space-y-2">
@@ -156,16 +190,18 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
       </div>
 
       {/* Technical Notes */}
-      <div className="rounded-xl border p-4 bg-gray-50">
-        <h4 className="font-medium text-gray-800 mb-3">📊 Technical Analysis</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {technicalNotes.map((note, idx) => (
-            <div key={idx} className="text-sm text-gray-600">
-              {note}
-            </div>
-          ))}
+      {technicalNotes && technicalNotes.length > 0 && (
+        <div className="rounded-xl border p-4 bg-gray-50">
+          <h4 className="font-medium text-gray-800 mb-3">📊 Technical Analysis</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {technicalNotes.map((note, idx) => (
+              <div key={idx} className="text-sm text-gray-600">
+                {note}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Individual Metric Assessments */}
       <div className="space-y-4">
@@ -173,26 +209,45 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
         
         <div className="bg-white rounded-lg border p-4">
           <h5 className="font-medium text-gray-700 mb-2">Tempo Analysis</h5>
-          <p className="text-sm text-gray-600">{swingMetrics.tempo.assessment}</p>
+          <p className="text-sm text-gray-600">{swingMetrics.tempo?.assessment || 'No tempo data available'}</p>
         </div>
         
         <div className="bg-white rounded-lg border p-4">
           <h5 className="font-medium text-gray-700 mb-2">Rotation Analysis</h5>
-          <p className="text-sm text-gray-600">{swingMetrics.rotation.assessment}</p>
+          <p className="text-sm text-gray-600">{swingMetrics.rotation?.assessment || 'No rotation data available'}</p>
         </div>
         
         <div className="bg-white rounded-lg border p-4">
           <h5 className="font-medium text-gray-700 mb-2">Balance Analysis</h5>
-          <p className="text-sm text-gray-600">{swingMetrics.balance.assessment}</p>
+          <p className="text-sm text-gray-600">{swingMetrics.balance?.assessment || 'No balance data available'}</p>
         </div>
         
         <div className="bg-white rounded-lg border p-4">
           <h5 className="font-medium text-gray-700 mb-2">Swing Plane Analysis</h5>
-          <p className="text-sm text-gray-600">{swingMetrics.plane.assessment}</p>
+          <p className="text-sm text-gray-600">{swingMetrics.plane?.assessment || 'No swing plane data available'}</p>
         </div>
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('Error in SwingFeedback:', error);
+    return (
+      <div className="w-full space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h3 className="text-red-800 font-medium mb-2">Error Loading Feedback</h3>
+          <p className="text-red-700 text-sm">
+            There was an error loading your swing analysis. Please try refreshing the page or uploading your video again.
+          </p>
+          <details className="mt-2">
+            <summary className="text-red-600 text-xs cursor-pointer">Technical Details</summary>
+            <pre className="text-xs text-red-500 mt-1 overflow-auto">
+              {error instanceof Error ? error.message : 'Unknown error'}
+            </pre>
+          </details>
+        </div>
+      </div>
+    );
+  }
 }
 
 
