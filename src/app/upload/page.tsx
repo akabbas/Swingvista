@@ -590,6 +590,15 @@ export default function UploadPage() {
 
       dispatch({ type: 'SET_STEP', payload: 'Done' }); 
       dispatch({ type: 'SET_PROGRESS', payload: 100 });
+      
+      // Automatically switch to video analysis tab when analysis completes
+      console.log('Analysis completed, switching to video-analysis tab. Current state:', { 
+        poses: state.poses?.length, 
+        result: !!state.result, 
+        activeTab: state.activeTab 
+      });
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' });
+      
       clearTimeout(timeoutId);
     } catch (err: any) {
       console.error('Analysis error:', err);
@@ -739,6 +748,7 @@ export default function UploadPage() {
             {state.activeTab === 'video-analysis' && videoUrl && state.poses && state.result && (
               <div className="mb-10">
                 <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
+                {console.log('Rendering VideoAnalysisPlayer with:', { videoUrl, posesCount: state.poses?.length, result: !!state.result, phases: state.result?.phases?.length })}
                 <VideoAnalysisPlayer
                   videoUrl={videoUrl}
                   poses={state.poses}
