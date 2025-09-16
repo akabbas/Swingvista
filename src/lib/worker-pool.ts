@@ -24,12 +24,30 @@ export class WorkerPool {
   }
 
   private initializeWorkers() {
-    for (let i = 0; i < this.options.maxWorkers; i++) {
-      const worker = new Worker(
-        new URL('../workers/unified-analysis.worker.ts', import.meta.url)
-      );
-      this.workers.push(worker);
-      this.availableWorkers.push(worker);
+    try {
+      for (let i = 0; i < this.options.maxWorkers; i++) {
+        console.log(`Creating worker ${i + 1}/${this.options.maxWorkers}`);
+        const worker = new Worker(
+          new URL('../workers/unified-analysis.worker.ts', import.meta.url)
+        );
+        
+        // Add error handling for worker creation
+        worker.onerror = (error) => {
+          console.error(`Worker ${i + 1} error:`, error);
+        };
+        
+        worker.onmessageerror = (error) => {
+          console.error(`Worker ${i + 1} message error:`, error);
+        };
+        
+        this.workers.push(worker);
+        this.availableWorkers.push(worker);
+        console.log(`Worker ${i + 1} created successfully`);
+      }
+      console.log(`Worker pool initialized with ${this.workers.length} workers`);
+    } catch (error) {
+      console.error('Failed to initialize worker pool:', error);
+      throw error;
     }
   }
 

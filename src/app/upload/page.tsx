@@ -357,13 +357,15 @@ export default function UploadPage() {
     dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: Date.now() });
     dispatch({ type: 'SET_ELAPSED_TIME', payload: 0 });
     
-    // Add timeout protection with longer duration for processing
+    // Add timeout protection with shorter duration for debugging
     const timeoutId = setTimeout(() => {
-      console.error('Analysis timeout triggered');
+      console.error('Analysis timeout triggered after 60 seconds');
+      console.error('Current step:', state.step);
+      console.error('Current progress:', state.progress);
       dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
       dispatch({ type: 'SET_ANALYZING', payload: false });
       dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
-    }, 180000); // 3 minute timeout for total analysis
+    }, 60000); // 1 minute timeout for debugging
     
     try {
       dispatch({ type: 'SET_STEP', payload: 'Initializing...' }); 
@@ -437,7 +439,6 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
       await setCachedPoses(cacheKey, extracted);
 
-      if (!workerPool) throw new Error('Worker pool not available');
       const club = 'driver';
       const swingId = `swing_${Date.now()}`;
       const source = 'upload' as const;
@@ -446,11 +447,47 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Analyzing swing mechanics...' });
       dispatch({ type: 'SET_PROGRESS', payload: 65 });
       console.log('Starting swing mechanics analysis...');
-      const analysis = await workerPool.processMessage({ 
-        type: 'ANALYZE_SWING', 
-        data: { poses: extracted, club, swingId, source } 
-      });
-      console.log('Swing mechanics analysis completed');
+      console.log('Worker pool available:', !!workerPool);
+      console.log('Poses to analyze:', extracted.length);
+      
+      let analysis;
+      
+      if (workerPool) {
+        console.log('Using worker pool for analysis...');
+        console.log('Sending message to worker pool...');
+        
+        // Add specific timeout for worker processing
+        const workerTimeout = setTimeout(() => {
+          console.error('Worker processing timeout after 30 seconds');
+          throw new Error('Swing mechanics analysis timed out. Please try again.');
+        }, 30000);
+        
+        try {
+          analysis = await workerPool.processMessage({ 
+            type: 'ANALYZE_SWING', 
+            data: { poses: extracted, club, swingId, source } 
+          });
+          
+          clearTimeout(workerTimeout);
+          console.log('Swing mechanics analysis completed via worker');
+          console.log('Analysis result:', analysis);
+        } catch (error) {
+          clearTimeout(workerTimeout);
+          console.error('Worker processing error:', error);
+          console.log('Falling back to main thread analysis...');
+          
+          // Fallback to main thread analysis
+          const { analyzeSwing } = await import('@/lib/unified-analysis');
+          analysis = await analyzeSwing({ poses: extracted, club, swingId, source });
+          console.log('Main thread analysis completed');
+        }
+      } else {
+        console.log('Worker pool not available, using main thread...');
+        const { analyzeSwing } = await import('@/lib/unified-analysis');
+        analysis = await analyzeSwing({ poses: extracted, club, swingId, source });
+        console.log('Main thread analysis completed');
+      }
+      
       dispatch({ type: 'SET_RESULT', payload: analysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
       await setCachedAnalysis(cacheKey, analysis);
