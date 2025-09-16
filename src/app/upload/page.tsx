@@ -623,6 +623,13 @@ export default function UploadPage() {
       dispatch({ type: 'SET_RESULT', payload: normalizedAnalysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
       
+      // Ensure poses are still set in the result
+      console.log('Final state check before AI analysis:', {
+        poses: state.poses?.length,
+        result: !!normalizedAnalysis,
+        phases: normalizedAnalysis.phases?.length
+      });
+      
       try {
         if (cacheKey && typeof cacheKey === 'string') {
           await setCachedAnalysis(cacheKey, normalizedAnalysis);
@@ -677,6 +684,12 @@ export default function UploadPage() {
         metrics: !!normalizedAnalysis?.metrics,
         trajectory: !!normalizedAnalysis?.trajectory
       });
+      
+      // Ensure poses are set in the result for video analysis
+      if (normalizedAnalysis && extracted) {
+        normalizedAnalysis.landmarks = extracted;
+        console.log('Ensuring poses are in analysis result:', extracted.length, 'poses');
+      }
       
       // Force a small delay to ensure state is updated
       setTimeout(() => {
@@ -830,22 +843,24 @@ export default function UploadPage() {
               </div>
             )}
 
-        {state.activeTab === 'video-analysis' && videoUrl && state.poses && state.result && (
+        {state.activeTab === 'video-analysis' && videoUrl && state.result && (
           <div className="mb-10">
             <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
             {(() => {
+              const posesToUse = state.poses || state.result?.landmarks || [];
               console.log('Rendering VideoAnalysisPlayer with:', { 
                 videoUrl, 
-                posesCount: state.poses?.length, 
+                posesCount: posesToUse.length, 
                 result: !!state.result, 
                 phases: state.result?.phases?.length || 0,
-                metrics: !!state.result?.metrics
+                metrics: !!state.result?.metrics,
+                usingResultPoses: !state.poses && !!state.result?.landmarks
               });
               return null;
             })()}
             <VideoAnalysisPlayer
               videoUrl={videoUrl}
-              poses={state.poses}
+              poses={state.poses || state.result?.landmarks || []}
               metrics={state.result.metrics || {}}
               phases={state.result.phases || []}
               className="mb-6"
@@ -1043,33 +1058,33 @@ export default function UploadPage() {
               </div>
             )}
 
-            {state.activeTab === 'processed-video' && videoUrl && state.poses && state.result && (
-              <div className="space-y-8">
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Slow-Motion Swing Analysis</h2>
-                  <p className="text-gray-600">Generate a professional slow-motion video with phase overlays and analysis</p>
-                </div>
+        {state.activeTab === 'processed-video' && videoUrl && state.result && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Slow-Motion Swing Analysis</h2>
+              <p className="text-gray-600">Generate a professional slow-motion video with phase overlays and analysis</p>
+            </div>
 
-                <div className="bg-white rounded-lg border p-6">
-                  <ProcessedVideoPlayer
-                    videoUrl={videoUrl}
-                    poses={state.poses}
-                    phases={state.result.phases || []}
-                    timestamps={state.result.timestamps || []}
-                    slowMotionFactor={3}
-                    showOverlays={true}
-                    showGrades={true}
-                    showAdvice={true}
-                    showTimestamps={true}
-                    onProcessingComplete={(blob) => {
-                      console.log('Video processing complete:', blob.size, 'bytes');
-                      // You could save the blob to IndexedDB or show a success message
-                    }}
-                    onProcessingProgress={(progress, message) => {
-                      console.log(`Processing: ${message} (${progress}%)`);
-                    }}
-                  />
-                </div>
+            <div className="bg-white rounded-lg border p-6">
+              <ProcessedVideoPlayer
+                videoUrl={videoUrl}
+                poses={state.poses || state.result?.landmarks || []}
+                phases={state.result.phases || []}
+                timestamps={state.result.timestamps || []}
+                slowMotionFactor={3}
+                showOverlays={true}
+                showGrades={true}
+                showAdvice={true}
+                showTimestamps={true}
+                onProcessingComplete={(blob) => {
+                  console.log('Video processing complete:', blob.size, 'bytes');
+                  // You could save the blob to IndexedDB or show a success message
+                }}
+                onProcessingProgress={(progress, message) => {
+                  console.log(`Processing: ${message} (${progress}%)`);
+                }}
+              />
+            </div>
 
                 <div className="bg-blue-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4">Features of Processed Video:</h3>
