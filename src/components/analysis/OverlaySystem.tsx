@@ -75,6 +75,21 @@ export default function OverlaySystem({
   const lastRenderTime = useRef<number>(0);
   const renderThrottle = 16; // ~60fps
 
+  // Comprehensive debugging
+  console.log('=== OVERLAY SYSTEM DEBUG ===');
+  console.log('Pose data received:', {
+    hasPoses: !!poses,
+    posesCount: poses?.length || 0,
+    firstPose: poses?.[0] ? 'exists' : 'missing',
+    hasLandmarks: poses?.[0]?.landmarks ? poses[0].landmarks.length + ' landmarks' : 'no landmarks',
+    firstLandmark: poses?.[0]?.landmarks?.[0] || 'none'
+  });
+  console.log('Canvas ref:', canvasRef.current ? 'exists' : 'missing');
+  console.log('Video ref:', videoRef.current ? 'exists' : 'missing');
+  console.log('Overlay mode:', overlayMode);
+  console.log('Current time:', currentTime);
+  console.log('Is playing:', isPlaying);
+
   // Throttle overlay updates during playback for performance
   const shouldRender = useCallback(() => {
     const now = Date.now();
@@ -84,6 +99,28 @@ export default function OverlaySystem({
     lastRenderTime.current = now;
     return true;
   }, [isPlaying]);
+
+  // Helper function to find closest pose
+  const findClosestPose = useCallback((time: number): PoseResult | null => {
+    if (!poses || poses.length === 0) return null;
+    
+    const firstPose = poses[0];
+    if (!firstPose || firstPose.timestamp === undefined) return null;
+    
+    let closest = firstPose;
+    let minDiff = Math.abs(firstPose.timestamp - time);
+    
+    for (const pose of poses) {
+      if (pose.timestamp === undefined) continue;
+      const diff = Math.abs(pose.timestamp - time);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = pose;
+      }
+    }
+    
+    return closest;
+  }, [poses]);
 
   // Draw minimal overlays for Analysis View
   const drawMinimalOverlays = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -141,82 +178,20 @@ export default function OverlaySystem({
     if (config.metrics) {
       drawBasicMetrics(ctx);
     }
-  }, [config, phases, currentTime, poses]);
-
-  // Draw technical overlays for Technical View
-  const drawTechnicalOverlays = useCallback((ctx: CanvasRenderingContext2D) => {
-    const { width, height } = ctx.canvas;
-    
-    // Draw all landmarks
-    if (config.landmarks) {
-      const closestPose = findClosestPose(currentTime);
-      if (closestPose?.landmarks) {
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
-        closestPose.landmarks.forEach((landmark, index) => {
-          if (landmark.visibility && landmark.visibility > 0.5) {
-            ctx.beginPath();
-            ctx.arc(landmark.x * width, landmark.y * height, 3, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Landmark numbers for debugging
-            if (overlayMode === 'technical') {
-              ctx.fillStyle = '#ffffff';
-              ctx.font = '10px Arial';
-              ctx.fillText(index.toString(), landmark.x * width + 5, landmark.y * height - 5);
-              ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
-            }
-          }
-        });
-      }
-    }
-
-    // Draw skeleton
-    if (config.skeleton) {
-      const closestPose = findClosestPose(currentTime);
-      if (closestPose?.landmarks) {
-        drawSkeleton(ctx, closestPose.landmarks);
-      }
-    }
-
-    // Draw force vectors
-    if (config.forceVectors) {
-      drawForceVectors(ctx);
-    }
-
-    // Draw rotation arcs
-    if (config.rotationArcs) {
-      drawRotationArcs(ctx);
-    }
-
-    // Include minimal overlays too
-    drawMinimalOverlays(ctx);
-  }, [config, currentTime, poses, phases, overlayMode, drawMinimalOverlays]);
-
-  // Helper function to find closest pose
-  const findClosestPose = useCallback((time: number): PoseResult | null => {
-    if (!poses || poses.length === 0) return null;
-    
-    const firstPose = poses[0];
-    if (!firstPose || firstPose.timestamp === undefined) return null;
-    
-    let closest = firstPose;
-    let minDiff = Math.abs(firstPose.timestamp - time);
-    
-    for (const pose of poses) {
-      if (pose.timestamp === undefined) continue;
-      const diff = Math.abs(pose.timestamp - time);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = pose;
-      }
-    }
-    
-    return closest;
-  }, [poses]);
+  }, [config, phases, currentTime, poses, findClosestPose]);
 
   // Draw skeleton connections
   const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
+    console.log('=== DRAWING SKELETON ===');
+    console.log('Landmarks count:', landmarks?.length || 0);
+    
+    if (!landmarks || landmarks.length === 0) {
+      console.error('No landmarks to draw skeleton');
+      return;
+    }
+    
     const { width, height } = ctx.canvas;
+    console.log('Canvas dimensions for skeleton:', { width, height });
     
     const connections = [
       // Head
@@ -233,16 +208,20 @@ export default function OverlaySystem({
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
     ctx.lineWidth = 3;
     
+    let connectionsDrawn = 0;
     connections.forEach(([a, b]) => {
       const pa = landmarks[a];
       const pb = landmarks[b];
-      if (pa && pb && pa.visibility > 0.5 && pb.visibility > 0.5) {
+      if (pa && pb && pa.visibility && pa.visibility > 0.5 && pb.visibility && pb.visibility > 0.5) {
         ctx.beginPath();
         ctx.moveTo(pa.x * width, pa.y * height);
         ctx.lineTo(pb.x * width, pb.y * height);
         ctx.stroke();
+        connectionsDrawn++;
       }
     });
+    
+    console.log('Skeleton connections drawn:', connectionsDrawn);
   }, []);
 
   // Draw swing path
@@ -301,7 +280,7 @@ export default function OverlaySystem({
         }
       });
     }
-  }, [currentTime, poses]);
+  }, [currentTime, poses, findClosestPose]);
 
   // Draw rotation arcs
   const drawRotationArcs = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -321,7 +300,7 @@ export default function OverlaySystem({
       ctx.arc(shoulderCenter.x, shoulderCenter.y, 30, 0, Math.PI);
       ctx.stroke();
     }
-  }, [currentTime, poses]);
+  }, [currentTime, poses, findClosestPose]);
 
   // Draw basic metrics
   const drawBasicMetrics = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -344,37 +323,190 @@ export default function OverlaySystem({
     ctx.fillText(`Time: ${(currentTime / 1000).toFixed(1)}s`, metricsX + 10, metricsY + 70);
   }, [poses.length, phases.length, currentTime]);
 
+  // Draw technical overlays for Technical View
+  const drawTechnicalOverlays = useCallback((ctx: CanvasRenderingContext2D) => {
+    console.log('=== DRAWING TECHNICAL OVERLAYS ===');
+    const { width, height } = ctx.canvas;
+    console.log('Canvas dimensions for technical overlays:', { width, height });
+    
+    // Draw all landmarks
+    if (config.landmarks) {
+      console.log('Drawing landmarks...');
+      const closestPose = findClosestPose(currentTime);
+      console.log('Closest pose for technical overlays:', closestPose);
+      
+      if (closestPose?.landmarks) {
+        console.log('Drawing', closestPose.landmarks.length, 'landmarks');
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+        
+        let landmarksDrawn = 0;
+        closestPose.landmarks.forEach((landmark, index) => {
+          if (landmark && landmark.visibility && landmark.visibility > 0.5) {
+            const x = landmark.x * width;
+            const y = landmark.y * height;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            landmarksDrawn++;
+            
+            // Landmark numbers for debugging
+            if (overlayMode === 'technical') {
+              ctx.fillStyle = '#ffffff';
+              ctx.font = '10px Arial';
+              ctx.fillText(index.toString(), x + 5, y - 5);
+              ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+            }
+          }
+        });
+        
+        console.log('Landmarks drawn:', landmarksDrawn);
+      } else {
+        console.warn('No landmarks found in closest pose');
+      }
+    }
+
+    // Draw skeleton
+    if (config.skeleton) {
+      console.log('Drawing skeleton...');
+      const closestPose = findClosestPose(currentTime);
+      if (closestPose?.landmarks) {
+        drawSkeleton(ctx, closestPose.landmarks);
+      } else {
+        console.warn('No landmarks found for skeleton');
+      }
+    }
+
+    // Draw force vectors
+    if (config.forceVectors) {
+      console.log('Drawing force vectors...');
+      drawForceVectors(ctx);
+    }
+
+    // Draw rotation arcs
+    if (config.rotationArcs) {
+      console.log('Drawing rotation arcs...');
+      drawRotationArcs(ctx);
+    }
+
+    // Include minimal overlays too
+    console.log('Drawing minimal overlays...');
+    drawMinimalOverlays(ctx);
+    
+    console.log('Technical overlays drawing completed');
+  }, [config, currentTime, poses, phases, overlayMode, drawMinimalOverlays, findClosestPose, drawSkeleton, drawForceVectors, drawRotationArcs]);
+
+
   // Main render function
   const renderOverlays = useCallback(() => {
-    if (!canvasRef.current || !videoRef.current) return;
+    console.log('=== RENDER OVERLAYS CALLED ===');
+    console.log('Canvas ref:', canvasRef.current ? 'exists' : 'missing');
+    console.log('Video ref:', videoRef.current ? 'exists' : 'missing');
+    
+    if (!canvasRef.current || !videoRef.current) {
+      console.error('Missing canvas or video ref');
+      return;
+    }
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('Canvas context not available');
+      return;
+    }
 
     const { videoWidth, videoHeight } = videoRef.current;
-    if (videoWidth === 0 || videoHeight === 0) return;
+    console.log('Video dimensions:', { videoWidth, videoHeight });
+    
+    if (videoWidth === 0 || videoHeight === 0) {
+      console.warn('Video dimensions are 0, skipping render');
+      return;
+    }
+
+    // Set canvas dimensions to match video
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    console.log('Canvas set to video dimensions:', { width: canvas.width, height: canvas.height });
 
     // Only render if we should (throttling)
-    if (!shouldRender()) return;
+    if (!shouldRender()) {
+      console.log('Skipping render due to throttling');
+      return;
+    }
+
+    console.log('Rendering overlays for mode:', overlayMode);
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Render based on overlay mode
     if (overlayMode === 'clean') {
+      console.log('Clean mode - no overlays');
       return; // No overlays
     } else if (overlayMode === 'analysis') {
+      console.log('Analysis mode - drawing minimal overlays');
       drawMinimalOverlays(ctx);
     } else if (overlayMode === 'technical') {
+      console.log('Technical mode - drawing technical overlays');
       drawTechnicalOverlays(ctx);
     }
+    
+    console.log('Overlay rendering completed');
   }, [canvasRef, videoRef, overlayMode, shouldRender, drawMinimalOverlays, drawTechnicalOverlays]);
 
-  // Render overlays when dependencies change
+  // Test canvas drawing function
+  const testCanvasDrawing = useCallback(() => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    console.log('=== TESTING CANVAS DRAWING ===');
+    
+    // Draw a simple red square to test canvas
+    ctx.fillStyle = 'red';
+    ctx.fillRect(10, 10, 50, 50);
+    console.log('Test red square drawn');
+    
+    // Draw a simple green circle
+    ctx.fillStyle = 'green';
+    ctx.beginPath();
+    ctx.arc(100, 100, 25, 0, 2 * Math.PI);
+    ctx.fill();
+    console.log('Test green circle drawn');
+  }, []);
+
+  // Continuous rendering loop
   useEffect(() => {
-    renderOverlays();
+    console.log('=== STARTING CONTINUOUS RENDERING LOOP ===');
+    
+    let animationFrameId: number;
+    
+    const renderLoop = () => {
+      renderOverlays();
+      animationFrameId = requestAnimationFrame(renderLoop);
+    };
+    
+    // Start the render loop
+    animationFrameId = requestAnimationFrame(renderLoop);
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        console.log('=== RENDER LOOP CANCELLED ===');
+      }
+    };
   }, [renderOverlays]);
+
+  // Test canvas on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      testCanvasDrawing();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [testCanvasDrawing]);
 
   return null; // This component only handles rendering, no UI
 }

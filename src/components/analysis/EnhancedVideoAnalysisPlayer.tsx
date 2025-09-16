@@ -384,27 +384,34 @@ export default function EnhancedVideoAnalysisPlayer({
             
             <div className="flex items-center space-x-2">
               <label className="text-sm text-gray-600">Speed:</label>
-              <select
-                value={playbackSpeed}
-                onChange={(e) => {
-                  const speed = parseFloat(e.target.value);
-                  console.log('DEBUG - Speed change requested:', speed);
-                  setPlaybackSpeed(speed);
-                  const video = videoRef.current;
-                  if (video) {
-                    video.playbackRate = speed;
-                    console.log('DEBUG - Video playback rate set to:', video.playbackRate);
-                  }
-                }}
-                className="px-2 py-1 border border-gray-300 rounded text-sm"
-              >
-                <option value={0.25}>0.25x</option>
-                <option value={0.5}>0.5x</option>
-                <option value={1}>1x</option>
-                <option value={1.25}>1.25x</option>
-                <option value={1.5}>1.5x</option>
-                <option value={2}>2x</option>
-              </select>
+              <div className="flex space-x-1">
+                {[0.5, 1, 1.5, 2].map(speed => (
+                  <button
+                    key={speed}
+                    onClick={() => {
+                      console.log('Speed change requested:', speed);
+                      setPlaybackSpeed(speed);
+                      const video = videoRef.current;
+                      if (video) {
+                        video.playbackRate = speed;
+                        console.log('Video playback rate set to:', video.playbackRate);
+                      } else {
+                        console.error('Video ref not available for speed change');
+                      }
+                    }}
+                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                      playbackSpeed === speed
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs text-gray-500">
+                Current: {playbackSpeed}x
+              </div>
             </div>
           </div>
           
