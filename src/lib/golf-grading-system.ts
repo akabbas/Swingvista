@@ -118,11 +118,11 @@ export class GolfGradingSystem {
   }
 
   private gradeTempo(phases: SwingPhase[]): GradeCategory {
-    const backswingPhase = phases.find(p => p.name === 'Backswing');
-    const transitionPhase = phases.find(p => p.name === 'Transition');
+    const backswingPhase = phases.find(p => p.name === 'backswing');
+    const downswingPhase = phases.find(p => p.name === 'downswing');
     
     const backswingTime = backswingPhase?.duration || 0;
-    const downswingTime = transitionPhase?.duration || 0;
+    const downswingTime = downswingPhase?.duration || 0;
     const ratio = downswingTime > 0 ? backswingTime / downswingTime : 0;
     
     const benchmark = PROFESSIONAL_BENCHMARKS.tempo;
@@ -144,7 +144,7 @@ export class GolfGradingSystem {
 
   private gradeRotation(poses: PoseResult[], phases: SwingPhase[]): GradeCategory {
     const setupFrame = poses[0];
-    const topFrame = phases.find(p => p.name === 'Backswing')?.endFrame || Math.floor(poses.length * 0.6);
+    const topFrame = phases.find(p => p.name === 'backswing')?.endFrame || Math.floor(poses.length * 0.6);
     const topPose = poses[topFrame] || poses[poses.length - 1];
     
     if (!setupFrame || !topPose) {

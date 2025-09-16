@@ -148,8 +148,8 @@ export class TrajectoryAnalyzer {
 
   private analyzePathDirection(trajectory: TrajectoryPoint[], phases: SwingPhase[]): { insideOut: boolean; outsideIn: boolean; onPlane: boolean } {
     if (trajectory.length < 3) { return { insideOut: false, outsideIn: false, onPlane: true }; }
-    const backswingPhase = phases.find(p => p.name === 'Backswing');
-    const downswingPhase = phases.find(p => p.name === 'Transition');
+    const backswingPhase = phases.find(p => p.name === 'backswing');
+    const downswingPhase = phases.find(p => p.name === 'downswing');
     if (!backswingPhase || !downswingPhase) { return { insideOut: false, outsideIn: false, onPlane: true }; }
     const backswingStart = Math.max(0, backswingPhase.startFrame);
     const backswingEnd = Math.min(trajectory.length - 1, backswingPhase.endFrame);

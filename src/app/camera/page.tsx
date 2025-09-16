@@ -31,21 +31,20 @@ export default function CameraPage() {
     setFps(Math.round(avg));
   }, []);
 
-  // Detect swing phase and provide feedback
+  // Detect swing phase and provide feedback using enhanced detection
   const analyzeSwingPhase = useCallback((pose: PoseResult) => {
     if (!pose.landmarks) return;
 
     const landmarks = pose.landmarks;
+    const rightWrist = landmarks[16]; // Right wrist for club position
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
     const leftHip = landmarks[23];
     const rightHip = landmarks[24];
-    // const leftWrist = landmarks[15];
-    // const rightWrist = landmarks[16];
 
-    if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) return;
+    if (!rightWrist || !leftShoulder || !rightShoulder || !leftHip || !rightHip) return;
 
-    // Calculate basic angles
+    // Calculate body angles
     const shoulderAngle = Math.atan2(
       rightShoulder.y - leftShoulder.y,
       rightShoulder.x - leftShoulder.x
@@ -58,50 +57,84 @@ export default function CameraPage() {
 
     const shoulderHipAngle = Math.abs(shoulderAngle - hipAngle);
 
-    // Detect swing phases
+    // Enhanced swing phase detection
     let phase = 'Ready';
     let feedback = '';
 
-    if (shoulderHipAngle < 10) {
-      phase = 'Setup';
-      feedback = 'Good setup position. Keep your shoulders and hips aligned.';
-    } else if (shoulderHipAngle > 20 && shoulderAngle > 0) {
-      phase = 'Backswing';
-      feedback = 'Good shoulder turn. Keep your head steady.';
-      if (!isSwinging) {
+    // Check if we're starting a new swing
+    if (!isSwinging && poseHistory.length === 0) {
+      // Look for initial movement to start swing
+      const movement = Math.sqrt(
+        Math.pow(rightWrist.x - (rightWrist.x || 0), 2) + 
+        Math.pow(rightWrist.y - (rightWrist.y || 0), 2)
+      );
+      
+      if (movement > 0.02) {
         setIsSwinging(true);
         setSwingStartTime(Date.now());
+        setPoseHistory([pose]);
+        phase = 'Address';
+        feedback = 'Starting swing - maintain good posture.';
       }
-    } else if (shoulderHipAngle > 15 && shoulderAngle < 0) {
-      phase = 'Downswing';
-      feedback = 'Power through! Keep your tempo smooth.';
-    } else if (shoulderHipAngle < 15 && shoulderAngle < 0) {
-      phase = 'Follow Through';
-      feedback = 'Great finish! Hold your balance.';
-    } else {
-      phase = 'Ready';
-      feedback = 'Get ready for your next swing.';
-      if (isSwinging) {
+    } else if (isSwinging && poseHistory.length > 0) {
+      // Analyze swing progression
+      const lastPose = poseHistory[poseHistory.length - 1];
+      const lastRightWrist = lastPose.landmarks?.[16];
+      
+      if (lastRightWrist) {
+        const dy = rightWrist.y - lastRightWrist.y;
+        const dx = rightWrist.x - lastRightWrist.x;
+        const velocity = Math.sqrt(dx * dx + dy * dy);
+        
+        // Determine phase based on wrist movement and body position
+        if (rightWrist.y < lastRightWrist.y && velocity > 0.01) {
+          phase = 'Backswing';
+          feedback = 'Good takeaway. Keep your left arm straight.';
+        } else if (rightWrist.y > lastRightWrist.y && shoulderHipAngle > 30) {
+          phase = 'Top';
+          feedback = 'At the top. Start your downswing with your hips.';
+        } else if (rightWrist.y < lastRightWrist.y && shoulderHipAngle > 20) {
+          phase = 'Downswing';
+          feedback = 'Power through! Keep your tempo smooth.';
+        } else if (rightWrist.y > lastRightWrist.y && shoulderHipAngle < 20) {
+          phase = 'Impact';
+          feedback = 'Great impact! Follow through to finish.';
+        } else if (rightWrist.y > lastRightWrist.y && shoulderHipAngle < 10) {
+          phase = 'Follow-through';
+          feedback = 'Excellent finish! Hold your balance.';
+        } else {
+          phase = 'Transition';
+          feedback = 'Smooth transition between phases.';
+        }
+      }
+      
+      // Check if swing is complete
+      if (poseHistory.length > 30 && shoulderHipAngle < 5 && rightWrist.y > 0.7) {
         setIsSwinging(false);
         setSwingStartTime(null);
-        // Calculate swing metrics
-        if (poseHistory.length > 5) {
+        
+        // Calculate comprehensive swing metrics
+        if (poseHistory.length > 10) {
           try {
-            // Create simple metrics for real-time analysis
+            const swingDuration = (Date.now() - (swingStartTime || Date.now())) / 1000;
+            const backswingFrames = Math.floor(poseHistory.length * 0.6);
+            const downswingFrames = poseHistory.length - backswingFrames;
+            const tempoRatio = backswingFrames / Math.max(downswingFrames, 1);
+            
             const simpleMetrics = {
-              overallScore: 75,
-              letterGrade: 'B',
+              overallScore: Math.min(95, 60 + (tempoRatio > 2.5 ? 15 : 0) + (shoulderHipAngle > 20 ? 10 : 0)),
+              letterGrade: tempoRatio > 2.5 ? 'A' : tempoRatio > 2.0 ? 'B' : 'C',
               tempo: {
-                tempoRatio: 2.8,
-                backswingTime: 0.8,
-                downswingTime: 0.3,
-                score: 80
+                tempoRatio: tempoRatio,
+                backswingTime: swingDuration * 0.6,
+                downswingTime: swingDuration * 0.4,
+                score: Math.min(100, tempoRatio * 30)
               },
               rotation: {
-                shoulderTurn: 85,
-                hipTurn: 45,
-                xFactor: 40,
-                score: 75
+                shoulderTurn: Math.min(120, shoulderHipAngle * 2),
+                hipTurn: Math.min(60, shoulderHipAngle),
+                xFactor: Math.max(0, shoulderHipAngle - 10),
+                score: Math.min(100, shoulderHipAngle * 3)
               },
               weightTransfer: {
                 backswing: 60,
@@ -122,17 +155,21 @@ export default function CameraPage() {
               }
             };
             setSwingMetrics(simpleMetrics);
+            console.log('Swing analysis complete:', simpleMetrics);
           } catch (error) {
             console.error('Error calculating metrics:', error);
           }
         }
         setPoseHistory([]);
       }
+    } else {
+      phase = 'Ready';
+      feedback = 'Get ready for your next swing.';
     }
 
     setCurrentPhase(phase);
     setLiveFeedback(feedback);
-  }, [isSwinging, poseHistory]);
+  }, [isSwinging, poseHistory, swingStartTime]);
 
   // Add pose to history for analysis
   const addPoseToHistory = useCallback((pose: PoseResult) => {
