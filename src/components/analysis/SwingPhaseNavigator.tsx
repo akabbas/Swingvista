@@ -324,7 +324,7 @@ export default function SwingPhaseNavigator({
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Phase Metrics</h4>
               <div className="space-y-2">
-                {Object.entries(currentPhase.metrics).map(([key, value]) => {
+                {currentPhase.metrics && typeof currentPhase.metrics === 'object' ? Object.entries(currentPhase.metrics).map(([key, value]) => {
                   if (value === undefined || value === null) return null;
                   
                   let displayValue = value;
@@ -339,9 +339,24 @@ export default function SwingPhaseNavigator({
                       unit = ':1';
                     }
                     displayValue = value.toFixed(1);
-                  } else if (typeof value === 'object' && value.left !== undefined) {
-                    displayValue = `${value.left.toFixed(0)}/${value.right.toFixed(0)}`;
-                    unit = '%';
+                  } else if (typeof value === 'object' && value !== null) {
+                    // Handle different object types safely
+                    if (value.left !== undefined && value.right !== undefined) {
+                      displayValue = `${value.left.toFixed(0)}/${value.right.toFixed(0)}`;
+                      unit = '%';
+                    } else if (value.x !== undefined && value.y !== undefined) {
+                      // Handle position objects like {x, y, z}
+                      displayValue = `(${value.x.toFixed(1)}, ${value.y.toFixed(1)}${value.z !== undefined ? `, ${value.z.toFixed(1)}` : ''})`;
+                      unit = '';
+                    } else {
+                      // Skip complex objects that can't be displayed
+                      return null;
+                    }
+                  } else if (typeof value === 'string') {
+                    displayValue = value;
+                  } else {
+                    // Skip other types that can't be displayed
+                    return null;
                   }
                   
                   return (
@@ -354,7 +369,9 @@ export default function SwingPhaseNavigator({
                       </span>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="text-sm text-gray-500">No metrics available</div>
+                )}
               </div>
             </div>
             
@@ -362,12 +379,14 @@ export default function SwingPhaseNavigator({
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Recommendations</h4>
               <div className="space-y-2">
-                {currentPhase.recommendations.map((recommendation, index) => (
+                {currentPhase.recommendations && Array.isArray(currentPhase.recommendations) ? currentPhase.recommendations.map((recommendation, index) => (
                   <div key={index} className="flex items-start text-sm">
                     <span className="text-blue-500 mr-2">💡</span>
                     <span className="text-gray-700">{recommendation}</span>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-sm text-gray-500">No recommendations available</div>
+                )}
               </div>
             </div>
           </div>
@@ -376,16 +395,26 @@ export default function SwingPhaseNavigator({
           <div className="mt-4 p-4 bg-white rounded-lg border">
             <h4 className="font-semibold text-gray-800 mb-2">Professional Benchmark</h4>
             <div className="text-sm text-gray-600">
-              <div>Ideal Duration: {(currentPhase.professionalBenchmark.idealDuration / 1000).toFixed(1)}s</div>
-              <div>Your Duration: {(currentPhase.duration / 1000).toFixed(1)}s</div>
-              <div className="mt-2">
-                <span className="font-medium">Common Mistakes:</span>
-                <ul className="list-disc list-inside mt-1">
-                  {currentPhase.professionalBenchmark.commonMistakes.map((mistake, index) => (
-                    <li key={index}>{mistake}</li>
-                  ))}
-                </ul>
-              </div>
+              {currentPhase.professionalBenchmark ? (
+                <>
+                  <div>Ideal Duration: {(currentPhase.professionalBenchmark.idealDuration / 1000).toFixed(1)}s</div>
+                  <div>Your Duration: {(currentPhase.duration / 1000).toFixed(1)}s</div>
+                  <div className="mt-2">
+                    <span className="font-medium">Common Mistakes:</span>
+                    <ul className="list-disc list-inside mt-1">
+                      {currentPhase.professionalBenchmark.commonMistakes && Array.isArray(currentPhase.professionalBenchmark.commonMistakes) ? 
+                        currentPhase.professionalBenchmark.commonMistakes.map((mistake, index) => (
+                          <li key={index}>{mistake}</li>
+                        )) : (
+                          <li>No common mistakes data available</li>
+                        )
+                      }
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <div>No professional benchmark data available</div>
+              )}
             </div>
           </div>
         </div>
