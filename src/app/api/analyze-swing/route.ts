@@ -26,11 +26,13 @@ export async function POST(request: NextRequest) {
       const fallback = {
         overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
         strengths: [
-          swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm'
+          swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm',
+          swingMetrics.rotation?.xFactor && swingMetrics.rotation.xFactor > 20 ? 'Good body separation' : 'Maintaining posture'
         ],
         improvements: [
           swingMetrics.tempo?.tempoRatio && swingMetrics.tempo.tempoRatio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
-          swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
+          swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact',
+          swingMetrics.weightTransfer?.score && swingMetrics.weightTransfer.score < 70 ? 'Work on weight transfer and balance' : 'Continue building consistency'
         ],
         keyTip: 'Work one priority at a time; film from down-the-line in good light.',
         recordingTips: recordingQuality?.score && recordingQuality.score < 0.7 ? ['Record in brighter light', 'Ensure full body in frame'] : []
@@ -44,12 +46,15 @@ export async function POST(request: NextRequest) {
 You are a professional golf instructor analyzing a golf swing. Based on the following data, provide detailed, constructive feedback:
 
 SWING METRICS:
-- Tempo Ratio: ${swingMetrics.tempo?.ratio || 'N/A'}:1 (ideal: 3:1)
-- Shoulder Rotation: ${swingMetrics.rotation?.shoulders || 'N/A'}° (target: 90-100°)
-- Hip Rotation: ${swingMetrics.rotation?.hips || 'N/A'}° (target: 40-50°)
+- Tempo Ratio: ${swingMetrics.tempo?.tempoRatio || 'N/A'}:1 (ideal: 3:1)
+- Shoulder Rotation: ${swingMetrics.rotation?.shoulderTurn || 'N/A'}° (target: 90-100°)
+- Hip Rotation: ${swingMetrics.rotation?.hipTurn || 'N/A'}° (target: 40-50°)
 - X-Factor: ${swingMetrics.rotation?.xFactor || 'N/A'}° (target: 20-30°)
-- Balance Score: ${swingMetrics.balance?.score ? (swingMetrics.balance.score * 100).toFixed(0) : 'N/A'}%
-- Swing Plane Consistency: ${swingMetrics.plane?.consistency ? (swingMetrics.plane.consistency * 100).toFixed(0) : 'N/A'}%
+- Weight Transfer Score: ${swingMetrics.weightTransfer?.score || 'N/A'}%
+- Swing Plane Angle: ${swingMetrics.swingPlane?.shaftAngle || 'N/A'}°
+- Plane Consistency: ${swingMetrics.swingPlane?.planeDeviation ? (100 - swingMetrics.swingPlane.planeDeviation).toFixed(0) : 'N/A'}%
+- Overall Score: ${swingMetrics.overallScore || 'N/A'}/100
+- Letter Grade: ${swingMetrics.letterGrade || 'N/A'}
 
 RECORDING QUALITY:
 - Angle: ${recordingQuality?.angle || 'unknown'}
