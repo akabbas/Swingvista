@@ -50,22 +50,46 @@ export async function extractPosesFromVideo(
     throw new Error('Video file is too large. Please use a video under 50MB.');
   }
 
-  // Add timeout protection with longer duration
-  const timeoutMs = Math.max(30000, duration * 2000 + 15000); // At least 30s or 2x video duration + 15s buffer
+  // Initialize MediaPipe with timeout
+  console.log('Initializing MediaPipe...');
+  const initTimeoutMs = 10000; // 10 second timeout for initialization
+  const initPromise = Promise.race([
+    detector.initialize(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('MediaPipe initialization timed out. Please refresh and try again.')), initTimeoutMs))
+  ]);
+
+  try {
+    await initPromise;
+    console.log('MediaPipe initialized successfully');
+  } catch (error) {
+    console.error('MediaPipe initialization failed:', error);
+    throw new Error('Failed to initialize video processing. Please refresh and try again.');
+  }
+
+  // Add frame processing timeout
+  const frameTimeoutMs = Math.max(15000, duration * 1000 + 5000); // 15s minimum or video duration + 5s
   let timeoutHandle: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
-      reject(new Error(`Video processing timed out after ${(timeoutMs/1000).toFixed(1)} seconds. Try a shorter video or check your internet connection.`));
-    }, timeoutMs);
+      console.error(`Frame processing timeout after ${frameTimeoutMs}ms for ${duration}s video`);
+      reject(new Error('Video processing is taking too long. Please try again or use a shorter video.'));
+    }, frameTimeoutMs);
   });
 
   try {
     // Race between video processing and timeout
     const processVideo = async () => {
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-      // Modern path: process frames while playing
-      video.currentTime = 0;
-      await video.play().catch(() => {});
+        console.log('Using modern video frame callback');
+        // Modern path: process frames while playing
+        video.currentTime = 0;
+        try {
+          await video.play();
+          console.log('Video playback started');
+        } catch (error) {
+          console.error('Video playback failed:', error);
+          // Continue even if autoplay fails - we can still process frames
+        }
 
       let lastProcessedMediaTime = -1;
       const minDelta = 1 / sampleFps;
@@ -78,6 +102,10 @@ export async function extractPosesFromVideo(
 
           const shouldProcess = lastProcessedMediaTime < 0 || (mediaTime - lastProcessedMediaTime) >= minDelta;
           const withinFrameLimit = poses.length < MAX_POSES;
+          
+          if (shouldProcess) {
+            console.log(`Processing frame at ${mediaTime.toFixed(2)}s (${poses.length + 1}/${MAX_POSES})`);
+          }
 
           if (shouldProcess && withinFrameLimit) {
         const result = await detector.detectPose(video);
