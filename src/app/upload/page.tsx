@@ -383,11 +383,23 @@ export default function UploadPage() {
 
       // Advanced cache hydration by content hash
       dispatch({ type: 'SET_STEP', payload: 'Checking cache...' });
-      const contentHash = await hashVideoFile(state.file);
-      const cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
-
-      const cachedPoses = await getCachedPoses<PoseResult[]>(cacheKey);
-      const cachedAnalysis = await getCachedAnalysis<any>(cacheKey);
+      
+      let contentHash, cacheKey, cachedPoses, cachedAnalysis;
+      
+      try {
+        contentHash = await hashVideoFile(state.file);
+        cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
+        console.log('Cache key generated:', cacheKey);
+        
+        cachedPoses = await getCachedPoses<PoseResult[]>(cacheKey);
+        cachedAnalysis = await getCachedAnalysis<any>(cacheKey);
+        console.log('Cache operations completed successfully');
+      } catch (error) {
+        console.error('Cache operation failed:', error);
+        console.log('Skipping cache due to error, proceeding with fresh analysis');
+        cachedPoses = null;
+        cachedAnalysis = null;
+      }
       
       console.log('Cache check results:', {
         cacheKey,
@@ -399,8 +411,10 @@ export default function UploadPage() {
       
       // Force fresh analysis for sample videos to ensure proper results
       const isSampleVideo = state.file?.name?.includes('max_homa') || state.file?.name?.includes('ludvig_aberg');
-      if (isSampleVideo) {
-        console.log('Sample video detected, skipping cache for fresh analysis');
+      const hasDatabaseError = !cacheKey; // If cache operations failed, skip cache entirely
+      
+      if (isSampleVideo || hasDatabaseError) {
+        console.log('Sample video or database error detected, skipping cache for fresh analysis');
       } else if (cachedPoses && cachedAnalysis) {
         dispatch({ type: 'SET_STEP', payload: 'Loaded from cache' });
         dispatch({ type: 'SET_POSES', payload: cachedPoses });
@@ -468,7 +482,18 @@ export default function UploadPage() {
       if (extracted.length < 5) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
       dispatch({ type: 'SET_POSES', payload: extracted });
       dispatch({ type: 'SET_STEP', payload: 'Saving poses to cache...' });
-      await setCachedPoses(cacheKey, extracted);
+      
+      try {
+        if (cacheKey && typeof cacheKey === 'string') {
+          await setCachedPoses(cacheKey, extracted);
+          console.log('Poses saved to cache successfully');
+        } else {
+          console.log('No cache key available, skipping pose cache save');
+        }
+      } catch (error) {
+        console.error('Failed to save poses to cache:', error);
+        console.log('Continuing without pose cache save');
+      }
 
       const club = 'driver';
       const swingId = `swing_${Date.now()}`;
@@ -597,7 +622,19 @@ export default function UploadPage() {
       
       dispatch({ type: 'SET_RESULT', payload: normalizedAnalysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
-      await setCachedAnalysis(cacheKey, normalizedAnalysis);
+      
+      try {
+        if (cacheKey && typeof cacheKey === 'string') {
+          await setCachedAnalysis(cacheKey, normalizedAnalysis);
+          console.log('Analysis result saved to cache successfully');
+        } else {
+          console.log('No cache key available, skipping cache save');
+        }
+      } catch (error) {
+        console.error('Failed to save analysis to cache:', error);
+        console.log('Continuing without cache save');
+      }
+      
       console.log('Analysis result set successfully');
       
       // Generate AI analysis (lazy loaded)
