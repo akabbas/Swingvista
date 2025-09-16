@@ -1,14 +1,17 @@
-// Lazy load MediaPipe
+// Lazy load MediaPipe with dynamic imports
 let Pose: unknown;
 let POSE_CONNECTIONS: unknown;
+let mediaPipePromise: Promise<any> | null = null;
 
 async function loadMediaPipe() {
-  if (!Pose) {
-    const mp: any = await import('@mediapipe/pose');
-    Pose = mp.Pose;
-    POSE_CONNECTIONS = mp.POSE_CONNECTIONS;
+  if (!mediaPipePromise) {
+    mediaPipePromise = import('@mediapipe/pose').then(mp => {
+      Pose = mp.Pose;
+      POSE_CONNECTIONS = mp.POSE_CONNECTIONS;
+      return { Pose, POSE_CONNECTIONS };
+    });
   }
-  return { Pose, POSE_CONNECTIONS };
+  return mediaPipePromise;
 }
 
 export interface PoseLandmark {
@@ -42,13 +45,36 @@ export interface SwingTrajectory {
   clubhead: TrajectoryPoint[];
 }
 
-export class MediaPipePoseDetector {
-  private pose: { setOptions: (opts: any) => void; onResults: (cb: (r: any) => void) => void; send: (args: any) => void; close: () => void } | null = null;
-  private isInitialized = false;
-  private options: any;
-  private pendingResolves: ((result: PoseResult | null) => void)[] = [];
+interface MediaPipePoseOptions {
+  modelComplexity: number;
+  smoothLandmarks: boolean;
+  enableSegmentation: boolean;
+  smoothSegmentation: boolean;
+  minDetectionConfidence: number;
+  minTrackingConfidence: number;
+}
 
-  constructor(options?: any) {
+interface MediaPipePoseInstance {
+  setOptions: (opts: MediaPipePoseOptions) => void;
+  onResults: (callback: (results: MediaPipeResults) => void) => void;
+  send: (args: { image: HTMLVideoElement }) => void;
+  close: () => void;
+}
+
+interface MediaPipeResults {
+  poseLandmarks?: PoseLandmark[];
+  poseWorldLandmarks?: PoseLandmark[];
+}
+
+export class MediaPipePoseDetector {
+  private static instance: MediaPipePoseDetector | null = null;
+  private pose: MediaPipePoseInstance | null = null;
+  private isInitialized = false;
+  private options: MediaPipePoseOptions;
+  private pendingResolves: ((result: PoseResult | null) => void)[] = [];
+  private refCount = 0;
+
+  constructor(options?: Partial<MediaPipePoseOptions>) {
     this.options = {
       modelComplexity: 1,
       smoothLandmarks: true,
@@ -58,6 +84,14 @@ export class MediaPipePoseDetector {
       minTrackingConfidence: 0.5,
       ...options
     };
+  }
+
+  static getInstance(options?: Partial<MediaPipePoseOptions>): MediaPipePoseDetector {
+    if (!MediaPipePoseDetector.instance) {
+      MediaPipePoseDetector.instance = new MediaPipePoseDetector(options);
+    }
+    MediaPipePoseDetector.instance.refCount++;
+    return MediaPipePoseDetector.instance;
   }
 
   async initialize(): Promise<void> {
@@ -76,7 +110,7 @@ export class MediaPipePoseDetector {
         minDetectionConfidence: this.options.minDetectionConfidence,
         minTrackingConfidence: this.options.minTrackingConfidence
       });
-      this.pose!.onResults((results: { poseLandmarks?: any[]; poseWorldLandmarks?: any[] }) => {
+      this.pose!.onResults((results: MediaPipeResults) => {
         const resolve = this.pendingResolves.shift();
         if (resolve) {
           if (results.poseLandmarks && results.poseLandmarks.length > 0) {
@@ -118,9 +152,16 @@ export class MediaPipePoseDetector {
   getPoseConnections() { return POSE_CONNECTIONS; }
 
   destroy() {
-    if (this.pose) { this.pose.close(); this.pose = null; }
-    this.isInitialized = false;
-    this.pendingResolves = [];
+    this.refCount--;
+    if (this.refCount <= 0) {
+      if (this.pose) { 
+        this.pose.close(); 
+        this.pose = null; 
+      }
+      this.isInitialized = false;
+      this.pendingResolves = [];
+      MediaPipePoseDetector.instance = null;
+    }
   }
 }
 

@@ -31,11 +31,14 @@ export async function extractPosesFromVideo(
   await waitForEvent(video, 'loadedmetadata');
   const duration = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
 
-  const detector = new MediaPipePoseDetector();
+  // Use singleton detector to prevent memory leaks
+  const detector = MediaPipePoseDetector.getInstance();
   await detector.initialize();
 
+  // Implement memory limits for pose data
+  const MAX_POSES = maxFrames || 600; // Limit to prevent memory issues
   const poses: PoseResult[] = [];
-    const qualityWarnings: string[] = [];
+  const qualityWarnings: string[] = [];
 
   try {
     if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
@@ -53,28 +56,28 @@ export async function extractPosesFromVideo(
           const mediaTime: number = (metadata && typeof metadata.mediaTime === 'number') ? metadata.mediaTime : video.currentTime;
 
           const shouldProcess = lastProcessedMediaTime < 0 || (mediaTime - lastProcessedMediaTime) >= minDelta;
-          const withinFrameLimit = typeof maxFrames === 'number' ? poses.length < maxFrames : true;
+          const withinFrameLimit = poses.length < MAX_POSES;
 
           if (shouldProcess && withinFrameLimit) {
-            const result = await detector.detectPose(video);
-            if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
-              // Override timestamp with mediaTime in ms for consistency
-              result.timestamp = Math.round(mediaTime * 1000);
-              poses.push(result);
-            } else if (result) {
-              // Log quality issues for user feedback
-              const quality = assessPoseQuality(result, minConfidence);
-              if (quality.score < qualityThreshold) {
-                qualityWarnings.push(`Frame ${poses.length}: ${quality.issues.join(', ')}`);
-              }
-            }
+        const result = await detector.detectPose(video);
+        if (result && isPoseQualityGood(result, minConfidence, qualityThreshold)) {
+          // Override timestamp with mediaTime in ms for consistency
+          result.timestamp = Math.round(mediaTime * 1000);
+          poses.push(result);
+        } else if (result) {
+          // Log quality issues for user feedback
+          const quality = assessPoseQuality(result, minConfidence);
+          if (quality?.score && quality.score < qualityThreshold) {
+            qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
+          }
+        }
             lastProcessedMediaTime = mediaTime;
 
             const progress = duration > 0 ? Math.min(99, (mediaTime / duration) * 100) : Math.min(99, poses.length);
             onProgress?.('Reading video frames...', progress);
           }
 
-          if (video.ended || (typeof maxFrames === 'number' && poses.length >= maxFrames)) {
+          if (video.ended || poses.length >= MAX_POSES) {
             isStopped = true;
             video.pause();
             resolve();
@@ -90,7 +93,7 @@ export async function extractPosesFromVideo(
       // Fallback path: seek in fixed increments
       const step = 1 / sampleFps;
       for (let t = 0; t <= duration; t += step) {
-        if (typeof maxFrames === 'number' && poses.length >= maxFrames) break;
+        if (poses.length >= MAX_POSES) break;
         // Guard against NaN duration videos
         if (!(duration > 0)) break;
         video.currentTime = t;
@@ -101,8 +104,8 @@ export async function extractPosesFromVideo(
           poses.push(result);
         } else if (result) {
           const quality = assessPoseQuality(result, minConfidence);
-          if (quality.score < qualityThreshold) {
-            qualityWarnings.push(`Frame ${poses.length}: ${quality.issues.join(', ')}`);
+          if (quality?.score && quality.score < qualityThreshold) {
+            qualityWarnings.push(`Frame ${poses.length}: ${quality.issues?.join(', ') ?? 'Unknown quality issues'}`);
           }
         }
         const progress = Math.min(99, (t / duration) * 100);
@@ -110,8 +113,11 @@ export async function extractPosesFromVideo(
       }
     }
   } finally {
+    // Clean up resources properly
     detector.destroy();
     URL.revokeObjectURL(objectUrl);
+    video.src = '';
+    video.remove();
   }
 
   onProgress?.('Frames captured', 100);

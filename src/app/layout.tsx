@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import FeedbackButton from '@/components/ui/FeedbackButton';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -69,6 +70,10 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
+        {/* Lightweight feedback button */}
+        {process.env.NODE_ENV !== 'test' && (
+          <FeedbackButton />
+        )}
       </body>
     </html>
   );
