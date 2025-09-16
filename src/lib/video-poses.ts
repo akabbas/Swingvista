@@ -40,14 +40,29 @@ export async function extractPosesFromVideo(
   const poses: PoseResult[] = [];
   const qualityWarnings: string[] = [];
   
-  // Add timeout protection
-  const timeoutMs = Math.min(60000, duration * 1000 + 10000); // Max 60s or video duration + 10s
-  const timeoutId = setTimeout(() => {
-    throw new Error(`Video processing timed out after ${timeoutMs}ms. Please try a shorter video.`);
-  }, timeoutMs);
+  // Validate video duration and size
+  if (duration > 20) {
+    throw new Error('Video is too long. Please use a video under 20 seconds.');
+  }
+
+  const fileSizeInMB = file.size / (1024 * 1024);
+  if (fileSizeInMB > 50) {
+    throw new Error('Video file is too large. Please use a video under 50MB.');
+  }
+
+  // Add timeout protection with longer duration
+  const timeoutMs = Math.max(30000, duration * 2000 + 15000); // At least 30s or 2x video duration + 15s buffer
+  let timeoutHandle: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Video processing timed out after ${(timeoutMs/1000).toFixed(1)} seconds. Try a shorter video or check your internet connection.`));
+    }, timeoutMs);
+  });
 
   try {
-    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+    // Race between video processing and timeout
+    const processVideo = async () => {
+      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
       // Modern path: process frames while playing
       video.currentTime = 0;
       await video.play().catch(() => {});
@@ -120,12 +135,15 @@ export async function extractPosesFromVideo(
     }
   } finally {
     // Clean up resources properly
-    clearTimeout(timeoutId);
+    clearTimeout(timeoutHandle);
     detector.destroy();
     URL.revokeObjectURL(objectUrl);
     video.src = '';
     video.remove();
   }
+
+  // Return the result of the race between processing and timeout
+  return Promise.race([processVideo(), timeoutPromise]);
 
   onProgress?.('Frames captured', 100);
 

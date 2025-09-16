@@ -323,10 +323,24 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
       dispatch({ type: 'SET_PROGRESS', payload: 10 });
       
-      const extracted = await extractPosesFromVideo(state.file, { sampleFps: 30, maxFrames: 600 }, (s, p) => { 
-        dispatch({ type: 'SET_STEP', payload: s }); 
-        dispatch({ type: 'SET_PROGRESS', payload: 10 + (p * 0.5) }); // 10-60%
-      });
+      let extracted;
+      try {
+        extracted = await extractPosesFromVideo(state.file, { sampleFps: 30, maxFrames: 600 }, (s, p) => { 
+          dispatch({ type: 'SET_STEP', payload: s }); 
+          dispatch({ type: 'SET_PROGRESS', payload: 10 + (p * 0.5) }); // 10-60%
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('too long')) {
+            throw new Error('Please trim your video to 20 seconds or less for optimal analysis.');
+          } else if (error.message.includes('too large')) {
+            throw new Error('Please compress your video to under 50MB for optimal analysis.');
+          } else if (error.message.includes('timed out')) {
+            throw new Error('Video processing took too long. Try a shorter video or check your connection.');
+          }
+        }
+        throw error;
+      }
       
       if (extracted.length < 10) throw new Error('Could not detect enough pose frames. Try a clearer video with better lighting and ensure your full body is visible.');
       dispatch({ type: 'SET_POSES', payload: extracted });
