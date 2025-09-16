@@ -155,11 +155,69 @@ export default function CameraPage() {
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
       }
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!pose || !pose.landmarks) return;
+    
+    // Debug: Draw a test circle to verify canvas is working
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, canvas.height / 2, 20, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText('Canvas Working', 10, 30);
+    
+    // Debug logging
+    console.log('Drawing pose:', pose ? 'pose detected' : 'no pose');
+    if (pose && pose.landmarks) {
+      console.log('Landmarks count:', pose.landmarks.length);
+      console.log('First few landmarks:', pose.landmarks.slice(0, 3));
+    }
+    
+    if (!pose || !pose.landmarks) {
+      console.log('No pose or landmarks, drawing test stick figure');
+      
+      // Draw a simple test stick figure
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Head
+      ctx.beginPath();
+      ctx.arc(centerX, centerY - 60, 15, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
+      ctx.fill();
+      
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - 45);
+      ctx.lineTo(centerX, centerY + 30);
+      ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      // Arms
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - 30);
+      ctx.lineTo(centerX - 30, centerY);
+      ctx.lineTo(centerX - 20, centerY + 10);
+      ctx.moveTo(centerX, centerY - 30);
+      ctx.lineTo(centerX + 30, centerY);
+      ctx.lineTo(centerX + 20, centerY + 10);
+      ctx.stroke();
+      
+      // Legs
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY + 30);
+      ctx.lineTo(centerX - 20, centerY + 60);
+      ctx.moveTo(centerX, centerY + 30);
+      ctx.lineTo(centerX + 20, centerY + 60);
+      ctx.stroke();
+      
+      return;
+    }
 
     // Analyze swing phase
     analyzeSwingPhase(pose);
@@ -311,7 +369,9 @@ export default function CameraPage() {
       await video.play();
 
       const detector = MediaPipePoseDetector.getInstance();
+      console.log('Initializing MediaPipe detector...');
       await detector.initialize();
+      console.log('MediaPipe detector initialized successfully');
       detectorRef.current = detector;
 
       // Throttle to ~25fps using mediaTime delta
@@ -326,6 +386,10 @@ export default function CameraPage() {
         if (lastTime < 0 || (mediaTime - lastTime) >= targetDelta) {
           const t0 = performance.now();
           const pose = await detector.detectPose(v);
+          console.log('Pose detection result:', pose ? 'SUCCESS' : 'FAILED');
+          if (pose) {
+            console.log('Pose confidence:', pose.landmarks ? pose.landmarks.length : 'no landmarks');
+          }
           drawPose(pose);
           const t1 = performance.now();
           const instantFps = 1000 / Math.max(1, (t1 - t0));
