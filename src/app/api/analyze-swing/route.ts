@@ -23,17 +23,20 @@ export async function POST(request: NextRequest) {
     const client = await getOpenAIClient();
     if (!client) {
       console.warn('OpenAI API key not available, returning fallback analysis');
-      return NextResponse.json({
-        overallScore: 75,
-        strengths: ['Good swing fundamentals detected'],
-        improvements: ['Consider working with a golf instructor for detailed feedback'],
-        technicalNotes: ['AI analysis unavailable - OpenAI API key not configured'],
-        recordingQuality: {
-          angle: 'side',
-          score: 80,
-          recommendations: ['Ensure good lighting and full body visibility']
-        }
-      });
+      const fallback = {
+        overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
+        strengths: [
+          swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm'
+        ],
+        improvements: [
+          swingMetrics.tempo?.tempoRatio && swingMetrics.tempo.tempoRatio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
+          swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
+        ],
+        keyTip: 'Work one priority at a time; film from down-the-line in good light.',
+        recordingTips: recordingQuality?.score && recordingQuality.score < 0.7 ? ['Record in brighter light', 'Ensure full body in frame'] : []
+      };
+
+      return NextResponse.json({ success: true, analysis: fallback, timestamp: new Date().toISOString() });
     }
 
     // Create a detailed prompt for OpenAI
@@ -61,24 +64,6 @@ Please provide:
 
 Format your response as JSON with these keys: overallAssessment, strengths, improvements, keyTip, recordingTips
 `;
-
-    // Fallback: if no API key is configured at build/runtime, return a basic structured response
-    if (!client) {
-      const fallback = {
-        overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
-        strengths: [
-          swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm'
-        ],
-        improvements: [
-          swingMetrics.tempo?.tempoRatio && swingMetrics.tempo.tempoRatio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
-          swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
-        ],
-        keyTip: 'Work one priority at a time; film from down-the-line in good light.',
-        recordingTips: recordingQuality?.score && recordingQuality.score < 0.7 ? ['Record in brighter light', 'Ensure full body in frame'] : []
-      };
-
-      return NextResponse.json({ success: true, analysis: fallback, timestamp: new Date().toISOString() });
-    }
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",

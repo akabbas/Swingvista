@@ -7,12 +7,21 @@ interface MetricsVisualizerProps {
 }
 
 export default function MetricsVisualizer({ metrics, className = '' }: MetricsVisualizerProps) {
+  // Add error handling for missing metrics
+  if (!metrics) {
+    return (
+      <div className={`text-center py-8 ${className}`}>
+        <p className="text-gray-500">No metrics available</p>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-8 ${className}`}>
       {/* Overall Score */}
       <div className="text-center">
-        <div className="text-6xl font-bold mb-2">{metrics.letterGrade}</div>
-        <div className="text-xl text-gray-600">Overall Score: {metrics.overallScore.toFixed(1)}</div>
+        <div className="text-6xl font-bold mb-2">{metrics.letterGrade || 'N/A'}</div>
+        <div className="text-xl text-gray-600">Overall Score: {metrics.overallScore?.toFixed(1) || 'N/A'}</div>
       </div>
 
       {/* Tempo Metrics */}
@@ -20,10 +29,10 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
         <h3 className="text-xl font-semibold mb-4">Tempo & Timing</h3>
         <div className="space-y-4">
           <TempoVisualizer
-            backswingTime={metrics.tempo.backswingTime}
-            downswingTime={metrics.tempo.downswingTime}
-            tempoRatio={metrics.tempo.tempoRatio}
-            score={metrics.tempo.score}
+            backswingTime={metrics.tempo?.backswingTime || 0}
+            downswingTime={metrics.tempo?.downswingTime || 0}
+            tempoRatio={metrics.tempo?.tempoRatio || 0}
+            score={metrics.tempo?.score || 0}
           />
         </div>
       </div>
@@ -33,10 +42,10 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
         <h3 className="text-xl font-semibold mb-4">Body Rotation</h3>
         <div className="space-y-4">
           <RotationVisualizer
-            shoulderTurn={metrics.rotation.shoulderTurn}
-            hipTurn={metrics.rotation.hipTurn}
-            xFactor={metrics.rotation.xFactor}
-            score={metrics.rotation.score}
+            shoulderTurn={metrics.rotation?.shoulderTurn || 0}
+            hipTurn={metrics.rotation?.hipTurn || 0}
+            xFactor={metrics.rotation?.xFactor || 0}
+            score={metrics.rotation?.score || 0}
           />
         </div>
       </div>
@@ -46,10 +55,10 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
         <h3 className="text-xl font-semibold mb-4">Weight Transfer</h3>
         <div className="space-y-4">
           <WeightTransferVisualizer
-            backswing={metrics.weightTransfer.backswing}
-            impact={metrics.weightTransfer.impact}
-            finish={metrics.weightTransfer.finish}
-            score={metrics.weightTransfer.score}
+            backswing={metrics.weightTransfer?.backswing || 0}
+            impact={metrics.weightTransfer?.impact || 0}
+            finish={metrics.weightTransfer?.finish || 0}
+            score={metrics.weightTransfer?.score || 0}
           />
         </div>
       </div>
@@ -59,9 +68,9 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
         <h3 className="text-xl font-semibold mb-4">Swing Plane</h3>
         <div className="space-y-4">
           <SwingPlaneVisualizer
-            shaftAngle={metrics.swingPlane.shaftAngle}
-            planeDeviation={metrics.swingPlane.planeDeviation}
-            score={metrics.swingPlane.score}
+            shaftAngle={metrics.swingPlane?.shaftAngle || 0}
+            planeDeviation={metrics.swingPlane?.planeDeviation || 0}
+            score={metrics.swingPlane?.score || 0}
           />
         </div>
       </div>
@@ -71,10 +80,10 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
         <h3 className="text-xl font-semibold mb-4">Body Alignment</h3>
         <div className="space-y-4">
           <BodyAlignmentVisualizer
-            spineAngle={metrics.bodyAlignment.spineAngle}
-            headMovement={metrics.bodyAlignment.headMovement}
-            kneeFlex={metrics.bodyAlignment.kneeFlex}
-            score={metrics.bodyAlignment.score}
+            spineAngle={metrics.bodyAlignment?.spineAngle || 0}
+            headMovement={metrics.bodyAlignment?.headMovement || 0}
+            kneeFlex={metrics.bodyAlignment?.kneeFlex || 0}
+            score={metrics.bodyAlignment?.score || 0}
           />
         </div>
       </div>

@@ -749,7 +749,13 @@ export default function UploadPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
                         <h3 className="text-xl font-semibold mb-4">Swing Metrics</h3>
-                        <MetricsVisualizer metrics={state.result.metrics} />
+                        {state.result.metrics ? (
+                          <MetricsVisualizer metrics={state.result.metrics} />
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-gray-500">Metrics not available</p>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-8">
                         <div>
