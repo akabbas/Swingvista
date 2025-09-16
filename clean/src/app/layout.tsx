@@ -39,7 +39,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.className} ${inter.variable}`}>
-      <body className="min-h-screen bg-white text-gray-900 antialiased">
+      <head>
+        {/* Critical CSS inlined to prevent FOUC - no hydration mismatch */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html { 
+                background-color: #FAFAFA !important; 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+              }
+              body { 
+                margin: 0 !important; 
+                background-color: #FAFAFA !important;
+                color: #1A1A1A !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+              }
+              /* Prevent FOUC during hydration */
+              .fouc-prevention {
+                background-color: #FAFAFA !important;
+                color: #1A1A1A !important;
+              }
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-white text-gray-900 antialiased fouc-prevention">
         <Header />
         <main className="min-h-screen bg-white">
           {children}
