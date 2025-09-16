@@ -4,13 +4,20 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true,
   },
-  turbopack: {
-    // Silence workspace-root inference warning in monorepo-ish setups
-    root: __dirname,
-  },
-  // Ensure CSS is loaded early
+  // Disable turbopack in production
+  ...(process.env.NODE_ENV === 'production' ? {} : {
+    turbopack: {
+      root: __dirname,
+    }
+  }),
+  output: 'standalone',
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // Keep console logs for debugging
+    removeConsole: false,
+  },
+  // Increase build memory limit
+  env: {
+    NODE_OPTIONS: '--max-old-space-size=4096'
   },
 };
 
