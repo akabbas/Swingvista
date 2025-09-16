@@ -555,15 +555,26 @@ export default function UploadPage() {
       }
       
       console.log('Setting analysis result:', analysis);
-      dispatch({ type: 'SET_RESULT', payload: analysis });
+      
+      // Ensure analysis result has the correct structure
+      const normalizedAnalysis = {
+        ...analysis,
+        phases: analysis?.phases || [],
+        timestamps: analysis?.timestamps || extracted.map(p => p.timestamp || 0),
+        metrics: analysis?.metrics || {},
+        trajectory: analysis?.trajectory || { clubhead: [], rightWrist: [] },
+        landmarks: analysis?.landmarks || extracted
+      };
+      
+      dispatch({ type: 'SET_RESULT', payload: normalizedAnalysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
-      await setCachedAnalysis(cacheKey, analysis);
+      await setCachedAnalysis(cacheKey, normalizedAnalysis);
       console.log('Analysis result set successfully');
       
       // Generate AI analysis (lazy loaded)
       dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });
       dispatch({ type: 'SET_PROGRESS', payload: 80 });
-      const aiResult = await lazyAIAnalyzer.analyze(extracted, analysis.trajectory, analysis.phases, club);
+      const aiResult = await lazyAIAnalyzer.analyze(extracted, normalizedAnalysis.trajectory, normalizedAnalysis.phases, club);
       dispatch({ type: 'SET_AI_ANALYSIS', payload: aiResult });
       
       // Save to progress history
@@ -594,8 +605,9 @@ export default function UploadPage() {
       // Automatically switch to video analysis tab when analysis completes
       console.log('Analysis completed, switching to video-analysis tab. Current state:', { 
         poses: state.poses?.length, 
-        result: !!state.result, 
-        activeTab: state.activeTab 
+        result: !!normalizedAnalysis, 
+        activeTab: state.activeTab,
+        phases: normalizedAnalysis?.phases?.length || 0
       });
       dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' });
       
@@ -745,17 +757,26 @@ export default function UploadPage() {
               </div>
             )}
 
-            {state.activeTab === 'video-analysis' && videoUrl && state.poses && state.result && (
-              <div className="mb-10">
-                <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
-                {console.log('Rendering VideoAnalysisPlayer with:', { videoUrl, posesCount: state.poses?.length, result: !!state.result, phases: state.result?.phases?.length })}
-                <VideoAnalysisPlayer
-                  videoUrl={videoUrl}
-                  poses={state.poses}
-                  metrics={state.result.metrics}
-                  phases={state.result.phases || []}
-                  className="mb-6"
-                />
+        {state.activeTab === 'video-analysis' && videoUrl && state.poses && state.result && (
+          <div className="mb-10">
+            <h2 className="text-xl font-semibold mb-4">Video Analysis with Overlays</h2>
+            {(() => {
+              console.log('Rendering VideoAnalysisPlayer with:', { 
+                videoUrl, 
+                posesCount: state.poses?.length, 
+                result: !!state.result, 
+                phases: state.result?.phases?.length || 0,
+                metrics: !!state.result?.metrics
+              });
+              return null;
+            })()}
+            <VideoAnalysisPlayer
+              videoUrl={videoUrl}
+              poses={state.poses}
+              metrics={state.result.metrics || {}}
+              phases={state.result.phases || []}
+              className="mb-6"
+            />
                 <div className="bg-green-50 p-4 rounded-lg">
                   <h3 className="font-medium mb-2">Video Analysis Features:</h3>
                   <ul className="list-disc list-inside text-sm space-y-1">
