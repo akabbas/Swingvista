@@ -190,18 +190,24 @@ export default function UploadPage() {
 
   const useTigerSample = useCallback(async () => {
     try {
+      console.log('Loading Tiger Woods sample video...');
       dispatch({ type: 'SET_ERROR', payload: null });
-      // Use Åberg sample as Tiger sample for now
-      const res = await fetch('/fixtures/swings/ludvig_aberg_driver.mp4');
-      if (!res.ok) throw new Error('Sample video not found. Please add it to public/fixtures/swings/ludvig_aberg_driver.mp4');
+      const res = await fetch('/fixtures/swings/tiger-woods-swing.mp4');
+      console.log('Fetch response:', res.status, res.ok);
+      if (!res.ok) {
+        throw new Error('Tiger Woods sample video not found. Please add a Tiger Woods swing video to public/fixtures/swings/tiger-woods-swing.mp4. You can find high-quality Tiger Woods swing videos on YouTube or golf instruction websites.');
+      }
       const blob = await res.blob();
-      const sampleFile = new File([blob], 'tiger-iron.mp4', { type: blob.type || 'video/mp4' });
+      console.log('Blob created:', blob.size, 'bytes');
+      const sampleFile = new File([blob], 'tiger-woods-swing.mp4', { type: blob.type || 'video/mp4' });
       dispatch({ type: 'SET_FILE', payload: sampleFile });
       dispatch({ type: 'SET_RESULT', payload: null });
       dispatch({ type: 'SET_POSES', payload: null });
       if (inputRef.current) inputRef.current.value = '';
+      console.log('Tiger Woods sample loaded successfully');
     } catch (err: any) {
-      dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to load sample video' });
+      console.error('Error loading Tiger Woods sample:', err);
+      dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to load Tiger Woods sample video' });
     }
   }, []);
 
@@ -402,7 +408,7 @@ export default function UploadPage() {
               🔍 {state.isAnalyzing ? 'Analyzing...' : 'Analyze Video'}
             </button>
             <button onClick={useTigerSample} disabled={state.isAnalyzing} className="w-full md:w-auto bg-purple-600 disabled:bg-purple-300 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-700 transition-all shadow">
-              🐯 Use Tiger Sample
+              🐯 Use Tiger Woods Sample
             </button>
             <button onClick={useAbergSample} disabled={state.isAnalyzing} className="w-full md:w-auto bg-indigo-600 disabled:bg-indigo-300 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow">
               🇸🇪 Use Åberg Sample
