@@ -86,11 +86,13 @@ const compressPoseData = (poses: any[]) => {
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const { type, data } = event.data;
   console.log('Worker received message:', type, data);
+  console.log('Worker starting analysis at:', new Date().toISOString());
   
   try {
     switch (type) {
       case 'ANALYZE_SWING': {
         console.log('Starting swing analysis in worker...');
+        console.log('Poses count:', data.poses?.length || 0);
         
         // Compress pose data to reduce memory usage
         const compressedData = {
@@ -98,7 +100,13 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
           poses: compressPoseData(data.poses || [])
         };
         
-        console.log('Compressed data:', compressedData);
+        console.log('Compressed data size:', JSON.stringify(compressedData).length, 'bytes');
+        
+        // Add timeout to worker analysis
+        const analysisTimeout = setTimeout(() => {
+          console.error('Worker analysis timeout after 45 seconds');
+          throw new Error('Worker analysis timed out');
+        }, 45000);
         
         // Update progress more frequently
         const result = await analyzeSwing(compressedData, (step, progress) => {
@@ -112,6 +120,8 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
             }
           }
         });
+        
+        clearTimeout(analysisTimeout);
         
         console.log('Analysis complete, sending result...');
         

@@ -357,15 +357,15 @@ export default function UploadPage() {
     dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: Date.now() });
     dispatch({ type: 'SET_ELAPSED_TIME', payload: 0 });
     
-    // Add timeout protection with shorter duration for debugging
+    // Add timeout protection with longer duration for worker processing
     const timeoutId = setTimeout(() => {
-      console.error('Analysis timeout triggered after 60 seconds');
+      console.error('Analysis timeout triggered after 120 seconds');
       console.error('Current step:', state.step);
       console.error('Current progress:', state.progress);
       dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
       dispatch({ type: 'SET_ANALYZING', payload: false });
       dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
-    }, 60000); // 1 minute timeout for debugging
+    }, 120000); // 2 minute timeout for worker processing
     
     try {
       dispatch({ type: 'SET_STEP', payload: 'Initializing...' }); 
@@ -458,18 +458,29 @@ export default function UploadPage() {
         
         // Add specific timeout for worker processing
         const workerTimeout = setTimeout(() => {
-          console.error('Worker processing timeout after 30 seconds');
+          console.error('Worker processing timeout after 60 seconds');
           throw new Error('Swing mechanics analysis timed out. Please try again.');
-        }, 30000);
+        }, 60000);
         
         try {
-          analysis = await workerPool.processMessage({ 
+          // Add a race condition to fallback to main thread if worker takes too long
+          const workerPromise = workerPool.processMessage({ 
             type: 'ANALYZE_SWING', 
             data: { poses: extracted, club, swingId, source } 
           });
           
+          const fallbackPromise = new Promise(async (resolve) => {
+            await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15 seconds
+            console.log('Worker taking too long, falling back to main thread...');
+            const { analyzeSwing } = await import('@/lib/unified-analysis');
+            const result = await analyzeSwing({ poses: extracted, club, swingId, source });
+            resolve(result);
+          });
+          
+          analysis = await Promise.race([workerPromise, fallbackPromise]);
+          
           clearTimeout(workerTimeout);
-          console.log('Swing mechanics analysis completed via worker');
+          console.log('Swing mechanics analysis completed');
           console.log('Analysis result:', analysis);
         } catch (error) {
           clearTimeout(workerTimeout);
