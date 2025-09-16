@@ -20,7 +20,8 @@ export async function extractPosesFromVideo(
   options: VideoToPoseOptions = {},
   onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> {
-  const { sampleFps = 30, maxFrames, minConfidence = 0.7, qualityThreshold = 0.6 } = options;
+  // Reduce frame rate and quality requirements for faster processing
+  const { sampleFps = 15, maxFrames = 150, minConfidence = 0.6, qualityThreshold = 0.5 } = options;
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.src = objectUrl;
@@ -35,8 +36,8 @@ export async function extractPosesFromVideo(
   const detector = MediaPipePoseDetector.getInstance();
   await detector.initialize();
 
-  // Implement memory limits for pose data
-  const MAX_POSES = maxFrames || 600; // Limit to prevent memory issues
+  // Use maxFrames directly as MAX_POSES
+  const MAX_POSES = maxFrames;
   const poses: PoseResult[] = [];
   const qualityWarnings: string[] = [];
   
@@ -66,8 +67,8 @@ export async function extractPosesFromVideo(
     throw new Error('Failed to initialize video processing. Please refresh and try again.');
   }
 
-  // Add frame processing timeout
-  const frameTimeoutMs = Math.max(15000, duration * 1000 + 5000); // 15s minimum or video duration + 5s
+  // Shorter timeout for faster processing
+  const frameTimeoutMs = Math.max(10000, duration * 1000 + 3000); // 10s minimum or video duration + 3s
   let timeoutHandle: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
