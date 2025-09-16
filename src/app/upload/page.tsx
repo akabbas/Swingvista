@@ -31,6 +31,18 @@ interface AnalysisResult {
   trajectory: any;
   phases: any[];
   landmarks: PoseResult[];
+  metrics: {
+    tempo: { ratio: number; backswingTime: number; downswingTime: number; assessment: string };
+    rotation: { shoulders: number; hips: number; xFactor: number; assessment: string };
+    balance: { score: number; assessment: string };
+    plane: { angle: number; consistency: number; assessment: string };
+  };
+  aiFeedback?: {
+    overallScore: number;
+    strengths: string[];
+    improvements: string[];
+    technicalNotes: string[];
+  };
 }
 
 interface AIAnalysisResult {
