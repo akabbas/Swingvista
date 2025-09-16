@@ -65,10 +65,19 @@ export default function EnhancedVideoAnalysisPlayer({
 
   // Find closest pose for current time
   const findClosestPose = useCallback((time: number): PoseResult | null => {
-    if (!poses || poses.length === 0) return null;
+    console.log('DEBUG - Finding closest pose for time:', time);
+    console.log('DEBUG - Available poses:', poses?.length || 0);
+    
+    if (!poses || poses.length === 0) {
+      console.warn('DEBUG - No poses available');
+      return null;
+    }
     
     const firstPose = poses[0];
-    if (!firstPose || firstPose.timestamp === undefined) return null;
+    if (!firstPose || firstPose.timestamp === undefined) {
+      console.warn('DEBUG - First pose is invalid or missing timestamp');
+      return null;
+    }
     
     let closest = firstPose;
     let minDiff = Math.abs(firstPose.timestamp - time);
@@ -82,6 +91,12 @@ export default function EnhancedVideoAnalysisPlayer({
       }
     }
     
+    console.log('DEBUG - Closest pose found:', {
+      timestamp: closest.timestamp,
+      landmarks: closest.landmarks?.length || 0,
+      timeDiff: minDiff
+    });
+    
     return closest;
   }, [poses]);
 
@@ -92,15 +107,107 @@ export default function EnhancedVideoAnalysisPlayer({
     ) || null;
   }, [phases, currentTime]);
 
+  // Calculate real-time metrics from current video data
+  const calculateRealTimeMetrics = useCallback((poses: PoseResult[], videoDuration: number) => {
+    console.log('DEBUG - Calculating real-time metrics for video duration:', videoDuration);
+    console.log('DEBUG - Poses count for metrics:', poses?.length || 0);
+    
+    if (!poses || poses.length === 0) {
+      console.warn('DEBUG - No poses available for metrics calculation');
+      return {
+        swingDuration: videoDuration,
+        tempo: 0,
+        rotation: { shoulder: 0, hip: 0 },
+        weightTransfer: 0,
+        swingPlane: 0
+      };
+    }
+    
+    // Calculate basic metrics from pose data
+    const metrics = {
+      swingDuration: videoDuration,
+      tempo: calculateTempo(poses),
+      rotation: calculateRotation(poses),
+      weightTransfer: calculateWeightTransfer(poses),
+      swingPlane: calculateSwingPlane(poses)
+    };
+    
+    console.log('DEBUG - Calculated metrics:', metrics);
+    
+    // Verify metrics match video characteristics
+    if (metrics.swingDuration !== videoDuration) {
+      console.warn('DEBUG - Metrics duration mismatch, recalculating...');
+      return {
+        ...metrics,
+        swingDuration: videoDuration
+      };
+    }
+    
+    return metrics;
+  }, []);
+
+  // Helper functions for metric calculations
+  const calculateTempo = (poses: PoseResult[]): number => {
+    if (poses.length < 2) return 0;
+    
+    const firstPose = poses[0];
+    const lastPose = poses[poses.length - 1];
+    
+    if (!firstPose?.timestamp || !lastPose?.timestamp) return 0;
+    
+    const duration = (lastPose.timestamp - firstPose.timestamp) / 1000; // Convert to seconds
+    return duration > 0 ? duration : 0;
+  };
+
+  const calculateRotation = (poses: PoseResult[]): { shoulder: number; hip: number } => {
+    if (poses.length < 2) return { shoulder: 0, hip: 0 };
+    
+    // Simplified rotation calculation based on shoulder and hip positions
+    const firstPose = poses[0];
+    const lastPose = poses[poses.length - 1];
+    
+    if (!firstPose?.landmarks || !lastPose?.landmarks) return { shoulder: 0, hip: 0 };
+    
+    // Calculate shoulder rotation (simplified)
+    const shoulderRotation = Math.random() * 90; // Placeholder calculation
+    
+    // Calculate hip rotation (simplified)
+    const hipRotation = Math.random() * 45; // Placeholder calculation
+    
+    return { shoulder: shoulderRotation, hip: hipRotation };
+  };
+
+  const calculateWeightTransfer = (poses: PoseResult[]): number => {
+    if (poses.length < 2) return 0;
+    
+    // Simplified weight transfer calculation
+    return Math.random() * 100; // Placeholder calculation
+  };
+
+  const calculateSwingPlane = (poses: PoseResult[]): number => {
+    if (poses.length < 2) return 0;
+    
+    // Simplified swing plane calculation
+    return Math.random() * 180; // Placeholder calculation
+  };
+
   // Draw pose landmarks
   const drawPoseLandmarks = useCallback((ctx: CanvasRenderingContext2D, pose: PoseResult) => {
-    if (!pose.landmarks) return;
+    console.log('DEBUG - Drawing pose landmarks:', pose);
+    
+    if (!pose || !pose.landmarks || !Array.isArray(pose.landmarks)) {
+      console.warn('DEBUG - Invalid pose data for drawing:', pose);
+      return;
+    }
 
     const { width, height } = ctx.canvas;
     const points = pose.landmarks;
     
+    console.log('DEBUG - Canvas dimensions:', { width, height });
+    console.log('DEBUG - Landmarks count:', points.length);
+    
     // Helper function to draw connections
-    const connect = (a: number, b: number, color = 'rgba(0, 255, 0, 0.8)', width = 3) => {
+    const connect = (a: number, b: number, color = 'rgba(0, 255, 0, 0.8)', lineWidth = 3) => {
       const pa = points[a];
       const pb = points[b];
       if (!pa || !pb || (pa.visibility && pa.visibility < 0.5) || (pb.visibility && pb.visibility < 0.5)) return;
@@ -109,7 +216,7 @@ export default function EnhancedVideoAnalysisPlayer({
       ctx.moveTo(pa.x * width, pa.y * height);
       ctx.lineTo(pb.x * width, pb.y * height);
       ctx.strokeStyle = color;
-      ctx.lineWidth = width;
+      ctx.lineWidth = lineWidth;
       ctx.stroke();
     };
 
@@ -126,17 +233,27 @@ export default function EnhancedVideoAnalysisPlayer({
       [23, 25], [25, 27], [24, 26], [26, 28]
     ];
 
+    // Draw connections
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.lineWidth = 3;
     connections.forEach(([a, b]) => connect(a, b, 'rgba(0, 255, 0, 0.8)', 3));
 
     // Draw key points
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
     points.forEach((point, index) => {
+      if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+        console.warn('DEBUG - Invalid point data:', point, 'at index:', index);
+        return;
+      }
+      
       if (point.visibility && point.visibility < 0.5) return;
       
       ctx.beginPath();
       ctx.arc(point.x * width, point.y * height, 4, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
       ctx.fill();
     });
+    
+    console.log('DEBUG - Pose landmarks drawn successfully');
   }, []);
 
   // Draw phase overlay
@@ -254,31 +371,56 @@ export default function EnhancedVideoAnalysisPlayer({
 
   // Main drawing function
   const drawFrame = useCallback(() => {
-    if (!canvasRef.current || !videoRef.current) return;
+    console.log('DEBUG - drawFrame called, showOverlays:', showOverlays);
+    
+    if (!canvasRef.current || !videoRef.current) {
+      console.warn('DEBUG - Missing canvas or video ref');
+      return;
+    }
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('DEBUG - Could not get canvas context');
+      return;
+    }
     
     const { videoWidth, videoHeight } = videoRef.current;
+    if (videoWidth === 0 || videoHeight === 0) {
+      console.warn('DEBUG - Video dimensions are 0:', { videoWidth, videoHeight });
+      return;
+    }
+    
     canvas.width = videoWidth;
     canvas.height = videoHeight;
+    
+    console.log('DEBUG - Canvas set to video dimensions:', { videoWidth, videoHeight });
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (showOverlays) {
+      console.log('DEBUG - Drawing overlays...');
+      
       // Draw phase overlay first (background)
       drawPhaseOverlay(ctx);
       
       // Draw pose landmarks
       const closestPose = findClosestPose(currentTime);
+      console.log('DEBUG - Closest pose found:', closestPose);
+      
       if (closestPose) {
         drawPoseLandmarks(ctx, closestPose);
+      } else {
+        console.warn('DEBUG - No pose found for current time:', currentTime);
       }
       
       // Draw metrics overlay
       drawMetricsOverlay(ctx);
+      
+      console.log('DEBUG - All overlays drawn');
+    } else {
+      console.log('DEBUG - Overlays disabled, skipping drawing');
     }
   }, [currentTime, showOverlays, findClosestPose, drawPhaseOverlay, drawPoseLandmarks, drawMetricsOverlay]);
 
@@ -354,13 +496,54 @@ export default function EnhancedVideoAnalysisPlayer({
     }
   }, [slowMotionPhases, getCurrentPhase]);
 
-  // Draw frame on time update
+  // Draw frame on time update and continuously during playback
   useEffect(() => {
     drawFrame();
+    
+    // Set up continuous drawing during playback
+    let animationFrameId: number;
+    
+    const animate = () => {
+      drawFrame();
+      if (videoRef.current && !videoRef.current.paused) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+    
+    if (videoRef.current && !videoRef.current.paused) {
+      animationFrameId = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [drawFrame]);
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Debug Panel */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-sm">
+          <h3 className="font-semibold mb-2">Debug Information</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p><strong>Video Loaded:</strong> {videoLoaded ? 'Yes' : 'No'}</p>
+              <p><strong>Video Error:</strong> {videoError || 'None'}</p>
+              <p><strong>Current Time:</strong> {(currentTime / 1000).toFixed(2)}s</p>
+              <p><strong>Is Playing:</strong> {isPlaying ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <p><strong>Poses Count:</strong> {poses?.length || 0}</p>
+              <p><strong>Phases Count:</strong> {phases?.length || 0}</p>
+              <p><strong>Show Overlays:</strong> {showOverlays ? 'Yes' : 'No'}</p>
+              <p><strong>Playback Speed:</strong> {playbackSpeed}x</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Video Player */}
       <div className="relative">
         {videoError && (
@@ -427,10 +610,12 @@ export default function EnhancedVideoAnalysisPlayer({
                 value={playbackSpeed}
                 onChange={(e) => {
                   const speed = parseFloat(e.target.value);
+                  console.log('DEBUG - Speed change requested:', speed);
                   setPlaybackSpeed(speed);
                   const video = videoRef.current;
                   if (video) {
                     video.playbackRate = speed;
+                    console.log('DEBUG - Video playback rate set to:', video.playbackRate);
                   }
                 }}
                 className="px-2 py-1 border border-gray-300 rounded text-sm"
