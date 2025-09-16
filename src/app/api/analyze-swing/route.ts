@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 
-let openAIClient: OpenAI | null = null;
-function getOpenAIClient(): OpenAI | null {
+let openAIClient: any | null = null;
+async function getOpenAIClient(): Promise<any | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
   if (!openAIClient) {
+    const { default: OpenAI } = await import('openai');
     openAIClient = new OpenAI({ apiKey });
   }
   return openAIClient;
@@ -45,7 +45,7 @@ Please provide:
 Format your response as JSON with these keys: overallAssessment, strengths, improvements, keyTip, recordingTips
 `;
 
-    const client = getOpenAIClient();
+    const client = await getOpenAIClient();
 
     // Fallback: if no API key is configured at build/runtime, return a basic structured response
     if (!client) {
