@@ -273,11 +273,12 @@ export default function UploadPage() {
     reset();
     dispatch({ type: 'SET_ANALYZING', payload: true });
     
-    // Add timeout protection
+    // Add timeout protection with longer duration for processing
     const timeoutId = setTimeout(() => {
-      dispatch({ type: 'SET_ERROR', payload: 'Analysis timed out. Please try a shorter video or check your internet connection.' });
+      console.error('Analysis timeout triggered');
+      dispatch({ type: 'SET_ERROR', payload: 'Analysis is taking longer than expected. Please try a shorter video or check your internet connection.' });
       dispatch({ type: 'SET_ANALYZING', payload: false });
-    }, 120000); // 2 minute timeout
+    }, 180000); // 3 minute timeout for total analysis
     
     try {
       dispatch({ type: 'SET_STEP', payload: 'Initializing...' }); 
@@ -325,9 +326,13 @@ export default function UploadPage() {
       
       let extracted;
       try {
-        extracted = await extractPosesFromVideo(state.file, { sampleFps: 30, maxFrames: 600 }, (s, p) => { 
-          dispatch({ type: 'SET_STEP', payload: s }); 
-          dispatch({ type: 'SET_PROGRESS', payload: 10 + (p * 0.5) }); // 10-60%
+        extracted = await extractPosesFromVideo(state.file, { sampleFps: 15, maxFrames: 150 }, (s, p) => { 
+          const message = s === 'Reading video frames...' ? `Processing frame ${Math.round(p)}%` : s;
+          dispatch({ type: 'SET_STEP', payload: message }); 
+          // Map progress 0-100 to 10-60% of overall progress
+          const mappedProgress = 10 + (p * 0.5);
+          dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
+          console.log(`Progress update: ${message} (${Math.round(mappedProgress)}%)`);
         });
       } catch (error) {
         if (error instanceof Error) {
@@ -355,10 +360,12 @@ export default function UploadPage() {
       // Use worker pool for better performance
       dispatch({ type: 'SET_STEP', payload: 'Analyzing swing mechanics...' });
       dispatch({ type: 'SET_PROGRESS', payload: 65 });
+      console.log('Starting swing mechanics analysis...');
       const analysis = await workerPool.processMessage({ 
         type: 'ANALYZE_SWING', 
         data: { poses: extracted, club, swingId, source } 
       });
+      console.log('Swing mechanics analysis completed');
       dispatch({ type: 'SET_RESULT', payload: analysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
       await setCachedAnalysis(cacheKey, analysis);
