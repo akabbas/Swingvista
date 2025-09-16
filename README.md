@@ -4,45 +4,96 @@ A modern, responsive web application for golf swing analysis built with Next.js 
 
 ## 📊 Current Status
 
-**🟡 UI Prototype Phase**: The app currently provides a professional interface and foundation for golf swing analysis, but the core analysis features are not yet integrated. The backend analysis libraries exist and are ready for integration.
+**🟢 Fully Functional AI-Powered Golf Swing Analyzer**: The app now provides complete golf swing analysis with AI-powered feedback, professional grading, progress tracking, and personalized drill recommendations.
 
 **What Works Now:**
-- ✅ Responsive UI design
-- ✅ Navigation between pages
-- ✅ Professional styling and layout
-- ✅ Performance optimizations
-
-**What's Coming Next:**
-- 🔄 Camera integration
-- 🔄 Video upload functionality
-- 🔄 AI-powered swing analysis
+- ✅ AI-powered swing analysis with dynamic feedback
+- ✅ Professional grading system (A+ to F) based on PGA Tour benchmarks
+- ✅ Video upload and pose detection using MediaPipe
+- ✅ Progress tracking with visual charts and session history
+- ✅ Personalized drill recommendations with progressive difficulty
+- ✅ OpenAI integration for professional golf instructor insights
+- ✅ Mobile-optimized interface for recording and analysis
+- ✅ Quality assessment and recording angle detection
 
 ## 🏌️ Features
 
-### Current Features
-- **Responsive Design**: Clean, modern UI that works on all devices
-- **UI Prototype**: Professional interface for golf swing analysis (camera and upload pages)
+### 🤖 AI-Powered Analysis
+- **Dynamic Feedback Generation**: No hardcoded criticisms - all feedback generated based on your actual swing metrics
+- **Professional Grading System**: Compare your swing against professional benchmarks with A+ to F grading
+- **Multi-Dimensional Analysis**: Tempo, rotation, balance, swing plane, power, and consistency
+- **Intelligent Scoring**: Overall score (0-100) based on multiple weighted factors
+- **OpenAI Integration**: Enhanced analysis using GPT-4o-mini for professional golf instructor insights
+
+### 📊 Progress Tracking
+- **Session History**: Track your improvement over time with detailed session records
+- **Progress Charts**: Visual charts showing trends for each metric
+- **Improvement Analytics**: Calculate improvement rates and average scores
+- **Grade Tracking**: Monitor your letter grades (A+ to F) over time
+- **Data Export/Import**: Save and share your progress data
+
+### 🎯 Personalized Drills
+- **Progressive Difficulty**: Beginner, intermediate, and advanced drill recommendations
+- **Skill-Based Matching**: Drills automatically matched to your current skill level
+- **Detailed Instructions**: Step-by-step instructions with equipment requirements
+- **Duration Guidelines**: Clear time commitments for each drill
+- **Interactive Interface**: Click to view detailed drill instructions
+
+### 🏌️‍♂️ Golf Swing Analysis
+- **Video Upload**: Upload golf swing videos for analysis
+- **Pose Detection**: Real-time pose tracking using MediaPipe with confidence filtering
+- **Swing Phase Detection**: Identify address, backswing, transition, downswing, impact, and follow-through
+- **Quality Assessment**: Automatic recording angle detection and quality warnings
+- **Visual Overlay**: See pose landmarks overlaid on your video
+- **Mobile Friendly**: Optimized for mobile devices and recording
+
+### 🛠️ Technical Features
 - **Modern Tech Stack**: Built with Next.js 15, React 19, TypeScript, and Tailwind CSS
 - **Performance Optimized**: Fast loading with optimized CSS and font loading
-- **FOUC Prevention**: Critical CSS inlined to prevent flash of unstyled content
+- **Web Workers**: Background processing for smooth UI experience
+- **Responsive Design**: Clean, modern UI that works on all devices
 - **Accessibility**: Built with accessibility best practices
-- **Analysis Libraries**: Backend analysis code ready for integration (MediaPipe, pose detection, swing analysis)
 
-### Planned Features
-- **Camera Integration**: Real-time camera access and recording
-- **Video Upload**: File upload and processing functionality
-- **AI Analysis**: Integration of existing MediaPipe pose detection
-- **Swing Analysis**: Real-time swing tracking and metrics
-- **Detailed Feedback**: Personalized swing improvement tips
-- **Video Playback**: Analysis overlays on recorded videos
-- **User Authentication**: User accounts and swing history
-- **Export Results**: Download analysis reports
+## 🏆 AI Grading System
+
+SwingVista uses a comprehensive grading system that compares your swing against professional benchmarks:
+
+### Grading Scale
+- **A+ (97-100)**: Exceptional - Professional level
+- **A (93-96)**: Excellent - Above professional average  
+- **A- (90-92)**: Very Good - Professional level
+- **B+ (87-89)**: Good - Above amateur average
+- **B (83-86)**: Above Average - Solid amateur
+- **B- (80-82)**: Average - Typical amateur
+- **C+ (77-79)**: Below Average - Needs work
+- **C (73-76)**: Poor - Significant improvement needed
+- **C- (70-72)**: Very Poor - Major issues
+- **D+ (67-69)**: Failing - Fundamental problems
+- **D (63-66)**: Failing - Multiple major issues
+- **F (0-62)**: Failing - Complete rebuild needed
+
+### Grading Categories
+1. **Tempo** (15% weight) - Backswing to downswing timing ratio
+2. **Rotation** (20% weight) - Shoulder, hip, and body separation
+3. **Balance** (15% weight) - Stability throughout the swing
+4. **Swing Plane** (15% weight) - Club path consistency
+5. **Power** (20% weight) - Clubhead speed and acceleration
+6. **Consistency** (15% weight) - Swing-to-swing repeatability
+
+### Professional Benchmarks
+- **Tempo**: 3:1 backswing to downswing ratio
+- **Shoulder Rotation**: 95° at the top
+- **Hip Rotation**: 45° at the top
+- **X-Factor**: 25° shoulder-hip separation
+- **Balance**: 95% stability score
+- **Swing Plane**: 90% consistency
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- OpenAI API key (for enhanced AI analysis)
 
 ### Installation
 
@@ -71,6 +122,20 @@ A modern, responsive web application for golf swing analysis built with Next.js 
 - `npm run build` - Build for production with Turbopack
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+
+### Optional: Tiger Woods iron swing sample video
+
+To enable the "Use Tiger Sample" button on the Upload page, place a file at `public/fixtures/swings/tiger-iron.mp4`.
+
+You can download a YouTube clip locally with `yt-dlp` (ensure you have rights to use the content):
+
+```bash
+brew install yt-dlp ffmpeg
+mkdir -p public/fixtures/swings
+yt-dlp -f "mp4" -S "res:720" -o "public/fixtures/swings/tiger-iron.%(ext)s" "<YOUTUBE_URL_HERE>"
+```
+
+Replace `<YOUTUBE_URL_HERE>` with a Tiger Woods iron swing video URL.
 
 ## 🏗️ Project Structure
 
