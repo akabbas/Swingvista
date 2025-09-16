@@ -33,10 +33,37 @@ interface AnalysisResult {
   phases: any[];
   landmarks: PoseResult[];
   metrics: {
-    tempo: { ratio: number; backswingTime: number; downswingTime: number; assessment: string };
-    rotation: { shoulders: number; hips: number; xFactor: number; assessment: string };
-    balance: { score: number; assessment: string };
-    plane: { angle: number; consistency: number; assessment: string };
+    tempo: {
+      backswingTime: number;
+      downswingTime: number;
+      tempoRatio: number;
+      score: number;
+    };
+    rotation: {
+      shoulderTurn: number;
+      hipTurn: number;
+      xFactor: number;
+      score: number;
+    };
+    weightTransfer: {
+      backswing: number;
+      impact: number;
+      finish: number;
+      score: number;
+    };
+    swingPlane: {
+      shaftAngle: number;
+      planeDeviation: number;
+      score: number;
+    };
+    bodyAlignment: {
+      spineAngle: number;
+      headMovement: number;
+      kneeFlex: number;
+      score: number;
+    };
+    overallScore: number;
+    letterGrade: string;
   };
   aiFeedback?: {
     overallScore: number;
