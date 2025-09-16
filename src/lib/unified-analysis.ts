@@ -1,7 +1,10 @@
 import { PoseResult, TrajectoryPoint, SwingTrajectory } from './mediapipe';
+import { calculateSwingMetrics } from './golf-metrics';
 import { VistaSwingAI, SwingReportCard } from './vista-swing-ai';
 import { SwingPhase, SwingPhaseDetector, SwingPhaseAnalysis } from './swing-phases';
 import { TrajectoryAnalyzer, TrajectoryMetrics, SwingPathAnalysis } from './trajectory-analysis';
+
+import { SwingMetrics } from './golf-metrics';
 
 export interface UnifiedSwingData {
   swingId: string;
@@ -11,17 +14,7 @@ export interface UnifiedSwingData {
   videoUrl?: string;
   createdAt: string;
   updatedAt: string;
-  metrics: {
-    swingPlaneAngle: number;
-    tempoRatio: number;
-    hipRotation: number;
-    shoulderRotation: number;
-    impactFrame: number;
-    backswingTime: number;
-    downswingTime: number;
-    clubheadSpeed?: number;
-    swingPath?: number;
-  };
+  metrics: SwingMetrics;
   aiFeedback: { reportCard: SwingReportCard; feedback: string[]; overallScore: string; keyImprovements: string[]; };
   trajectory: SwingTrajectory;
   phases: SwingPhase[];
@@ -76,21 +69,16 @@ export async function analyzeSwing(
   
   onProgress?.('Generating AI analysis...', 80);
   const reportCard = VistaSwingAI.analyzeSwing({ landmarks: landmarksArray, timestamps, club: input.club, swingId: input.swingId });
-  const swingPlaneAngle = Math.abs(swingPathAnalysis.swingPlane);
-  const tempoRatio = phaseAnalysis.tempoRatio;
-  const hipRotation = Math.abs(phaseAnalysis.rotation.hip);
-  const shoulderRotation = Math.abs(phaseAnalysis.rotation.shoulder);
-  const impactFrame = phases.find(p => p.name === 'impact')?.endFrame || Math.floor(input.poses.length * 0.6);
-  const backswingTime = phases.find(p => p.name === 'backswing')?.duration || 0.8;
-  const downswingTime = phases.find(p => p.name === 'downswing')?.duration || 0.4;
-  const clubheadSpeed = calculateClubheadSpeed(trajectory.clubhead);
-  const swingPath = swingPathAnalysis.swingPlane;
+  // Calculate comprehensive swing metrics
+  const metrics = calculateSwingMetrics(input.poses, phases, trajectory);
   const feedback = [
-    `Swing plane angle: ${swingPlaneAngle.toFixed(1)}°`,
-    `Tempo ratio: ${tempoRatio.toFixed(2)}`,
-    `Hip rotation: ${hipRotation.toFixed(1)}°`,
-    `Shoulder rotation: ${shoulderRotation.toFixed(1)}°`,
-    `Clubhead speed: ${clubheadSpeed.toFixed(1)} mph`
+    `Swing plane angle: ${metrics.swingPlane.shaftAngle.toFixed(1)}°`,
+    `Tempo ratio: ${metrics.tempo.tempoRatio.toFixed(2)}:1`,
+    `Hip rotation: ${metrics.rotation.hipTurn.toFixed(1)}°`,
+    `Shoulder rotation: ${metrics.rotation.shoulderTurn.toFixed(1)}°`,
+    `X-Factor: ${metrics.rotation.xFactor.toFixed(1)}°`,
+    `Weight transfer: ${metrics.weightTransfer.impact.toFixed(1)}% at impact`,
+    `Overall grade: ${metrics.letterGrade} (${metrics.overallScore.toFixed(1)})`
   ];
   const keyImprovements = [
     reportCard.setup.tip,
@@ -110,8 +98,8 @@ export async function analyzeSwing(
     videoUrl: input.videoUrl,
     createdAt: now,
     updatedAt: now,
-    metrics: { swingPlaneAngle, tempoRatio, hipRotation, shoulderRotation, impactFrame, backswingTime, downswingTime, clubheadSpeed, swingPath },
-    aiFeedback: { reportCard, feedback, overallScore: reportCard.overall.score, keyImprovements },
+    metrics,
+    aiFeedback: { reportCard, feedback, overallScore: metrics.letterGrade, keyImprovements },
     trajectory,
     phases,
     phaseAnalysis,

@@ -7,6 +7,7 @@ import ErrorAlert from '@/components/ui/ErrorAlert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { lazy, Suspense } from 'react';
 import SwingFeedback from '@/components/analysis/SwingFeedback';
+import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
 import PoseOverlay from '@/components/analysis/PoseOverlay';
 
 // Lazy load heavy components
@@ -485,17 +486,26 @@ export default function UploadPage() {
 
             {state.activeTab === 'metrics' && (
               <div className="space-y-8">
-                {state.aiAnalysis ? (
+                {state.result ? (
                   <>
-                    {state.aiAnalysis.grade && (
-                      <Suspense fallback={<LoadingSpinner size="md" text="Loading grade card..." />}>
-                        <GolfGradeCard grade={state.aiAnalysis.grade} />
-                      </Suspense>
-                    )}
-                    <SwingFeedback analysis={state.aiAnalysis} />
-                    <Suspense fallback={<LoadingSpinner size="md" text="Loading drill recommendations..." />}>
-                      <DrillRecommendations metrics={state.aiAnalysis.swingMetrics} />
-                    </Suspense>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                        <h3 className="text-xl font-semibold mb-4">Swing Metrics</h3>
+                        <MetricsVisualizer metrics={state.result.metrics} />
+                      </div>
+                      <div className="space-y-8">
+                        <div>
+                          <h3 className="text-xl font-semibold mb-4">Swing Analysis</h3>
+                          <SwingFeedback feedback={state.result.aiFeedback} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold mb-4">Drill Recommendations</h3>
+                          <Suspense fallback={<LoadingSpinner text="Loading recommendations..." />}>
+                            <DrillRecommendations feedback={state.result.aiFeedback} />
+                          </Suspense>
+                        </div>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className="text-center py-8">
