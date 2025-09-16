@@ -450,6 +450,22 @@ export default function UploadPage() {
       console.log('Worker pool available:', !!workerPool);
       console.log('Poses to analyze:', extracted.length);
       
+      // Set up progress tracking for worker
+      const workerProgressHandler = (event: MessageEvent) => {
+        if (event.data.type === 'PROGRESS') {
+          const { step, progress } = event.data.data;
+          const mappedProgress = 65 + (progress * 0.3); // Map 0-100 to 65-95
+          dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
+          dispatch({ type: 'SET_STEP', payload: step });
+          console.log(`Worker progress: ${step} (${Math.round(mappedProgress)}%)`);
+        }
+      };
+      
+      // Add progress listener
+      if (workerPool) {
+        workerPool.addEventListener(workerProgressHandler);
+      }
+      
       let analysis;
       
       if (workerPool) {
@@ -463,21 +479,11 @@ export default function UploadPage() {
         }, 60000);
         
         try {
-          // Add a race condition to fallback to main thread if worker takes too long
-          const workerPromise = workerPool.processMessage({ 
+          // Use worker with timeout, no race condition needed
+          analysis = await workerPool.processMessage({ 
             type: 'ANALYZE_SWING', 
             data: { poses: extracted, club, swingId, source } 
           });
-          
-          const fallbackPromise = new Promise(async (resolve) => {
-            await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15 seconds
-            console.log('Worker taking too long, falling back to main thread...');
-            const { analyzeSwing } = await import('@/lib/unified-analysis');
-            const result = await analyzeSwing({ poses: extracted, club, swingId, source });
-            resolve(result);
-          });
-          
-          analysis = await Promise.race([workerPromise, fallbackPromise]);
           
           clearTimeout(workerTimeout);
           console.log('Swing mechanics analysis completed');
@@ -491,6 +497,11 @@ export default function UploadPage() {
           const { analyzeSwing } = await import('@/lib/unified-analysis');
           analysis = await analyzeSwing({ poses: extracted, club, swingId, source });
           console.log('Main thread analysis completed');
+        } finally {
+          // Clean up progress listener
+          if (workerPool) {
+            workerPool.removeEventListener(workerProgressHandler);
+          }
         }
       } else {
         console.log('Worker pool not available, using main thread...');
@@ -525,9 +536,11 @@ export default function UploadPage() {
         }
       }
       
+      console.log('Setting analysis result:', analysis);
       dispatch({ type: 'SET_RESULT', payload: analysis });
       dispatch({ type: 'SET_STEP', payload: 'Saving analysis to cache...' });
       await setCachedAnalysis(cacheKey, analysis);
+      console.log('Analysis result set successfully');
       
       // Generate AI analysis (lazy loaded)
       dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });

@@ -17,6 +17,7 @@ export class WorkerPool {
     message: WorkerMessage;
   }> = [];
   private options: WorkerPoolOptions;
+  private eventListeners: Array<(event: MessageEvent) => void> = [];
 
   constructor(options: WorkerPoolOptions = { maxWorkers: 2, timeout: 30000 }) {
     this.options = options;
@@ -130,12 +131,28 @@ export class WorkerPool {
     };
   }
 
+  addEventListener(listener: (event: MessageEvent) => void) {
+    this.eventListeners.push(listener);
+    // Forward messages from all workers to listeners
+    this.workers.forEach(worker => {
+      worker.addEventListener('message', listener);
+    });
+  }
+
+  removeEventListener(listener: (event: MessageEvent) => void) {
+    this.eventListeners = this.eventListeners.filter(l => l !== listener);
+    this.workers.forEach(worker => {
+      worker.removeEventListener('message', listener);
+    });
+  }
+
   destroy() {
     this.workers.forEach(worker => worker.terminate());
     this.workers = [];
     this.availableWorkers = [];
     this.busyWorkers.clear();
     this.pendingTasks = [];
+    this.eventListeners = [];
   }
 }
 
@@ -153,5 +170,18 @@ export const destroyWorkerPool = () => {
   if (workerPoolInstance) {
     workerPoolInstance.destroy();
     workerPoolInstance = null;
+  }
+};
+
+// Add event listener support
+export const addWorkerPoolEventListener = (listener: (event: MessageEvent) => void) => {
+  if (workerPoolInstance) {
+    workerPoolInstance.addEventListener(listener);
+  }
+};
+
+export const removeWorkerPoolEventListener = (listener: (event: MessageEvent) => void) => {
+  if (workerPoolInstance) {
+    workerPoolInstance.removeEventListener(listener);
   }
 };

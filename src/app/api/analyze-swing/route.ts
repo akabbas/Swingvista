@@ -67,11 +67,11 @@ Format your response as JSON with these keys: overallAssessment, strengths, impr
       const fallback = {
         overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
         strengths: [
-          swingMetrics.plane?.consistency ? `Plane consistency ${(swingMetrics.plane.consistency * 100).toFixed(0)}%` : 'Solid rhythm'
+          swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm'
         ],
         improvements: [
-          swingMetrics.tempo?.ratio && swingMetrics.tempo.ratio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
-          swingMetrics.rotation?.shoulders && swingMetrics.rotation.shoulders < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
+          swingMetrics.tempo?.tempoRatio && swingMetrics.tempo.tempoRatio < 2.7 ? 'Lengthen backswing for closer to 3:1 tempo' : 'Focus on balanced finish',
+          swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85 ? 'Increase shoulder turn toward 90-100°' : 'Maintain posture through impact'
         ],
         keyTip: 'Work one priority at a time; film from down-the-line in good light.',
         recordingTips: recordingQuality?.score && recordingQuality.score < 0.7 ? ['Record in brighter light', 'Ensure full body in frame'] : []
