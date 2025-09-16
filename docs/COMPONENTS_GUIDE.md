@@ -8,7 +8,8 @@ SwingVista uses a component-based architecture with:
 - **Layout Components**: Structure and navigation
 - **UI Components**: Reusable interface elements
 - **Page Components**: Full page layouts
-- **Feature Components**: Specific functionality (planned)
+- **Analysis Components**: Golf swing analysis and visualization
+- **Feature Components**: Specific functionality
 
 ## Layout Components
 
@@ -412,18 +413,150 @@ try {
 }
 ```
 
+## Analysis Components
+
+### VideoAnalysisPlayer
+
+**Location**: `src/components/analysis/VideoAnalysisPlayer.tsx`
+
+Displays video with analysis overlays including pose detection and swing phase visualization.
+
+```typescript
+<VideoAnalysisPlayer
+  videoUrl={string}
+  poses={PoseResult[]}
+  metrics={SwingMetrics}
+  phases={SwingPhase[]}
+  className?: string
+/>
+```
+
+**Features**:
+- Video playback with controls
+- Stick figure overlay showing body landmarks
+- Swing phase timeline visualization
+- Metrics display overlay
+- Toggle for showing/hiding overlays
+
+### GolfGradeCard
+
+**Location**: `src/components/analysis/GolfGradeCard.tsx`
+
+Displays golf swing grading information with letter grades and scores.
+
+```typescript
+<GolfGradeCard
+  grade={string}
+  score={number}
+  category={string}
+  description={string}
+  className?: string
+/>
+```
+
+**Features**:
+- Letter grade display (A+ to F)
+- Numerical score (0-100)
+- Category-specific styling
+- Responsive design
+
+### SwingFeedback
+
+**Location**: `src/components/analysis/SwingFeedback.tsx`
+
+Shows AI-powered swing analysis feedback and recommendations.
+
+```typescript
+<SwingFeedback
+  analysis={{
+    overallAssessment: string;
+    strengths: string[];
+    improvements: string[];
+    keyTip: string;
+    recordingTips: string[];
+  }}
+  className?: string
+/>
+```
+
+**Features**:
+- Structured feedback display
+- Strengths and improvements sections
+- Key tips highlighting
+- Recording recommendations
+
+### DrillRecommendations
+
+**Location**: `src/components/analysis/DrillRecommendations.tsx`
+
+Displays personalized drill recommendations based on swing analysis.
+
+```typescript
+<DrillRecommendations
+  recommendations={DrillRecommendation[]}
+  skillLevel={string}
+  className?: string
+/>
+```
+
+**Features**:
+- Progressive difficulty levels
+- Detailed drill instructions
+- Equipment requirements
+- Duration guidelines
+
+### ProgressChart
+
+**Location**: `src/components/analysis/ProgressChart.tsx`
+
+Visualizes swing improvement over time with interactive charts.
+
+```typescript
+<ProgressChart
+  data={ProgressData[]}
+  metric={string}
+  timeRange={string}
+  className?: string
+/>
+```
+
+**Features**:
+- Interactive line charts
+- Multiple metric support
+- Time range selection
+- Trend analysis
+
+### PoseOverlay
+
+**Location**: `src/components/analysis/PoseOverlay.tsx`
+
+Renders pose landmarks and swing phase information on video.
+
+```typescript
+<PoseOverlay
+  pose={PoseResult}
+  phase={SwingPhase}
+  showSwingPlane={boolean}
+  className?: string
+/>
+```
+
+**Features**:
+- Real-time pose rendering
+- Swing phase highlighting
+- Swing plane visualization
+- Confidence scoring
+
 ## Future Components
 
 ### Planned Components
 
-1. **VideoPlayer**: Custom video player with analysis overlays
-2. **SwingAnalysis**: Display swing metrics and feedback
-3. **UserProfile**: User account management
-4. **SettingsPanel**: Application settings
-5. **NotificationToast**: Toast notifications
-6. **Modal**: Modal dialog component
-7. **Form**: Form components with validation
-8. **Chart**: Data visualization components
+1. **UserProfile**: User account management
+2. **SettingsPanel**: Application settings
+3. **NotificationToast**: Toast notifications
+4. **Modal**: Modal dialog component
+5. **Form**: Form components with validation
+6. **Chart**: Data visualization components
 
 ### Component Development Guidelines
 

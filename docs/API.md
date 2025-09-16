@@ -2,16 +2,81 @@
 
 ## Overview
 
-SwingVista is currently a frontend-only application built with Next.js 15. This document outlines the current API structure and planned backend integration.
+SwingVista is a comprehensive golf swing analysis platform built with Next.js 15, featuring real-time pose detection, AI-powered analysis, and comprehensive swing phase identification. This document outlines the current API structure and functionality.
 
 ## Current Status
 
-**Frontend Only**: The current version of SwingVista is a client-side application with no backend API endpoints. All functionality is implemented in the browser using:
+**Full-Stack Application**: SwingVista now includes both frontend and backend functionality with:
 
-- Next.js 15 with App Router
-- React 19 components
+- Next.js 15 with App Router and API routes
+- React 19 components with real-time pose detection
 - TypeScript for type safety
 - Tailwind CSS for styling
+- MediaPipe integration for pose detection
+- OpenAI integration for AI-powered analysis
+- Supabase integration for data storage
+
+## Current API Endpoints
+
+### Swing Analysis
+```
+POST /api/analyze-swing
+```
+**Description**: Analyzes golf swing data using AI-powered analysis
+**Request Body**:
+```typescript
+{
+  swingData: any;
+  recordingQuality: {
+    angle: string;
+    score: number;
+  };
+  swingMetrics: {
+    tempo: { tempoRatio: number; score: number };
+    rotation: { shoulderTurn: number; hipTurn: number; xFactor: number; score: number };
+    weightTransfer: { score: number };
+    swingPlane: { shaftAngle: number; planeDeviation: number; score: number };
+    bodyAlignment: { score: number };
+    overallScore: number;
+    letterGrade: string;
+  };
+}
+```
+**Response**:
+```typescript
+{
+  success: boolean;
+  analysis: {
+    overallAssessment: string;
+    strengths: string[];
+    improvements: string[];
+    keyTip: string;
+    recordingTips: string[];
+  };
+  timestamp: string;
+}
+```
+
+### Feedback System
+```
+POST /api/feedback
+```
+**Description**: Stores user feedback for analysis improvement
+**Request Body**:
+```typescript
+{
+  feedback: string;
+  rating: number; // 1-5
+  sessionId?: string;
+}
+```
+
+### Admin Feedback
+```
+GET /api/feedback
+```
+**Description**: Retrieves all user feedback (admin only)
+**Response**: Array of feedback objects
 
 ## Planned API Endpoints
 
@@ -21,15 +86,6 @@ POST /api/auth/login
 POST /api/auth/logout
 POST /api/auth/register
 GET  /api/auth/me
-```
-
-### Swing Analysis
-```
-POST /api/swings/analyze
-GET  /api/swings/:id
-GET  /api/swings/user/:userId
-PUT  /api/swings/:id
-DELETE /api/swings/:id
 ```
 
 ### Video Processing
@@ -134,15 +190,17 @@ GET  /api/users/swings
 
 ### Current
 ```bash
-# No environment variables currently required
+# OpenAI API Key (for AI-powered analysis)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Supabase Configuration (for data storage)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE=your_supabase_service_role_key_here
 ```
 
-### Planned
+### Optional
 ```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
 # API Configuration
 API_BASE_URL=http://localhost:3000/api
 UPLOAD_MAX_SIZE=100MB
