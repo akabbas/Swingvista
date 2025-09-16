@@ -331,9 +331,24 @@ export default function CameraPage() {
   }, [analyzeSwingPhase, addPoseToHistory, isSwinging]);
 
   const stopCamera = useCallback(() => {
+    console.log('Stopping camera...');
     setIsRunning(false);
-    if (frameHandleRef.current && (videoRef.current as any)?.cancelVideoFrameCallback) {
-      try { (videoRef.current as any).cancelVideoFrameCallback(frameHandleRef.current); } catch {}
+    if (frameHandleRef.current) {
+      if ((videoRef.current as any)?.cancelVideoFrameCallback) {
+        try { 
+          console.log('Canceling video frame callback');
+          (videoRef.current as any).cancelVideoFrameCallback(frameHandleRef.current); 
+        } catch (e) {
+          console.log('Error canceling video frame callback:', e);
+        }
+      } else {
+        try {
+          console.log('Canceling animation frame');
+          cancelAnimationFrame(frameHandleRef.current);
+        } catch (e) {
+          console.log('Error canceling animation frame:', e);
+        }
+      }
     }
     frameHandleRef.current = null;
     if (streamRef.current) {
@@ -367,6 +382,10 @@ export default function CameraPage() {
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
+      
+      // Test canvas immediately
+      console.log('Testing canvas immediately...');
+      drawPose(null); // This should draw the test stick figure
 
       const detector = MediaPipePoseDetector.getInstance();
       console.log('Initializing MediaPipe detector...');
@@ -379,11 +398,18 @@ export default function CameraPage() {
       const targetDelta = 1 / 25; // ~25fps
 
       const loop = async (_now: number, metadata?: { mediaTime?: number }) => {
+        console.log('Detection loop running, isRunning:', isRunning);
         if (!isRunning) return; // stop if state changed
         const v = videoRef.current;
-        if (!v) return;
+        if (!v) {
+          console.log('No video element in loop');
+          return;
+        }
         const mediaTime = metadata && typeof metadata.mediaTime === 'number' ? metadata.mediaTime : v.currentTime;
+        console.log('Media time:', mediaTime, 'Last time:', lastTime, 'Delta:', mediaTime - lastTime);
+        
         if (lastTime < 0 || (mediaTime - lastTime) >= targetDelta) {
+          console.log('Processing frame...');
           const t0 = performance.now();
           const pose = await detector.detectPose(v);
           console.log('Pose detection result:', pose ? 'SUCCESS' : 'FAILED');
@@ -399,7 +425,19 @@ export default function CameraPage() {
         frameHandleRef.current = (v as any).requestVideoFrameCallback(loop);
       };
 
-      (video as any).requestVideoFrameCallback(loop);
+      // Try requestVideoFrameCallback first, fallback to requestAnimationFrame
+      if ((video as any).requestVideoFrameCallback) {
+        console.log('Using requestVideoFrameCallback');
+        (video as any).requestVideoFrameCallback(loop);
+      } else {
+        console.log('requestVideoFrameCallback not supported, using requestAnimationFrame');
+        const animationLoop = () => {
+          if (!isRunning) return;
+          loop(performance.now());
+          frameHandleRef.current = requestAnimationFrame(animationLoop);
+        };
+        frameHandleRef.current = requestAnimationFrame(animationLoop);
+      }
       try { trackEvent('camera_session_start'); } catch {}
     } catch (err) {
       console.error('Camera start failed', err);
