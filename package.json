@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "clean": "rm -rf .next",
+    "clean": "rm -rf .next/static .next/server .next/trace .next/build-manifest.json .next/prerender-manifest.json .next/routes-manifest.json .next/package.json .next/standalone .next/export",
     "prebuild": "npm run clean",
     "precommit": "node scripts/precommit-secrets-scan.js"
   },
