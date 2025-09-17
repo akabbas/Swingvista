@@ -2,10 +2,14 @@
 
 This is a placeholder for the Tiger Woods swing video.
 
+The actual Tiger Woods swing video is now optimized:
+- Duration: 12.8 seconds (2x speed for optimal analysis)
+- Size: ~675 KB
+- Format: MP4, 720p
+
 To use the Tiger Woods sample:
-1. Download a high-quality Tiger Woods swing video from YouTube
-2. Rename it to `tiger-woods-swing.mp4`
-3. Replace this placeholder file
-4. The "Use Tiger Sample" button will then work
+1. The optimized video is already in place as `tiger-woods-swing.mp4`
+2. The "Use Tiger Sample" button will work with this optimized version
+3. This placeholder can be removed as the actual video is now available
 
 See TIGER_WOODS_SETUP.md for detailed instructions.

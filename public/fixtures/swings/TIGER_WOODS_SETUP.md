@@ -8,7 +8,7 @@ To use Tiger Woods' swing as a benchmark for golf swing analysis, you need to ad
 
 ## Video Requirements
 - **Format**: MP4
-- **Duration**: 3-10 seconds (full swing)
+- **Duration**: 12.8 seconds (optimized for analysis)
 - **Quality**: 720p or higher
 - **Angle**: Side view (down-the-line) showing full body
 - **Lighting**: Good lighting with clear visibility of body movements
@@ -53,8 +53,8 @@ Using Tiger's swing as a benchmark allows you to:
 - Understand what a "perfect" swing looks like in terms of body metrics
 
 ## File Size
-- Expected size: 2-10 MB
-- Duration: 3-10 seconds
+- Expected size: ~675 KB (optimized)
+- Duration: 12.8 seconds (2x speed for optimal analysis)
 - Resolution: 720p or higher
 
 Once you add the video file, the "Use Tiger Sample" button will work and load Tiger's swing for analysis!

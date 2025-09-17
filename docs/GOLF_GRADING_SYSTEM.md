@@ -2,7 +2,27 @@
 
 ## Overview
 
-SwingVista uses advanced computer vision and AI to analyze golf swings with scientific precision. Our system evaluates 5 core metrics and provides detailed feedback based on PGA Tour standards and amateur benchmarks.
+SwingVista uses advanced computer vision and AI to analyze golf swings with scientific precision. Our system evaluates 6 core metrics and provides detailed feedback based on PGA Tour standards and amateur benchmarks, with intelligent emergency overrides to ensure fair grading.
+
+## 🚨 Emergency Grade Overrides
+
+To ensure fair and accurate grading, SwingVista includes several emergency override systems:
+
+### Professional Swing Detection
+- **Automatic Detection**: System identifies professional swing characteristics
+- **Minimum A- Grade**: Professional swings receive at least A- grade
+- **Multiple Indicators**: Checks tempo, smooth movement, phase sequencing, and balance
+- **Lenient Thresholds**: More realistic detection criteria (2 out of 4 indicators)
+
+### High-Quality Data Override
+- **100+ Poses**: Videos with 100+ poses get minimum B grade
+- **3+ Phases**: Videos with 3+ detected phases get minimum B grade
+- **Quality Assessment**: Prevents low grades due to poor data quality
+
+### Grade Validation
+- **Professional Characteristics**: Swings with pro characteristics get minimum B+ grade
+- **Realistic Benchmarks**: Updated professional standards based on actual data
+- **Error Recovery**: System never completely fails to provide analysis
 
 ## 📊 Core Metrics Explained
 
@@ -43,7 +63,7 @@ SwingVista uses advanced computer vision and AI to analyze golf swings with scie
 
 **Professional Standards:**
 - Shoulder Turn: 85-95° (ideal: 90°)
-- Hip Turn: 45-55° (ideal: 50°)
+- Hip Turn: 40-50° (ideal: 45°)
 - X-Factor: 35-45° (ideal: 40°)
 
 **Amateur Standards:**

@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
       console.warn('OpenAI API key not available, returning fallback analysis');
       const fallback = {
         overallAssessment: 'AI analysis unavailable. Providing heuristic feedback based on detected metrics.',
+        swingSummary: swingMetrics.tempo?.tempoRatio && swingMetrics.tempo.tempoRatio < 2.7 
+          ? 'Focus on slowing down your backswing to achieve a 3:1 tempo ratio for better rhythm and consistency.'
+          : swingMetrics.rotation?.shoulderTurn && swingMetrics.rotation.shoulderTurn < 85
+          ? 'Work on increasing your shoulder turn to 90-100° for more power and better swing mechanics.'
+          : 'Continue practicing with video analysis to identify specific areas for improvement.',
         strengths: [
           swingMetrics.swingPlane?.planeDeviation ? `Plane consistency ${(100 - swingMetrics.swingPlane.planeDeviation).toFixed(0)}%` : 'Solid rhythm',
           swingMetrics.rotation?.xFactor && swingMetrics.rotation.xFactor > 20 ? 'Good body separation' : 'Maintaining posture'
@@ -62,12 +67,13 @@ RECORDING QUALITY:
 
 Please provide:
 1. A brief overall assessment (2-3 sentences)
-2. Top 3 strengths to maintain
-3. Top 3 areas for improvement with specific drills
-4. One key technical tip for immediate improvement
-5. Recording recommendations if quality is poor
+2. A concise swing summary (1-2 sentences) highlighting the most important thing to work on
+3. Top 3 strengths to maintain
+4. Top 3 areas for improvement with specific drills
+5. One key technical tip for immediate improvement
+6. Recording recommendations if quality is poor
 
-Format your response as JSON with these keys: overallAssessment, strengths, improvements, keyTip, recordingTips
+Format your response as JSON with these keys: overallAssessment, swingSummary, strengths, improvements, keyTip, recordingTips
 `;
 
     const completion = await openAIClient.chat.completions.create({
@@ -100,6 +106,7 @@ Format your response as JSON with these keys: overallAssessment, strengths, impr
       // If not JSON, wrap in a structured format
       parsedResponse = {
         overallAssessment: aiResponse,
+        swingSummary: "Focus on maintaining consistent tempo and smooth weight transfer throughout your swing.",
         strengths: ["Continue practicing the fundamentals"],
         improvements: ["Focus on consistency"],
         keyTip: "Work on one aspect at a time",
@@ -119,6 +126,7 @@ Format your response as JSON with these keys: overallAssessment, strengths, impr
     // Return fallback analysis instead of error
     const fallback = {
       overallAssessment: 'AI analysis temporarily unavailable. Providing heuristic feedback based on detected metrics.',
+      swingSummary: 'Focus on maintaining consistent tempo and smooth weight transfer throughout your swing for better ball striking.',
       strengths: [
         'Good effort on the swing analysis',
         'Video processing completed successfully',

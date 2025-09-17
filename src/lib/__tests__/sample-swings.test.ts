@@ -17,8 +17,8 @@ describe('Sample Swing Analysis', () => {
       file: 'tiger-woods-swing.mp4',
       expectedMetrics: {
         tempo: {
-          tempoRatio: { min: 2.8, max: 3.2 }, // Classic Tiger tempo
-          backswingTime: { min: 0.7, max: 0.9 }
+          tempoRatio: { min: 2.8, max: 3.2 }, // Classic Tiger tempo (2x speed optimized)
+          backswingTime: { min: 0.35, max: 0.45 } // Adjusted for 2x speed
         },
         rotation: {
           shoulderTurn: { min: 85, max: 95 }, // Full shoulder turn

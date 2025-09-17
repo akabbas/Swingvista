@@ -89,6 +89,24 @@ export default function SwingPhaseNavigator({
   }, [phases, currentTime]);
 
   const handlePhaseClick = useCallback((phase: EnhancedSwingPhase) => {
+    console.log('=== PHASE CLICK DEBUG ===');
+    console.log('Phase clicked:', phase.name);
+    console.log('Phase start time (ms):', phase.startTime);
+    console.log('Phase end time (ms):', phase.endTime);
+    console.log('Phase duration (ms):', phase.duration);
+    console.log('Total duration (ms):', totalDuration);
+    console.log('Phase start percentage:', ((phase.startTime / totalDuration) * 100).toFixed(1) + '%');
+    console.log('========================');
+    
+    // Add visual feedback
+    const phaseElement = document.querySelector(`[data-phase="${phase.name}"]`);
+    if (phaseElement) {
+      phaseElement.classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+      setTimeout(() => {
+        phaseElement.classList.remove('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+      }, 1000);
+    }
+    
     onPhaseSelect(phase.startTime);
   }, [onPhaseSelect]);
 
@@ -145,6 +163,7 @@ export default function SwingPhaseNavigator({
               return (
                 <div
                   key={phase.name}
+                  data-phase={phase.name}
                   className={`${getPhaseColor(phase.name)} relative cursor-pointer transition-all duration-200 ${
                     isActive ? 'ring-2 ring-white ring-opacity-50' : ''
                   } ${isHovered ? 'opacity-80' : 'opacity-90'}`}

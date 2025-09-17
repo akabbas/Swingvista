@@ -132,6 +132,11 @@ export class EnhancedSwingPhaseDetector {
     const rightWrist = trajectory.rightWrist;
     const leftWrist = trajectory.leftWrist;
     
+    console.log('🔍 Phase boundary detection:');
+    console.log('- Landmarks length:', landmarks.length);
+    console.log('- Trajectory length:', rightWrist.length);
+    console.log('- Timestamps length:', timestamps.length);
+    
     // Address phase: minimal movement
     const addressEnd = this.findMovementStart(landmarks, rightWrist, 0.1);
     
@@ -152,6 +157,14 @@ export class EnhancedSwingPhaseDetector {
     // Follow-through: after impact
     const followThroughStart = impact + 1;
     const followThroughEnd = landmarks.length - 1;
+    
+    console.log('🔍 Phase boundaries calculated:');
+    console.log('- Address:', 0, 'to', addressEnd);
+    console.log('- Backswing:', addressEnd, 'to', backswingTop);
+    console.log('- Top:', topStart, 'to', topEnd);
+    console.log('- Downswing:', downswingStart, 'to', downswingEnd);
+    console.log('- Impact:', impact, 'to', impact + 2);
+    console.log('- Follow-through:', followThroughStart, 'to', followThroughEnd);
     
     return {
       address: { start: 0, end: addressEnd },
@@ -176,7 +189,8 @@ export class EnhancedSwingPhaseDetector {
   private findMaxClubHeight(landmarks: PoseLandmark[][], trajectory: TrajectoryPoint[], startFrame: number): number {
     let maxY = trajectory[startFrame]?.y || 0;
     let topFrame = startFrame;
-    const searchEnd = Math.min(Math.floor(trajectory.length * 0.8), trajectory.length - 1);
+    // EMERGENCY FIX: Bound search to landmarks array length, not trajectory length
+    const searchEnd = Math.min(Math.floor(landmarks.length * 0.8), landmarks.length - 1);
     
     for (let i = startFrame + 1; i <= searchEnd; i++) {
       if (trajectory[i]?.y < maxY) {
@@ -185,14 +199,16 @@ export class EnhancedSwingPhaseDetector {
       }
     }
     
-    return Math.max(this.config.minPhaseDuration, topFrame);
+    // EMERGENCY FIX: Ensure frame number is within bounds
+    return Math.max(this.config.minPhaseDuration, Math.min(topFrame, landmarks.length - 1));
   }
 
   private findImpactFrame(landmarks: PoseLandmark[][], trajectory: TrajectoryPoint[], startFrame: number): number {
     let maxAcceleration = 0;
     let impactFrame = Math.floor(landmarks.length * 0.7);
-    const searchStart = Math.max(startFrame, Math.floor(trajectory.length * 0.4));
-    const searchEnd = Math.min(trajectory.length - 1, landmarks.length - 1);
+    // EMERGENCY FIX: Bound search to landmarks array length, not trajectory length
+    const searchStart = Math.max(startFrame, Math.floor(landmarks.length * 0.4));
+    const searchEnd = Math.min(landmarks.length - 1, trajectory.length - 1);
     
     for (let i = searchStart; i < searchEnd; i++) {
       if (i >= 2) {
@@ -204,7 +220,8 @@ export class EnhancedSwingPhaseDetector {
       }
     }
     
-    return Math.max(this.config.minPhaseDuration, impactFrame);
+    // EMERGENCY FIX: Ensure frame number is within bounds
+    return Math.max(this.config.minPhaseDuration, Math.min(impactFrame, landmarks.length - 1));
   }
 
   private createAddressPhase(boundaries: any, landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): EnhancedSwingPhase {
@@ -215,13 +232,19 @@ export class EnhancedSwingPhaseDetector {
     const metrics = this.calculateAddressMetrics(midLandmarks);
     const confidence = this.calculatePhaseConfidence(landmarks, start, end);
     
+    const startTime = timestamps[start] || 0;
+    const endTime = timestamps[end] || 0;
+    const duration = endTime - startTime;
+    
+    console.log(`Creating address phase: frames ${start}-${end}, times ${startTime}-${endTime}ms, duration ${duration}ms`);
+    
     return {
       name: 'address',
       startFrame: start,
       endFrame: end,
-      startTime: timestamps[start] || 0,
-      endTime: timestamps[end] || 0,
-      duration: (timestamps[end] || 0) - (timestamps[start] || 0),
+      startTime,
+      endTime,
+      duration,
       color: '#4CAF50', // Green
       description: 'Setup and address position - maintaining posture and balance',
       confidence,
@@ -331,13 +354,19 @@ export class EnhancedSwingPhaseDetector {
     const metrics = this.calculateImpactMetrics(midLandmarks);
     const confidence = this.calculatePhaseConfidence(landmarks, start, end);
     
+    const startTime = timestamps[start] || 0;
+    const endTime = timestamps[end] || 0;
+    const duration = endTime - startTime;
+    
+    console.log(`Creating impact phase: frames ${start}-${end}, times ${startTime}-${endTime}ms, duration ${duration}ms`);
+    
     return {
       name: 'impact',
       startFrame: start,
       endFrame: end,
-      startTime: timestamps[start] || 0,
-      endTime: timestamps[end] || 0,
-      duration: (timestamps[end] || 0) - (timestamps[start] || 0),
+      startTime,
+      endTime,
+      duration,
       color: '#9C27B0', // Purple
       description: 'Ball contact moment - maximum clubhead speed and accuracy',
       confidence,

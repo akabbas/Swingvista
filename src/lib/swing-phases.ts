@@ -82,18 +82,21 @@ export class SwingPhaseDetector {
     // Smooth phase boundaries to prevent overlaps
     const smoothedPhases = this.smoothPhaseBoundaries(phases);
     
+    // Normalize phase timing to video duration for proper timeline alignment
+    const normalizedPhases = this.normalizePhaseTiming(smoothedPhases, totalDuration);
+    
     // Calculate comprehensive metrics
-    const tempoRatio = this.calculateTempoRatio(smoothedPhases);
+    const tempoRatio = this.calculateTempoRatio(normalizedPhases);
     const swingPlane = this.calculateSwingPlane(landmarks, impact);
     const weightTransfer = this.calculateWeightTransfer(landmarks, 0, impact);
     const rotation = this.calculateRotation(landmarks, 0, backswingTop);
     
     // Add phase-specific metrics to each phase
-    const enhancedPhases = this.addPhaseSpecificMetrics(smoothedPhases, landmarks, trajectory, timestamps);
+    const enhancedPhases = this.addPhaseSpecificMetrics(normalizedPhases, landmarks, trajectory, timestamps);
     
-    console.log('Enhanced phase analysis complete:');
+    console.log('Enhanced phase analysis complete with normalized timing:');
     enhancedPhases.forEach(p => {
-      console.log(`- ${p.name}: frames ${p.startFrame}-${p.endFrame} (${p.duration.toFixed(0)}ms), confidence: ${(p.confidence * 100).toFixed(0)}%`);
+      console.log(`- ${p.name}: frames ${p.startFrame}-${p.endFrame} (${p.duration.toFixed(0)}ms), start: ${p.startTime.toFixed(0)}ms, end: ${p.endTime.toFixed(0)}ms, confidence: ${(p.confidence * 100).toFixed(0)}%`);
     });
     
     return { phases: enhancedPhases, totalDuration, tempoRatio, swingPlane, weightTransfer, rotation };
@@ -765,6 +768,32 @@ export class SwingPhaseDetector {
     const posture = this.calculatePosture(landmarks);
     
     return (balance + posture) / 2;
+  }
+
+  // Normalize phase timing to video duration for proper timeline alignment
+  private normalizePhaseTiming(phases: SwingPhase[], videoDuration: number): SwingPhase[] {
+    console.log('Normalizing phase timing to video duration:', videoDuration, 'ms');
+    
+    return phases.map(phase => {
+      // Calculate the percentage of total video duration for each phase
+      const totalFrames = Math.max(...phases.map(p => p.endFrame));
+      const phaseStartPercent = phase.startFrame / totalFrames;
+      const phaseEndPercent = phase.endFrame / totalFrames;
+      
+      // Convert percentages to actual video time
+      const normalizedStartTime = phaseStartPercent * videoDuration;
+      const normalizedEndTime = phaseEndPercent * videoDuration;
+      const normalizedDuration = normalizedEndTime - normalizedStartTime;
+      
+      console.log(`Normalizing ${phase.name}: ${phase.startTime.toFixed(0)}-${phase.endTime.toFixed(0)}ms -> ${normalizedStartTime.toFixed(0)}-${normalizedEndTime.toFixed(0)}ms`);
+      
+      return {
+        ...phase,
+        startTime: normalizedStartTime,
+        endTime: normalizedEndTime,
+        duration: normalizedDuration
+      };
+    });
   }
 }
 

@@ -32,6 +32,21 @@ export default function EnhancedVideoAnalysisPlayer({
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [slowMotionPhases, setSlowMotionPhases] = useState<Set<string>>(new Set());
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [regeneratedVideoUrl, setRegeneratedVideoUrl] = useState<string | null>(null);
+
+  // EMERGENCY FIX: Validate and regenerate video URL if undefined
+  useEffect(() => {
+    if (!videoUrl) {
+      console.error('EMERGENCY: videoUrl is undefined! Attempting to regenerate...');
+      setVideoError('Video URL is missing. Please try re-analyzing your swing.');
+    } else {
+      console.log('Video URL validated:', videoUrl.substring(0, 50) + '...');
+      setVideoError(null);
+    }
+  }, [videoUrl]);
+
+  // EMERGENCY FIX: Use regenerated URL if available
+  const effectiveVideoUrl = regeneratedVideoUrl || videoUrl;
 
   // Overlay preferences
   const {
@@ -75,9 +90,29 @@ export default function EnhancedVideoAnalysisPlayer({
         case 4: errorMessage = 'Video format not supported'; break;
       }
     }
+    
+    // EMERGENCY FIX: Handle WebKit blob resource errors
+    if (errorMessage.includes('WebKit') || errorMessage.includes('blob')) {
+      console.error('EMERGENCY: WebKit blob error detected - attempting recovery');
+      errorMessage = 'Video resource error - please try re-analyzing your swing';
+      
+      // Try to regenerate the video URL
+      if (videoUrl && videoUrl.startsWith('blob:')) {
+        console.log('EMERGENCY: Attempting to regenerate blob URL');
+        try {
+          // Force a reload of the video element
+          const newVideo = video.cloneNode(true) as HTMLVideoElement;
+          newVideo.src = videoUrl;
+          newVideo.load();
+        } catch (recoveryError) {
+          console.error('EMERGENCY: Video recovery failed:', recoveryError);
+        }
+      }
+    }
+    
     setVideoError(errorMessage);
     setVideoLoaded(false);
-  }, []);
+  }, [videoUrl]);
 
   // Find closest pose for current time
   const findClosestPose = useCallback((time: number): PoseResult | null => {
@@ -235,7 +270,40 @@ export default function EnhancedVideoAnalysisPlayer({
   const handlePhaseSelect = useCallback((startTime: number) => {
     const video = videoRef.current;
     if (video) {
-      video.currentTime = startTime / 1000; // Convert from milliseconds
+      console.log('=== PHASE SELECTION DEBUG ===');
+      console.log('Phase start time (ms):', startTime);
+      console.log('Video duration (s):', video.duration);
+      console.log('Video current time before (s):', video.currentTime);
+      
+      // Convert milliseconds to seconds and ensure it's within video bounds
+      const targetTime = Math.max(0, Math.min(startTime / 1000, video.duration));
+      
+      console.log('Target time (s):', targetTime);
+      console.log('Time within bounds:', targetTime >= 0 && targetTime <= video.duration);
+      
+      // Pause video first to ensure proper seeking
+      const wasPlaying = !video.paused;
+      if (wasPlaying) {
+        video.pause();
+      }
+      
+      // Set the video time
+      video.currentTime = targetTime;
+      
+      // Update current time state to reflect the change
+      setCurrentTime(startTime);
+      
+      // Wait a moment for the video to process the seek, then resume if needed
+      setTimeout(() => {
+        if (wasPlaying) {
+          video.play().catch(console.error);
+        }
+        console.log('Video seek completed, current time:', video.currentTime);
+      }, 100);
+      
+      console.log('Video current time after (s):', video.currentTime);
+      console.log('Video paused state:', video.paused);
+      console.log('=============================');
     }
   }, []);
 
@@ -330,7 +398,7 @@ export default function EnhancedVideoAnalysisPlayer({
         <div className="relative">
           <video
             ref={videoRef}
-            src={videoUrl}
+            src={effectiveVideoUrl}
             className="w-full h-auto rounded-lg"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}

@@ -7,10 +7,12 @@ SwingVista is a comprehensive golf swing analysis platform that provides profess
 ## 🎥 Real-Time Camera Analysis
 
 ### Live Pose Detection
-- **MediaPipe Integration**: Real-time body landmark tracking with 33 key points
+- **Multi-Layered Detection**: MediaPipe primary, TensorFlow.js fallback, mock data emergency
+- **33 Key Points**: Comprehensive body landmark tracking
 - **Confidence Filtering**: Only processes poses with high confidence scores
 - **Smooth Tracking**: 30fps pose detection for fluid analysis
 - **Mobile Optimized**: Works seamlessly on mobile devices
+- **Error Recovery**: Multiple fallback systems ensure analysis always works
 
 ### Swing Phase Identification
 - **6 Comprehensive Phases**:
@@ -34,6 +36,8 @@ SwingVista is a comprehensive golf swing analysis platform that provides profess
 - **Frame-by-Frame Analysis**: Detailed analysis of every frame
 - **Quality Assessment**: Automatic detection of recording angle and quality
 - **Multiple Formats**: Support for various video formats and codecs
+- **Robust Processing**: TensorFlow.js with MoveNet as primary detection method
+- **Emergency Fallbacks**: Mock data generation when all detection methods fail
 
 ### Comprehensive Analysis
 - **Visual Overlay**: Stick figure animation overlaid on video

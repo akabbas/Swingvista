@@ -13,12 +13,14 @@ import SwingAnalysisOverlay from '@/components/analysis/SwingAnalysisOverlay';
 import VideoAnalysisPlayer from '@/components/analysis/VideoAnalysisPlayer';
 import EnhancedVideoAnalysisPlayer from '@/components/analysis/EnhancedVideoAnalysisPlayer';
 import ProcessedVideoPlayer from '@/components/analysis/ProcessedVideoPlayer';
+import SwingSummary from '@/components/analysis/SwingSummary';
 
 // Lazy load heavy components
 const DrillRecommendations = lazy(() => import('@/components/analysis/DrillRecommendations'));
 // Lazy load GolfGradeCard for future use
 const _GolfGradeCard = lazy(() => import('@/components/analysis/GolfGradeCard'));
 const ProgressChart = lazy(() => import('@/components/analysis/ProgressChart'));
+// EMERGENCY FIX: Import pose extraction function directly
 import { extractPosesFromVideo } from '@/lib/video-poses';
 import { lazyAIAnalyzer } from '@/lib/lazy-ai-analyzer';
 import { ProgressTracker } from '@/lib/swing-progress';
@@ -30,6 +32,24 @@ import { getCachedAnalysis, getCachedPoses, setCachedAnalysis, setCachedPoses, C
 import { getCachedPosesFallback, setCachedPosesFallback, getCachedAnalysisFallback, setCachedAnalysisFallback } from '@/lib/cache/fallback-cache';
 import { trackEvent } from '@/lib/analytics';
 import { EnhancedSwingPhaseDetector, EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
+
+// Retry logic for robust error handling
+const withRetry = async (operation: () => Promise<any>, maxRetries = 3, delay = 1000) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Attempt ${attempt}/${maxRetries}`);
+      return await operation();
+    } catch (error) {
+      console.warn(`⚠️ Attempt ${attempt} failed:`, error);
+      if (attempt === maxRetries) {
+        console.error(`❌ All ${maxRetries} attempts failed`);
+        throw error;
+      }
+      console.log(`⏳ Waiting ${delay * attempt}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+};
 
 // WorkerResponse type is imported but not used in this component
 
@@ -77,6 +97,7 @@ interface AnalysisResult {
     strengths: string[];
     improvements: string[];
     technicalNotes: string[];
+    swingSummary?: string;
   };
 }
 
@@ -385,37 +406,53 @@ export default function UploadPage() {
       dispatch({ type: 'SET_PROGRESS', payload: 5 });
       const startTime = performance.now();
 
-      // Advanced cache hydration by content hash
-      dispatch({ type: 'SET_STEP', payload: 'Checking cache...' });
+      // EMERGENCY FIX: Run MediaPipe diagnostics on startup
+      console.group('🔍 EMERGENCY MEDIAPIPE DIAGNOSTICS');
+      console.log('Browser environment:', typeof window !== 'undefined');
+      console.log('MediaPipe global available:', !!(window as any).MediaPipePose);
+      console.log('MediaPipe global Pose:', !!(window as any).MediaPipePose?.Pose);
       
-      let contentHash, cacheKey, cachedPoses, cachedAnalysis;
+      try {
+        const mp = await import('@mediapipe/pose');
+        console.log('MediaPipe module import success:', !!mp);
+        console.log('MediaPipe module keys:', Object.keys(mp));
+        console.log('MediaPipe Pose constructor:', !!mp.Pose);
+        console.log('MediaPipe default type:', typeof mp.default);
+        console.log('MediaPipe default keys:', mp.default ? Object.keys(mp.default) : 'N/A');
+      } catch (e) {
+        console.error('MediaPipe module import failed:', e);
+      }
       
-        try {
-          contentHash = await hashVideoFile(state.file);
-          cacheKey = `${CacheSchema.appVersion}:${CacheSchema.schemaVersion}:${contentHash}`;
-          console.log('Cache key generated:', cacheKey);
-          
-          cachedPoses = await getCachedPosesFallback<PoseResult[]>(cacheKey);
-          cachedAnalysis = await getCachedAnalysisFallback<any>(cacheKey);
-          console.log('Cache operations completed successfully');
-        } catch (error) {
-          console.error('Cache operation failed:', error);
-          console.log('Skipping cache due to error, proceeding with fresh analysis');
-          cachedPoses = null;
-          cachedAnalysis = null;
-        }
+      try {
+        const test = await fetch('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js', { method: 'HEAD' });
+        console.log('MediaPipe CDN available:', test.ok);
+      } catch (e) {
+        console.error('MediaPipe CDN check failed:', e);
+      }
+      console.groupEnd();
+
+      // EMERGENCY FIX: Temporarily disable cache system to prevent errors
+      dispatch({ type: 'SET_STEP', payload: 'Skipping cache (emergency mode)...' });
+      
+      const contentHash = null;
+      const cacheKey = null;
+      const cachedPoses = null;
+      const cachedAnalysis = null;
+      
+      // EMERGENCY FIX: Disable cache entirely to prevent IndexedDB errors
+      console.log('EMERGENCY FIX: Cache system disabled to prevent errors');
       
       console.log('Cache check results:', {
         cacheKey,
         hasCachedPoses: !!cachedPoses,
         hasCachedAnalysis: !!cachedAnalysis,
-        posesCount: cachedPoses?.length || 0,
+        posesCount: (cachedPoses as unknown as PoseResult[])?.length || 0,
         analysisKeys: cachedAnalysis ? Object.keys(cachedAnalysis) : []
       });
       
-      // Force fresh analysis for sample videos to ensure proper results
+      // EMERGENCY FIX: Force fresh analysis for all videos since cache is disabled
       const isSampleVideo = state.file?.name?.includes('max_homa') || state.file?.name?.includes('ludvig_aberg');
-      const hasDatabaseError = !cacheKey; // If cache operations failed, skip cache entirely
+      const hasDatabaseError = true; // EMERGENCY FIX: Always skip cache
       
       if (isSampleVideo || hasDatabaseError) {
         console.log('Sample video or database error detected, skipping cache for fresh analysis');
@@ -425,7 +462,7 @@ export default function UploadPage() {
         dispatch({ type: 'SET_RESULT', payload: cachedAnalysis });
         dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });
         dispatch({ type: 'SET_PROGRESS', payload: 80 });
-        const aiFromCache = await lazyAIAnalyzer.analyze(cachedPoses, cachedAnalysis.trajectory, cachedAnalysis.phases, 'driver');
+        const aiFromCache = await lazyAIAnalyzer.analyze(cachedPoses, (cachedAnalysis as any).trajectory, (cachedAnalysis as any).phases, 'driver');
         dispatch({ type: 'SET_AI_ANALYSIS', payload: aiFromCache });
         const endTimeCached = performance.now();
         const memCached = (performance as any).memory?.usedJSHeapSize || 0;
@@ -436,7 +473,7 @@ export default function UploadPage() {
           memoryUsage: memCached,
           processingTime: endTimeCached - startTime,
           videoDuration: v.duration || 0,
-          poseCount: cachedPoses.length,
+          poseCount: (cachedPoses as unknown as PoseResult[]).length,
           analysisScore: aiFromCache?.overallScore
         });
         URL.revokeObjectURL(v.src);
@@ -456,14 +493,19 @@ export default function UploadPage() {
       
       let extracted;
       try {
-        extracted = await extractPosesFromVideo(state.file, { sampleFps: 15, maxFrames: 150 }, (s, p) => { 
-          const message = s === 'Reading video frames...' ? `Processing frame ${Math.round(p)}%` : s;
-          dispatch({ type: 'SET_STEP', payload: message }); 
-          // Map progress 0-100 to 10-60% of overall progress
-          const mappedProgress = 10 + (p * 0.5);
-          dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
-          console.log(`Progress update: ${message} (${Math.round(mappedProgress)}%)`);
-        });
+        // EMERGENCY FIX: Use improved pose detection settings
+        extracted = await withRetry(
+          () => extractPosesFromVideo(state.file!, { sampleFps: 20, maxFrames: 200, minConfidence: 0.4, qualityThreshold: 0.3 }, (s: string, p: number) => { 
+            const message = s === 'Reading video frames...' ? `Processing frame ${Math.round(p)}%` : s;
+            dispatch({ type: 'SET_STEP', payload: message }); 
+            // Map progress 0-100 to 10-60% of overall progress
+            const mappedProgress = 10 + (p * 0.5);
+            dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
+            console.log(`Progress update: ${message} (${Math.round(mappedProgress)}%)`);
+          }),
+          3, // retry 3 times
+          2000 // 2 second delay between retries
+        );
         
         console.log('Pose extraction completed!');
         console.log('Total poses extracted:', extracted.length);
@@ -596,7 +638,8 @@ export default function UploadPage() {
               overallScore: 77,
               strengths: ['Basic swing fundamentals present'],
               improvements: ['Work on consistency and timing'],
-              technicalNotes: ['Analysis completed with basic metrics']
+              technicalNotes: ['Analysis completed with basic metrics'],
+              swingSummary: 'Focus on maintaining consistent tempo and smooth weight transfer throughout your swing for better ball striking.'
             }
           };
           console.log('Fallback analysis created');
@@ -617,9 +660,9 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Analyzing swing phases...' });
       const phaseDetector = new EnhancedSwingPhaseDetector();
       const enhancedPhases = phaseDetector.detectPhases(
-        extracted.map(p => p.landmarks || []),
+        extracted.map((p: any) => p.landmarks || []),
         analysis.trajectory || { clubhead: [], rightWrist: [] },
-        analysis.timestamps || extracted.map(p => p.timestamp || 0)
+        analysis.timestamps || extracted.map((p: any) => p.timestamp || 0)
       );
       
       console.log('Enhanced phases detected:', enhancedPhases.length);
@@ -629,7 +672,7 @@ export default function UploadPage() {
         ...analysis,
         phases: analysis?.phases || [],
         enhancedPhases: enhancedPhases,
-        timestamps: analysis?.timestamps || extracted.map(p => p.timestamp || 0),
+        timestamps: analysis?.timestamps || extracted.map((p: any) => p.timestamp || 0),
         metrics: analysis?.metrics || {},
         trajectory: analysis?.trajectory || { clubhead: [], rightWrist: [] },
         landmarks: analysis?.landmarks || extracted
@@ -718,11 +761,23 @@ export default function UploadPage() {
         (normalizedAnalysis as any).poses = extracted;
         console.log('Poses also stored as poses property:', (normalizedAnalysis as any).poses?.length, 'poses');
         
-        // Store video URL in the analysis result for video display
-        if (videoUrl) {
-          (normalizedAnalysis as any).videoUrl = videoUrl;
-          console.log('Video URL stored in analysis result:', videoUrl);
+      // EMERGENCY FIX: Store video URL in the analysis result for video display with validation
+      if (videoUrl) {
+        (normalizedAnalysis as any).videoUrl = videoUrl;
+        console.log('Video URL stored in analysis result:', videoUrl);
+      } else {
+        console.error('EMERGENCY: Video URL is undefined - this will cause video display issues');
+        // Try to regenerate the video URL from the file
+        if (state.file) {
+          try {
+            const regeneratedUrl = URL.createObjectURL(state.file);
+            (normalizedAnalysis as any).videoUrl = regeneratedUrl;
+            console.log('EMERGENCY FIX: Regenerated video URL:', regeneratedUrl);
+          } catch (urlError) {
+            console.error('EMERGENCY: Failed to regenerate video URL:', urlError);
+          }
         }
+      }
       }
       
       // Force a small delay to ensure state is updated
@@ -953,6 +1008,14 @@ export default function UploadPage() {
                       <div className="space-y-8">
                         <div>
                           <h3 className="text-xl font-semibold mb-4">Swing Analysis</h3>
+                          
+                          {/* Swing Summary - Most Important Takeaway */}
+                          {state.result.aiFeedback?.swingSummary && (
+                            <div className="mb-6">
+                              <SwingSummary summary={state.result.aiFeedback.swingSummary} />
+                            </div>
+                          )}
+                          
                           {state.result.aiFeedback && (
                             <SwingFeedback 
                               analysis={{
