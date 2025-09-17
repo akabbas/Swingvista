@@ -27,7 +27,7 @@ const PhaseMarkers = memo(function PhaseMarkers({
   style = {}
 }: PhaseMarkersProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   // Get current phase based on time
   const getCurrentPhase = useCallback((time: number): EnhancedSwingPhase | null => {
@@ -326,9 +326,13 @@ const PhaseMarkers = memo(function PhaseMarkers({
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      className={`absolute inset-0 w-full h-full pointer-events-none z-22 ${className}`}
       style={{
         imageRendering: 'pixelated',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
         ...style
       }}
     />

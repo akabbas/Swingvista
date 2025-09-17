@@ -1,6 +1,11 @@
 import { PoseResult } from './mediapipe';
 import { SwingPhase } from './swing-phases';
 import { SwingTrajectory } from './mediapipe';
+import { 
+  calculateAccurateSwingMetrics, 
+  AccurateSwingMetrics,
+  validateSwingMetrics 
+} from './accurate-swing-metrics';
 
 // Professional benchmark data based on PGA Tour statistics
 export const BENCHMARKS = {
@@ -210,30 +215,53 @@ export function calculateBodyAlignmentMetrics(poses: PoseResult[]): SwingMetrics
   };
 }
 
-// Calculate overall swing metrics and grade
+// Calculate overall swing metrics and grade using accurate calculations
 export function calculateSwingMetrics(poses: PoseResult[], phases: SwingPhase[], trajectory: SwingTrajectory): SwingMetrics {
-  const tempo = calculateTempoMetrics(phases);
-  const rotation = calculateRotationMetrics(poses, phases);
-  const weightTransfer = calculateWeightTransferMetrics(poses, phases);
-  const swingPlane = calculateSwingPlaneMetrics(trajectory);
-  const bodyAlignment = calculateBodyAlignmentMetrics(poses);
+  // Use the accurate calculation system
+  const accurateMetrics = calculateAccurateSwingMetrics(poses, phases, trajectory);
   
-  const overallScore = (
-    tempo.score +
-    rotation.score +
-    weightTransfer.score +
-    swingPlane.score +
-    bodyAlignment.score
-  ) / 5;
+  // Validate the metrics
+  const validation = validateSwingMetrics(accurateMetrics);
+  if (!validation.isValid) {
+    console.warn('Swing metrics validation failed:', validation.errors);
+  }
+  if (validation.warnings.length > 0) {
+    console.warn('Swing metrics warnings:', validation.warnings);
+  }
   
+  // Convert AccurateSwingMetrics to SwingMetrics format for compatibility
   return {
-    tempo,
-    rotation,
-    weightTransfer,
-    swingPlane,
-    bodyAlignment,
-    overallScore,
-    letterGrade: calculateLetterGrade(overallScore)
+    tempo: {
+      backswingTime: accurateMetrics.tempo.backswingTime,
+      downswingTime: accurateMetrics.tempo.downswingTime,
+      tempoRatio: accurateMetrics.tempo.tempoRatio,
+      score: accurateMetrics.tempo.score
+    },
+    rotation: {
+      shoulderTurn: accurateMetrics.rotation.shoulderTurn,
+      hipTurn: accurateMetrics.rotation.hipTurn,
+      xFactor: accurateMetrics.rotation.xFactor,
+      score: accurateMetrics.rotation.score
+    },
+    weightTransfer: {
+      backswing: accurateMetrics.weightTransfer.backswing,
+      impact: accurateMetrics.weightTransfer.impact,
+      finish: accurateMetrics.weightTransfer.finish,
+      score: accurateMetrics.weightTransfer.score
+    },
+    swingPlane: {
+      shaftAngle: accurateMetrics.swingPlane.shaftAngle,
+      planeDeviation: accurateMetrics.swingPlane.planeDeviation,
+      score: accurateMetrics.swingPlane.score
+    },
+    bodyAlignment: {
+      spineAngle: accurateMetrics.bodyAlignment.spineAngle,
+      headMovement: accurateMetrics.bodyAlignment.headMovement,
+      kneeFlex: accurateMetrics.bodyAlignment.kneeFlex,
+      score: accurateMetrics.bodyAlignment.score
+    },
+    overallScore: accurateMetrics.overallScore,
+    letterGrade: accurateMetrics.letterGrade
   };
 }
 

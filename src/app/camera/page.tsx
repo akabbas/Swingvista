@@ -117,49 +117,211 @@ export default function CameraPage() {
         setIsSwinging(false);
         setSwingStartTime(null);
         
-        // Calculate comprehensive swing metrics
+        // Calculate comprehensive swing metrics using accurate calculations
         if (poseHistory.length > 10) {
           try {
+            // Create mock phases for real-time analysis
             const swingDuration = (Date.now() - (swingStartTime || Date.now())) / 1000;
-            const backswingFrames = Math.floor(poseHistory.length * 0.6);
-            const downswingFrames = poseHistory.length - backswingFrames;
-            const tempoRatio = backswingFrames / Math.max(downswingFrames, 1);
-            
-            const simpleMetrics = {
-              overallScore: Math.min(95, 60 + (tempoRatio > 2.5 ? 15 : 0) + (shoulderHipAngle > 20 ? 10 : 0)),
-              letterGrade: tempoRatio > 2.5 ? 'A' : tempoRatio > 2.0 ? 'B' : 'C',
-              tempo: {
-                tempoRatio: tempoRatio,
-                backswingTime: swingDuration * 0.6,
-                downswingTime: swingDuration * 0.4,
-                score: Math.min(100, tempoRatio * 30)
+            const phases = [
+              { 
+                name: 'address' as const, 
+                startTime: 0, 
+                endTime: swingDuration * 0.1, 
+                startFrame: 0, 
+                endFrame: Math.floor(poseHistory.length * 0.1), 
+                duration: swingDuration * 0.1 * 1000,
+                keyLandmarks: [],
+                color: '#3B82F6',
+                description: 'Setup position',
+                confidence: 0.9,
+                keyMetrics: {}
               },
-              rotation: {
-                shoulderTurn: Math.min(120, shoulderHipAngle * 2),
-                hipTurn: Math.min(60, shoulderHipAngle),
-                xFactor: Math.max(0, shoulderHipAngle - 10),
-                score: Math.min(100, shoulderHipAngle * 3)
+              { 
+                name: 'backswing' as const, 
+                startTime: swingDuration * 0.1, 
+                endTime: swingDuration * 0.7, 
+                startFrame: Math.floor(poseHistory.length * 0.1), 
+                endFrame: Math.floor(poseHistory.length * 0.7), 
+                duration: swingDuration * 0.6 * 1000,
+                keyLandmarks: [],
+                color: '#10B981',
+                description: 'Backswing motion',
+                confidence: 0.9,
+                keyMetrics: {}
               },
-              weightTransfer: {
-                backswing: 60,
-                impact: 40,
-                finish: 80,
-                score: 70
+              { 
+                name: 'downswing' as const, 
+                startTime: swingDuration * 0.7, 
+                endTime: swingDuration * 0.9, 
+                startFrame: Math.floor(poseHistory.length * 0.7), 
+                endFrame: Math.floor(poseHistory.length * 0.9), 
+                duration: swingDuration * 0.2 * 1000,
+                keyLandmarks: [],
+                color: '#F59E0B',
+                description: 'Downswing motion',
+                confidence: 0.9,
+                keyMetrics: {}
               },
-              swingPlane: {
-                shaftAngle: 65,
-                planeDeviation: 8,
-                score: 72
+              { 
+                name: 'impact' as const, 
+                startTime: swingDuration * 0.9, 
+                endTime: swingDuration * 0.95, 
+                startFrame: Math.floor(poseHistory.length * 0.9), 
+                endFrame: Math.floor(poseHistory.length * 0.95), 
+                duration: swingDuration * 0.05 * 1000,
+                keyLandmarks: [],
+                color: '#EF4444',
+                description: 'Impact position',
+                confidence: 0.9,
+                keyMetrics: {}
               },
-              bodyAlignment: {
-                spineAngle: 5,
-                headMovement: 3,
-                kneeFlex: 15,
-                score: 78
+              { 
+                name: 'follow-through' as const, 
+                startTime: swingDuration * 0.95, 
+                endTime: swingDuration, 
+                startFrame: Math.floor(poseHistory.length * 0.95), 
+                endFrame: poseHistory.length - 1, 
+                duration: swingDuration * 0.05 * 1000,
+                keyLandmarks: [],
+                color: '#8B5CF6',
+                description: 'Follow through',
+                confidence: 0.9,
+                keyMetrics: {}
               }
+            ];
+            
+            // Create mock trajectory
+            const trajectory = {
+              clubhead: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[16]?.x || 0.5,
+                y: pose.landmarks[16]?.y || 0.5,
+                z: pose.landmarks[16]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              rightWrist: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[16]?.x || 0.5,
+                y: pose.landmarks[16]?.y || 0.5,
+                z: pose.landmarks[16]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              leftWrist: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[15]?.x || 0.5,
+                y: pose.landmarks[15]?.y || 0.5,
+                z: pose.landmarks[15]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              rightShoulder: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[12]?.x || 0.5,
+                y: pose.landmarks[12]?.y || 0.5,
+                z: pose.landmarks[12]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              leftShoulder: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[11]?.x || 0.5,
+                y: pose.landmarks[11]?.y || 0.5,
+                z: pose.landmarks[11]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              rightHip: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[24]?.x || 0.5,
+                y: pose.landmarks[24]?.y || 0.5,
+                z: pose.landmarks[24]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              })),
+              leftHip: poseHistory.map((pose, index) => ({
+                x: pose.landmarks[23]?.x || 0.5,
+                y: pose.landmarks[23]?.y || 0.5,
+                z: pose.landmarks[23]?.z || 0,
+                timestamp: pose.timestamp || index * 33,
+                frame: index
+              }))
             };
-            setSwingMetrics(simpleMetrics);
-            console.log('Swing analysis complete:', simpleMetrics);
+            
+            // Import and use accurate calculations
+            import('@/lib/accurate-swing-metrics').then(({ calculateAccurateSwingMetrics }) => {
+              const accurateMetrics = calculateAccurateSwingMetrics(poseHistory, phases, trajectory);
+              
+              // Convert to the expected format
+              const swingMetrics = {
+                overallScore: accurateMetrics.overallScore,
+                letterGrade: accurateMetrics.letterGrade,
+                tempo: {
+                  tempoRatio: accurateMetrics.tempo.tempoRatio,
+                  backswingTime: accurateMetrics.tempo.backswingTime,
+                  downswingTime: accurateMetrics.tempo.downswingTime,
+                  score: accurateMetrics.tempo.score
+                },
+                rotation: {
+                  shoulderTurn: accurateMetrics.rotation.shoulderTurn,
+                  hipTurn: accurateMetrics.rotation.hipTurn,
+                  xFactor: accurateMetrics.rotation.xFactor,
+                  score: accurateMetrics.rotation.score
+                },
+                weightTransfer: {
+                  backswing: accurateMetrics.weightTransfer.backswing,
+                  impact: accurateMetrics.weightTransfer.impact,
+                  finish: accurateMetrics.weightTransfer.finish,
+                  score: accurateMetrics.weightTransfer.score
+                },
+                swingPlane: {
+                  shaftAngle: accurateMetrics.swingPlane.shaftAngle,
+                  planeDeviation: accurateMetrics.swingPlane.planeDeviation,
+                  score: accurateMetrics.swingPlane.score
+                },
+                bodyAlignment: {
+                  spineAngle: accurateMetrics.bodyAlignment.spineAngle,
+                  headMovement: accurateMetrics.bodyAlignment.headMovement,
+                  kneeFlex: accurateMetrics.bodyAlignment.kneeFlex,
+                  score: accurateMetrics.bodyAlignment.score
+                }
+              };
+              
+              setSwingMetrics(swingMetrics);
+              console.log('Accurate swing analysis complete:', swingMetrics);
+            }).catch(error => {
+              console.error('Error importing accurate metrics:', error);
+              // Fallback to simple metrics
+              const simpleMetrics = {
+                overallScore: Math.min(95, 60 + (shoulderHipAngle > 20 ? 15 : 0)),
+                letterGrade: shoulderHipAngle > 20 ? 'B' : 'C',
+                tempo: {
+                  tempoRatio: 3.0,
+                  backswingTime: swingDuration * 0.6,
+                  downswingTime: swingDuration * 0.4,
+                  score: 75
+                },
+                rotation: {
+                  shoulderTurn: Math.min(120, shoulderHipAngle * 2),
+                  hipTurn: Math.min(60, shoulderHipAngle),
+                  xFactor: Math.max(0, shoulderHipAngle - 10),
+                  score: Math.min(100, shoulderHipAngle * 3)
+                },
+                weightTransfer: {
+                  backswing: 60,
+                  impact: 40,
+                  finish: 80,
+                  score: 70
+                },
+                swingPlane: {
+                  shaftAngle: 65,
+                  planeDeviation: 8,
+                  score: 72
+                },
+                bodyAlignment: {
+                  spineAngle: 5,
+                  headMovement: 3,
+                  kneeFlex: 15,
+                  score: 78
+                }
+              };
+              setSwingMetrics(simpleMetrics);
+            });
           } catch (error) {
             console.error('Error calculating metrics:', error);
           }

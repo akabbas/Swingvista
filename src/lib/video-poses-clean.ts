@@ -8,18 +8,13 @@ export interface VideoToPoseOptions {
   qualityThreshold?: number;
 }
 
-export interface VideoPosesProgress {
-  step: string;
-  progress: number;
-  frame?: number;
-  totalFrames?: number;
-}
+export type VideoPosesProgress = (step: string, progress: number, frame?: number, totalFrames?: number) => void;
 
 // Main function - uses only TensorFlow.js (MoveNet)
 export async function extractPosesFromVideo(
   file: File,
   options: VideoToPoseOptions = {},
-  onProgress?: (progress: VideoPosesProgress) => void
+  onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> {
   console.log('🔍 POSE DETECTION: Starting TensorFlow.js pose detection...');
   console.log('🔍 POSE DETECTION: File:', file.name, 'Size:', file.size, 'bytes');
@@ -28,12 +23,7 @@ export async function extractPosesFromVideo(
     console.log('🔄 POSE DETECTION: Loading TensorFlow.js (MoveNet)...');
     const { detectPosesWithAlternatives } = await import('./alternative-pose-detection');
     
-    // Create a wrapper function to convert the callback format
-    const progressWrapper = onProgress ? (step: string, progress: number, frame?: number, totalFrames?: number) => {
-      onProgress({ step, progress, frame, totalFrames });
-    } : undefined;
-    
-    const poses = await detectPosesWithAlternatives(file, options, progressWrapper);
+    const poses = await detectPosesWithAlternatives(file, options, onProgress);
     
     if (poses && poses.length > 0) {
       console.log('✅ POSE DETECTION: TensorFlow.js succeeded with real data!');

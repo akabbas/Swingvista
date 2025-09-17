@@ -74,7 +74,7 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
   style = {}
 }: StickFigureOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   // Find the closest pose to current time
   const findClosestPose = useCallback((time: number): PoseResult | null => {
@@ -294,13 +294,21 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
 
   // Main render function
   const render = useCallback(() => {
+    console.log('🔧 OVERLAY FIX: Render function called with poses:', poses.length, 'currentTime:', currentTime);
+    
     const canvas = canvasRef.current;
     const video = videoRef.current;
     
-    if (!canvas || !video) return;
+    if (!canvas || !video) {
+      console.error('🔧 OVERLAY FIX: Canvas or video reference is null');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('🔧 OVERLAY FIX: Unable to get canvas context');
+      return;
+    }
 
     // Set canvas dimensions to match video
     const videoWidth = video.videoWidth || video.clientWidth;
@@ -309,6 +317,13 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
     if (videoWidth && videoHeight) {
       canvas.width = videoWidth;
       canvas.height = videoHeight;
+      console.log('🔧 OVERLAY FIX: Canvas dimensions set to', videoWidth, 'x', videoHeight);
+    } else {
+      console.warn('🔧 OVERLAY FIX: Unable to determine video dimensions');
+      // Force dimensions if video dimensions are not available
+      canvas.width = video.clientWidth || 640;
+      canvas.height = video.clientHeight || 360;
+      console.log('🔧 OVERLAY FIX: Forced canvas dimensions to', canvas.width, 'x', canvas.height);
     }
 
     // Clear canvas
@@ -318,35 +333,64 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
     const currentPose = findClosestPose(currentTime);
     const currentPhase = getCurrentPhase(currentTime);
 
-    if (!currentPose || !currentPose.landmarks) return;
+    console.log('🔧 OVERLAY FIX: Current pose found:', !!currentPose, 'landmarks:', currentPose?.landmarks?.length);
+
+    if (!currentPose || !currentPose.landmarks) {
+      console.warn('🔧 OVERLAY FIX: No valid pose found at time', currentTime, 'poses available:', poses.length);
+      // Draw a test rectangle even without pose data to confirm canvas is working
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+      ctx.fillRect(10, 10, 50, 50);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText('NO POSE', 15, 35);
+      return;
+    }
 
     const landmarks = currentPose.landmarks;
+    console.log('🔧 OVERLAY FIX: Drawing overlays with', landmarks.length, 'landmarks at time', currentTime);
 
     // Draw overlays based on props
     if (showSkeleton) {
       drawSkeleton(ctx, landmarks, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Skeleton drawn');
     }
 
     if (showLandmarks) {
       drawLandmarks(ctx, landmarks, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Landmarks drawn');
     }
 
     if (showSwingPlane) {
       drawSwingPlane(ctx, landmarks, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Swing plane drawn');
     }
 
     if (showPhaseMarkers && currentPhase) {
       drawPhaseMarkers(ctx, currentPhase, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Phase markers drawn for phase', currentPhase.name);
     }
 
     if (showMetrics) {
       drawMetrics(ctx, landmarks, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Metrics drawn');
     }
 
     // Draw apex point if we're in the top phase
     if (currentPhase?.name === 'top') {
       drawApexPoint(ctx, landmarks, canvas.width, canvas.height);
+      console.log('🔧 OVERLAY FIX: Apex point drawn for top phase');
     }
+    
+    // Add visual debug indicator to confirm overlay is rendering
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.fillRect(0, 0, 20, 20);
+    
+    // Add a large visible test rectangle
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+    ctx.fillRect(canvas.width - 100, canvas.height - 100, 80, 80);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('STICK FIGURE', canvas.width - 95, canvas.height - 50);
 
   }, [
     currentTime, 
@@ -413,9 +457,13 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      className={`absolute inset-0 w-full h-full pointer-events-none z-20 ${className}`}
       style={{
         imageRendering: 'pixelated',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
         ...style
       }}
     />

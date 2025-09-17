@@ -43,39 +43,42 @@ export class SwingPhaseDetector {
   }
 
   detectPhases(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): SwingPhaseAnalysis {
-    console.log('Starting comprehensive swing phase detection...');
-    console.log('Total frames:', landmarks.length, 'Total duration:', timestamps[timestamps.length - 1] - timestamps[0], 'ms');
+    console.log('⏰ PHASE TIMING DEBUG: Starting comprehensive swing phase detection...');
+    console.log('⏰ PHASE TIMING DEBUG: Total frames:', landmarks.length, 'Total duration:', timestamps[timestamps.length - 1] - timestamps[0], 'ms');
     
     const totalFrames = landmarks.length;
     const totalDuration = timestamps[totalFrames - 1] - timestamps[0];
     
-    // Enhanced phase detection with multiple algorithms
+    // Enhanced phase detection with better timing algorithms
     const addressEnd = this.detectAddressEnd(landmarks, trajectory, timestamps);
     const backswingTop = this.detectBackswingTop(landmarks, trajectory, timestamps);
     const downswingStart = this.detectDownswingStart(landmarks, trajectory, timestamps, backswingTop);
     const impact = this.detectImpact(landmarks, trajectory, timestamps);
     const followThroughStart = this.detectFollowThroughStart(landmarks, trajectory, timestamps, impact);
     
-    console.log('Phase detection results:');
-    console.log('- Address end:', addressEnd, `(${timestamps[addressEnd]?.toFixed(0) || 0}ms)`);
-    console.log('- Backswing top:', backswingTop, `(${timestamps[backswingTop]?.toFixed(0) || 0}ms)`);
-    console.log('- Downswing start:', downswingStart, `(${timestamps[downswingStart]?.toFixed(0) || 0}ms)`);
-    console.log('- Impact:', impact, `(${timestamps[impact]?.toFixed(0) || 0}ms)`);
-    console.log('- Follow-through start:', followThroughStart, `(${timestamps[followThroughStart]?.toFixed(0) || 0}ms)`);
+    console.log('⏰ PHASE TIMING DEBUG: Phase detection results:');
+    console.log('⏰ PHASE TIMING DEBUG: - Address end:', addressEnd, `(${timestamps[addressEnd]?.toFixed(0) || 0}ms)`);
+    console.log('⏰ PHASE TIMING DEBUG: - Backswing top:', backswingTop, `(${timestamps[backswingTop]?.toFixed(0) || 0}ms)`);
+    console.log('⏰ PHASE TIMING DEBUG: - Downswing start:', downswingStart, `(${timestamps[downswingStart]?.toFixed(0) || 0}ms)`);
+    console.log('⏰ PHASE TIMING DEBUG: - Impact:', impact, `(${timestamps[impact]?.toFixed(0) || 0}ms)`);
+    console.log('⏰ PHASE TIMING DEBUG: - Follow-through start:', followThroughStart, `(${timestamps[followThroughStart]?.toFixed(0) || 0}ms)`);
+    
+    // Validate phase sequence and timing
+    const validatedPhases = this.validatePhaseSequence(addressEnd, backswingTop, downswingStart, impact, followThroughStart, totalFrames);
     
     // Create phases with enhanced descriptions and confidence scores
     const phases: SwingPhase[] = [
-      this.createPhase('address', 0, addressEnd, timestamps, landmarks, '#3B82F6', 
+      this.createPhase('address', 0, validatedPhases.addressEnd, timestamps, landmarks, '#3B82F6', 
         'Setup and address position - maintaining posture and balance', 0.95),
-      this.createPhase('backswing', addressEnd, backswingTop, timestamps, landmarks, '#10B981', 
+      this.createPhase('backswing', validatedPhases.addressEnd, validatedPhases.backswingTop, timestamps, landmarks, '#10B981', 
         'Takeaway to top of backswing - building power and maintaining tempo', 0.85),
-      this.createPhase('top', backswingTop, downswingStart, timestamps, landmarks, '#F59E0B', 
+      this.createPhase('top', validatedPhases.backswingTop, validatedPhases.downswingStart, timestamps, landmarks, '#F59E0B', 
         'Top of swing position - transition and weight shift preparation', 0.75),
-      this.createPhase('downswing', downswingStart, impact, timestamps, landmarks, '#EF4444', 
+      this.createPhase('downswing', validatedPhases.downswingStart, validatedPhases.impact, timestamps, landmarks, '#EF4444', 
         'Downswing to impact - generating power and clubhead speed', 0.90),
-      this.createPhase('impact', impact, Math.min(impact + 5, totalFrames - 1), timestamps, landmarks, '#DC2626', 
+      this.createPhase('impact', validatedPhases.impact, Math.min(validatedPhases.impact + 5, totalFrames - 1), timestamps, landmarks, '#DC2626', 
         'Ball contact moment - maximum clubhead speed and accuracy', 0.95),
-      this.createPhase('follow-through', followThroughStart, totalFrames - 1, timestamps, landmarks, '#8B5CF6', 
+      this.createPhase('follow-through', validatedPhases.followThroughStart, totalFrames - 1, timestamps, landmarks, '#8B5CF6', 
         'Follow-through to finish - maintaining balance and completing the swing', 0.85)
     ];
     
@@ -87,23 +90,23 @@ export class SwingPhaseDetector {
     
     // Calculate comprehensive metrics
     const tempoRatio = this.calculateTempoRatio(normalizedPhases);
-    const swingPlane = this.calculateSwingPlane(landmarks, impact);
-    const weightTransfer = this.calculateWeightTransfer(landmarks, 0, impact);
-    const rotation = this.calculateRotation(landmarks, 0, backswingTop);
+    const swingPlane = this.calculateSwingPlane(landmarks, validatedPhases.impact);
+    const weightTransfer = this.calculateWeightTransfer(landmarks, 0, validatedPhases.impact);
+    const rotation = this.calculateRotation(landmarks, 0, validatedPhases.backswingTop);
     
     // Add phase-specific metrics to each phase
     const enhancedPhases = this.addPhaseSpecificMetrics(normalizedPhases, landmarks, trajectory, timestamps);
     
-    console.log('Enhanced phase analysis complete with normalized timing:');
+    console.log('⏰ PHASE TIMING DEBUG: Enhanced phase analysis complete with normalized timing:');
     enhancedPhases.forEach(p => {
-      console.log(`- ${p.name}: frames ${p.startFrame}-${p.endFrame} (${p.duration.toFixed(0)}ms), start: ${p.startTime.toFixed(0)}ms, end: ${p.endTime.toFixed(0)}ms, confidence: ${(p.confidence * 100).toFixed(0)}%`);
+      console.log(`⏰ PHASE TIMING DEBUG: - ${p.name}: frames ${p.startFrame}-${p.endFrame} (${p.duration.toFixed(0)}ms), start: ${p.startTime.toFixed(0)}ms, end: ${p.endTime.toFixed(0)}ms, confidence: ${(p.confidence * 100).toFixed(0)}%`);
     });
     
     return { phases: enhancedPhases, totalDuration, tempoRatio, swingPlane, weightTransfer, rotation };
   }
 
   private detectAddressEnd(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): number {
-    console.log('Detecting address end...');
+    console.log('⏰ PHASE TIMING DEBUG: Detecting address end...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3) return Math.min(5, landmarks.length - 1);
     
@@ -118,17 +121,17 @@ export class SwingPhaseDetector {
       const movement = Math.sqrt(dx * dx + dy * dy);
       
       if (velocity > this.config.velocityThreshold || movement > 0.05) {
-        console.log(`Address end detected at frame ${i}, velocity: ${velocity.toFixed(4)}, movement: ${movement.toFixed(4)}`);
+        console.log(`⏰ PHASE TIMING DEBUG: Address end detected at frame ${i}, velocity: ${velocity.toFixed(4)}, movement: ${movement.toFixed(4)}`);
         return Math.max(this.config.minPhaseDuration, i);
       }
     }
     
-    console.log('Address end not detected, using default');
+    console.log('⏰ PHASE TIMING DEBUG: Address end not detected, using default');
     return Math.min(10, landmarks.length - 1);
   }
 
   private detectBackswingTop(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): number {
-    console.log('Detecting backswing top...');
+    console.log('⏰ PHASE TIMING DEBUG: Detecting backswing top...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3) return Math.min(15, landmarks.length - 1);
     
@@ -158,7 +161,7 @@ export class SwingPhaseDetector {
     }
     
     const finalFrame = Math.max(topFrame, velocityChangeFrame);
-    console.log(`Backswing top detected at frame ${finalFrame}, Y position: ${maxY.toFixed(4)}`);
+    console.log(`⏰ PHASE TIMING DEBUG: Backswing top detected at frame ${finalFrame}, Y position: ${maxY.toFixed(4)}`);
     return Math.max(this.config.minPhaseDuration, finalFrame);
   }
 
@@ -772,7 +775,7 @@ export class SwingPhaseDetector {
 
   // Normalize phase timing to video duration for proper timeline alignment
   private normalizePhaseTiming(phases: SwingPhase[], videoDuration: number): SwingPhase[] {
-    console.log('Normalizing phase timing to video duration:', videoDuration, 'ms');
+    console.log('⏰ PHASE TIMING DEBUG: Normalizing phase timing to video duration:', videoDuration, 'ms');
     
     return phases.map(phase => {
       // Calculate the percentage of total video duration for each phase
@@ -785,7 +788,7 @@ export class SwingPhaseDetector {
       const normalizedEndTime = phaseEndPercent * videoDuration;
       const normalizedDuration = normalizedEndTime - normalizedStartTime;
       
-      console.log(`Normalizing ${phase.name}: ${phase.startTime.toFixed(0)}-${phase.endTime.toFixed(0)}ms -> ${normalizedStartTime.toFixed(0)}-${normalizedEndTime.toFixed(0)}ms`);
+      console.log(`⏰ PHASE TIMING DEBUG: Normalizing ${phase.name}: ${phase.startTime.toFixed(0)}-${phase.endTime.toFixed(0)}ms -> ${normalizedStartTime.toFixed(0)}-${normalizedEndTime.toFixed(0)}ms`);
       
       return {
         ...phase,
@@ -794,6 +797,61 @@ export class SwingPhaseDetector {
         duration: normalizedDuration
       };
     });
+  }
+
+  // Validate phase sequence and ensure proper timing
+  private validatePhaseSequence(
+    addressEnd: number,
+    backswingTop: number,
+    downswingStart: number,
+    impact: number,
+    followThroughStart: number,
+    totalFrames: number
+  ): { addressEnd: number; backswingTop: number; downswingStart: number; impact: number; followThroughStart: number } {
+    console.log('⏰ PHASE TIMING DEBUG: Validating phase sequence...');
+    console.log('⏰ PHASE TIMING DEBUG: Input phases:', { addressEnd, backswingTop, downswingStart, impact, followThroughStart });
+    
+    // Ensure phases are in correct order and have reasonable timing
+    let validatedAddressEnd = Math.max(1, Math.min(addressEnd, totalFrames - 1));
+    let validatedBackswingTop = Math.max(validatedAddressEnd + 1, Math.min(backswingTop, totalFrames - 1));
+    let validatedDownswingStart = Math.max(validatedBackswingTop + 1, Math.min(downswingStart, totalFrames - 1));
+    let validatedImpact = Math.max(validatedDownswingStart + 1, Math.min(impact, totalFrames - 1));
+    let validatedFollowThroughStart = Math.max(validatedImpact + 1, Math.min(followThroughStart, totalFrames - 1));
+    
+    // Ensure minimum phase durations
+    const minPhaseDuration = 3; // Minimum 3 frames per phase
+    
+    if (validatedBackswingTop - validatedAddressEnd < minPhaseDuration) {
+      validatedBackswingTop = Math.min(validatedAddressEnd + minPhaseDuration, totalFrames - 1);
+    }
+    
+    if (validatedDownswingStart - validatedBackswingTop < minPhaseDuration) {
+      validatedDownswingStart = Math.min(validatedBackswingTop + minPhaseDuration, totalFrames - 1);
+    }
+    
+    if (validatedImpact - validatedDownswingStart < minPhaseDuration) {
+      validatedImpact = Math.min(validatedDownswingStart + minPhaseDuration, totalFrames - 1);
+    }
+    
+    if (validatedFollowThroughStart - validatedImpact < minPhaseDuration) {
+      validatedFollowThroughStart = Math.min(validatedImpact + minPhaseDuration, totalFrames - 1);
+    }
+    
+    console.log('⏰ PHASE TIMING DEBUG: Validated phases:', { 
+      addressEnd: validatedAddressEnd, 
+      backswingTop: validatedBackswingTop, 
+      downswingStart: validatedDownswingStart, 
+      impact: validatedImpact, 
+      followThroughStart: validatedFollowThroughStart 
+    });
+    
+    return {
+      addressEnd: validatedAddressEnd,
+      backswingTop: validatedBackswingTop,
+      downswingStart: validatedDownswingStart,
+      impact: validatedImpact,
+      followThroughStart: validatedFollowThroughStart
+    };
   }
 }
 

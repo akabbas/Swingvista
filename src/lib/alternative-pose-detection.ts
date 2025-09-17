@@ -2,9 +2,7 @@
 
 import type { PoseResult } from './mediapipe';
 
-export interface VideoPosesProgress {
-  (step: string, progress: number): void;
-}
+export type VideoPosesProgress = (step: string, progress: number, frame?: number, totalFrames?: number) => void;
 
 export interface VideoToPoseOptions {
   sampleFps?: number;
@@ -13,52 +11,88 @@ export interface VideoToPoseOptions {
   qualityThreshold?: number;
 }
 
-// EMERGENCY FIX: Complete MediaPipe replacement with TensorFlow.js
+// REAL POSE DETECTION: Try multiple methods to get real pose data
 export const detectPosesWithAlternatives = async (
   videoFile: File,
   options: VideoToPoseOptions = {},
   onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> => {
-  console.log('🚨 MEDIAPIPE COMPLETELY FAILED - Using alternative solution');
+  console.log('🔍 REAL POSE DETECTION: Starting comprehensive pose detection...');
+  console.log('🔍 REAL POSE DETECTION: File:', videoFile.name, 'Size:', videoFile.size, 'bytes');
   
   // Validate video first
   validateVideo(videoFile);
   
-  // Option 1: Try TensorFlow.js with MoveNet
+  // Option 1: Try TensorFlow.js with MoveNet (REAL DETECTION)
   try {
-    console.log('🔄 Attempting TensorFlow.js with MoveNet...');
-    return await detectPosesWithTensorFlow(videoFile, options, onProgress);
+    console.log('🔄 REAL POSE DETECTION: Attempting TensorFlow.js with MoveNet...');
+    const poses = await detectPosesWithTensorFlow(videoFile, options, onProgress);
+    
+    // Validate that we got real data
+    if (poses.length > 0) {
+      const firstPose = poses[0];
+      const isMockData = firstPose.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+      
+      if (!isMockData) {
+        console.log('✅ REAL POSE DETECTION: TensorFlow.js succeeded with real data!');
+        return poses;
+      } else {
+        console.warn('⚠️ REAL POSE DETECTION: TensorFlow.js returned mock data, trying next method...');
+      }
+    }
   } catch (error) {
-    console.error('❌ TensorFlow.js failed:', error);
+    console.error('❌ REAL POSE DETECTION: TensorFlow.js failed:', error);
   }
   
-  // Option 2: Try server-side API as fallback
+  // Option 2: Try server-side API as fallback (REAL DETECTION)
   try {
-    console.log('🔄 Attempting server-side pose detection API...');
-    return await detectPosesWithAPI(videoFile, options, onProgress);
+    console.log('🔄 REAL POSE DETECTION: Attempting server-side pose detection API...');
+    const poses = await detectPosesWithAPI(videoFile, options, onProgress);
+    
+    // Validate that we got real data
+    if (poses.length > 0) {
+      const firstPose = poses[0];
+      const isMockData = firstPose.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+      
+      if (!isMockData) {
+        console.log('✅ REAL POSE DETECTION: API succeeded with real data!');
+        return poses;
+      } else {
+        console.warn('⚠️ REAL POSE DETECTION: API returned mock data, trying next method...');
+      }
+    }
   } catch (error) {
-    console.error('❌ API failed:', error);
+    console.error('❌ REAL POSE DETECTION: API failed:', error);
   }
   
-  // Option 3: Generate proper mock data that actually works
-  console.log('🔄 Using working mock data as final fallback...');
-  return await createWorkingMockData(videoFile, options, onProgress);
+  // CRITICAL: No mock data fallback - throw error instead
+  console.error('❌ REAL POSE DETECTION: All real detection methods failed!');
+  throw new Error(
+    'Real pose detection failed. Please try a different video format (MP4 recommended) ' +
+    'or ensure the video contains visible human movement. ' +
+    'Mock data has been disabled to prevent inaccurate analysis results.'
+  );
 };
 
-// EMERGENCY FIX: TensorFlow.js with MoveNet implementation
+// REAL POSE DETECTION: TensorFlow.js with MoveNet implementation
 const detectPosesWithTensorFlow = async (
   videoFile: File,
   options: VideoToPoseOptions,
   onProgress?: VideoPosesProgress
 ): Promise<PoseResult[]> => {
-  console.log('🔄 Loading TensorFlow.js with MoveNet...');
+  console.log('🔄 REAL POSE DETECTION: Loading TensorFlow.js with MoveNet...');
   
   try {
     // Load TensorFlow.js dynamically
     const tf = await import('@tensorflow/tfjs');
     const poseDetection = await import('@tensorflow-models/pose-detection');
     
-    console.log('✅ TensorFlow.js loaded successfully');
+    // Initialize TensorFlow.js backend
+    console.log('🔄 REAL POSE DETECTION: Initializing TensorFlow.js backend...');
+    await tf.ready();
+    console.log('✅ REAL POSE DETECTION: TensorFlow.js backend initialized');
+    
+    console.log('✅ REAL POSE DETECTION: TensorFlow.js loaded successfully');
     
     // Load MoveNet model
     const model = await poseDetection.createDetector(
@@ -68,7 +102,7 @@ const detectPosesWithTensorFlow = async (
       }
     );
     
-    console.log('✅ MoveNet model loaded successfully');
+    console.log('✅ REAL POSE DETECTION: MoveNet model loaded successfully');
     
     // Process video frames
     const video = document.createElement('video');
@@ -116,9 +150,10 @@ const detectPosesWithTensorFlow = async (
           
           // Debug: Log the pose structure to understand the format
           if (i === 0) {
-            console.log('MoveNet pose structure:', pose);
-            console.log('Keypoints length:', pose.keypoints?.length);
-            console.log('First keypoint:', pose.keypoints?.[0]);
+            console.log('🔍 REAL POSE DETECTION: MoveNet pose structure:', pose);
+            console.log('🔍 REAL POSE DETECTION: Keypoints length:', pose.keypoints?.length);
+            console.log('🔍 REAL POSE DETECTION: First keypoint:', pose.keypoints?.[0]);
+            console.log('🔍 REAL POSE DETECTION: Video dimensions:', video.videoWidth, 'x', video.videoHeight);
           }
           
           // Convert MoveNet format to our PoseResult format
@@ -127,9 +162,9 @@ const detectPosesWithTensorFlow = async (
             if (i < pose.keypoints.length) {
               const kp = pose.keypoints[i];
               // Handle different possible keypoint structures
-              const x = kp.x || kp.position?.x || 0;
-              const y = kp.y || kp.position?.y || 0;
-              const score = kp.score || kp.confidence || 0.8;
+              const x = kp.x || 0;
+              const y = kp.y || 0;
+              const score = kp.score || 0.8;
               
               return {
                 x: x / video.videoWidth,
@@ -153,6 +188,13 @@ const detectPosesWithTensorFlow = async (
             worldLandmarks: landmarks,
             timestamp: frameTime * 1000
           });
+          
+          // Debug: Log when we detect real pose data
+          if (i === 0) {
+            const hasVariedPositions = landmarks.some((lm: any) => lm.x !== 0.5 || lm.y !== 0.5);
+            console.log('🔍 REAL POSE DETECTION: First frame pose data quality:', hasVariedPositions ? 'REAL' : 'MOCK');
+            console.log('🔍 REAL POSE DETECTION: Sample landmark positions:', landmarks.slice(0, 5).map((lm: any) => ({ x: lm.x, y: lm.y })));
+          }
         } else {
           // No pose detected, create empty pose
           const emptyLandmarks = Array(33).fill(null).map(() => ({
@@ -197,21 +239,35 @@ const detectPosesWithTensorFlow = async (
     
     URL.revokeObjectURL(video.src);
     
-    // If too many frames failed, fall back to mock data
+    // If too many frames failed, throw error instead of using mock data
     if (failedFrames > frameCount * 0.5) {
-      console.warn(`Too many failed frames (${failedFrames}/${frameCount}), falling back to mock data`);
-      return await createWorkingMockData(videoFile, options, onProgress);
+      console.error(`❌ REAL POSE DETECTION: Too many failed frames (${failedFrames}/${frameCount})`);
+      throw new Error(
+        'Pose detection failed on too many frames. Please try a different video ' +
+        'with better lighting and clear human movement.'
+      );
     }
     
-    console.log(`✅ TensorFlow.js processing completed: ${poses.length} poses (${failedFrames} failed frames)`);
+    console.log(`✅ REAL POSE DETECTION: TensorFlow.js processing completed: ${poses.length} poses (${failedFrames} failed frames)`);
+    
+    // Final validation of the results
+    if (poses.length > 0) {
+      const firstPose = poses[0];
+      const isMockData = firstPose.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+      console.log('🔍 REAL POSE DETECTION: Final validation - Data quality:', isMockData ? 'MOCK' : 'REAL');
+      
+      if (!isMockData) {
+        console.log('✅ REAL POSE DETECTION: SUCCESS - Real pose data detected!');
+      } else {
+        console.warn('⚠️ REAL POSE DETECTION: WARNING - Mock data detected in final result!');
+      }
+    }
+    
     return poses;
     
   } catch (error) {
-    console.error('❌ TensorFlow.js pose detection failed:', error);
-    console.log('🔄 Falling back to mock data due to TensorFlow.js error...');
-    
-    // Fallback to mock data if TensorFlow.js fails
-    return await createWorkingMockData(videoFile, options, onProgress);
+    console.error('❌ REAL POSE DETECTION: TensorFlow.js pose detection failed:', error);
+    throw error; // Re-throw instead of falling back to mock data
   }
 };
 
@@ -252,157 +308,12 @@ const detectPosesWithAPI = async (
   }
 };
 
-// EMERGENCY FIX: Create working mock data that actually works
-const createWorkingMockData = async (
-  videoFile: File,
-  options: VideoToPoseOptions,
-  onProgress?: VideoPosesProgress
-): Promise<PoseResult[]> => {
-  console.log('🔄 Creating working mock data...');
-  
-  // First, get actual video duration properly
-  const video = document.createElement('video');
-  video.src = URL.createObjectURL(videoFile);
-  video.muted = true;
-  video.preload = 'metadata';
-  
-  try {
-    await new Promise<void>((resolve, reject) => {
-      video.onloadedmetadata = () => resolve();
-      video.onerror = () => reject(new Error('Video loading failed'));
-      video.load();
-    });
-    
-    const duration = video.duration;
-    if (isNaN(duration) || duration <= 0) {
-      throw new Error(`Invalid video duration: ${duration}`);
-    }
-    
-    const { sampleFps = 30, maxFrames = 200 } = options;
-    const frameCount = Math.min(maxFrames, Math.floor(duration * sampleFps));
-    
-    console.log(`📊 Video duration: ${duration}s, creating ${frameCount} mock poses`);
-    
-    // Create realistic mock data
-    const mockPoses: PoseResult[] = [];
-    
-    for (let i = 0; i < frameCount; i++) {
-      const progress = i / frameCount;
-      const frameTime = i / sampleFps;
-      
-      mockPoses.push({
-        landmarks: createRealisticGolfPose(progress),
-        worldLandmarks: createRealisticGolfPose(progress),
-        timestamp: frameTime * 1000
-      });
-      
-      const progressPercent = ((i + 1) / frameCount) * 100;
-      onProgress?.(`Creating mock pose ${i + 1}/${frameCount}`, progressPercent);
-    }
-    
-    URL.revokeObjectURL(video.src);
-    
-    console.log(`✅ Working mock data created: ${mockPoses.length} poses for ${duration}s video`);
-    return mockPoses;
-    
-  } catch (error) {
-    console.error('❌ Mock data creation failed:', error);
-    URL.revokeObjectURL(video.src);
-    
-    // Final fallback: create basic mock data
-    console.log('🔄 Using emergency fallback mock data...');
-    return createEmergencyMockData(options);
-  }
-};
+// MOCK DATA FUNCTIONS REMOVED
+// These functions have been removed to prevent inaccurate analysis results.
+// The system now requires real pose detection and will throw errors if detection fails.
 
-// EMERGENCY FIX: Create realistic golf pose landmarks
-const createRealisticGolfPose = (progress: number) => {
-  const landmarks = [];
-  
-  // Create 33 landmarks with realistic golf swing motion
-  for (let i = 0; i < 33; i++) {
-    let x, y, z, visibility;
-    
-    if (i < 5) {
-      // Head landmarks - relatively stable
-      x = 0.5 + Math.sin(progress * Math.PI * 0.5 + i * 0.1) * 0.02;
-      y = 0.2 + Math.cos(progress * Math.PI * 0.3 + i * 0.05) * 0.01;
-      z = Math.sin(progress * Math.PI * 0.2 + i * 0.1) * 0.01;
-      visibility = 0.95;
-    } else if (i < 11) {
-      // Shoulder and arm landmarks - major swing movement
-      const armSwing = Math.sin(progress * Math.PI) * 0.4;
-      const shoulderRotation = Math.sin(progress * Math.PI * 2) * 0.15;
-      
-      if (i === 5 || i === 6) { // shoulders
-        x = i === 5 ? 0.35 + shoulderRotation : 0.65 - shoulderRotation;
-        y = 0.4 + Math.sin(progress * Math.PI) * 0.05;
-        z = Math.sin(progress * Math.PI) * 0.02;
-      } else { // arms
-        x = i % 2 === 0 ? 0.3 + armSwing : 0.7 - armSwing;
-        y = 0.5 + Math.sin(progress * Math.PI * 1.5) * 0.1;
-        z = Math.sin(progress * Math.PI) * 0.03;
-      }
-      visibility = 0.9;
-    } else if (i < 17) {
-      // Hand landmarks - follow arm movement
-      const handSwing = Math.sin(progress * Math.PI) * 0.5;
-      x = i % 2 === 0 ? 0.25 + handSwing : 0.75 - handSwing;
-      y = 0.6 + Math.sin(progress * Math.PI * 1.2) * 0.08;
-      z = Math.sin(progress * Math.PI * 0.8) * 0.02;
-      visibility = 0.85;
-    } else if (i < 23) {
-      // Torso landmarks - moderate movement
-      const torsoRotation = Math.sin(progress * Math.PI * 1.5) * 0.08;
-      x = i % 2 === 0 ? 0.4 + torsoRotation : 0.6 - torsoRotation;
-      y = 0.6 + Math.sin(progress * Math.PI * 0.8) * 0.03;
-      z = Math.sin(progress * Math.PI * 0.5) * 0.01;
-      visibility = 0.9;
-    } else {
-      // Leg landmarks - stable stance
-      x = i % 2 === 0 ? 0.38 : 0.62;
-      y = 0.8 + (i - 23) * 0.05;
-      z = Math.sin(progress * Math.PI * 0.1 + i * 0.2) * 0.01;
-      visibility = 0.9;
-    }
-    
-    // Add some natural variation
-    x += Math.sin(progress * Math.PI * 2 + i * 0.3) * 0.01;
-    y += Math.cos(progress * Math.PI * 1.5 + i * 0.2) * 0.01;
-    z += Math.sin(progress * Math.PI * 3 + i * 0.4) * 0.005;
-    
-    landmarks.push({
-      x: Math.max(0, Math.min(1, x)), // Clamp between 0-1
-      y: Math.max(0, Math.min(1, y)), // Clamp between 0-1
-      z: z,
-      visibility: Math.max(0.7, Math.min(1, visibility + (Math.random() - 0.5) * 0.1))
-    });
-  }
-  
-  return landmarks;
-};
-
-// EMERGENCY FIX: Emergency mock data when everything fails
-const createEmergencyMockData = (options: VideoToPoseOptions): PoseResult[] => {
-  console.log('🚨 Creating emergency mock data - all methods failed');
-  
-  const { maxFrames = 150 } = options;
-  const mockPoses: PoseResult[] = [];
-  
-  for (let i = 0; i < maxFrames; i++) {
-    const progress = i / maxFrames;
-    const frameTime = i / 30; // 30fps
-    
-    mockPoses.push({
-      landmarks: createRealisticGolfPose(progress),
-      worldLandmarks: createRealisticGolfPose(progress),
-      timestamp: frameTime * 1000
-    });
-  }
-  
-  console.log(`✅ Emergency mock data created: ${mockPoses.length} poses`);
-  return mockPoses;
-};
+// MOCK DATA FUNCTIONS REMOVED
+// All mock data generation functions have been removed to prevent inaccurate analysis results.
 
 // EMERGENCY FIX: Validate video before processing
 const validateVideo = (videoFile: File): void => {
@@ -426,30 +337,5 @@ const validateVideo = (videoFile: File): void => {
   console.log(`✅ Video validation passed: ${videoFile.type}, ${(videoFile.size / 1024 / 1024).toFixed(1)}MB`);
 };
 
-// EMERGENCY FIX: Complete error recovery system
-export const extractPosesEmergency = async (
-  videoFile: File,
-  options: VideoToPoseOptions = {},
-  onProgress?: VideoPosesProgress
-): Promise<PoseResult[]> => {
-  try {
-    // Try everything until something works
-    return await detectPosesWithAlternatives(videoFile, options, onProgress);
-  } catch (error) {
-    console.error('All pose detection methods failed:', error);
-    
-    // Final fallback: simple mock data with proper error handling
-    try {
-      console.log('🔄 Attempting final fallback mock data...');
-      return await createWorkingMockData(videoFile, options, onProgress);
-    } catch (mockError) {
-      // If even mock data fails, throw meaningful error
-      throw new Error(
-        `Pose detection completely failed. ` +
-        `Please try a different video format (MP4 recommended) ` +
-        `or ensure the video contains visible human movement. ` +
-        `Error: ${mockError instanceof Error ? mockError.message : 'Unknown error'}`
-      );
-    }
-  }
-};
+// EMERGENCY FUNCTIONS REMOVED
+// All emergency fallback functions have been removed to prevent inaccurate analysis results.

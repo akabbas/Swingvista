@@ -1,11 +1,21 @@
 "use client";
 import Link from 'next/link';
-import React, { useMemo, useRef, useReducer, useCallback, useEffect } from 'react';
+import React, { useMemo, useRef, useReducer, useCallback, useEffect, useState } from 'react';
 import VideoPreview from '@/components/ui/VideoPreview';
 import ProgressBar from '@/components/ui/ProgressBar';
 import ErrorAlert from '@/components/ui/ErrorAlert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import VideoOverlayContainer from '@/components/ui/VideoOverlayContainer';
+import VideoPlayerWithOverlay from '@/components/ui/VideoPlayerWithOverlay';
+import MetricsPanel from '@/components/ui/MetricsPanel';
+import VisualizationControls from '@/components/ui/VisualizationControls';
+import ComprehensiveGradingDisplay from '@/components/ui/ComprehensiveGradingDisplay';
+import GradingSystemTest from '@/components/ui/GradingSystemTest';
+import GradingDebugPanel from '@/components/ui/GradingDebugPanel';
+import ProfessionalSwingValidator from '@/components/ui/ProfessionalSwingValidator';
+import SwingHistoryPanel from '@/components/ui/SwingHistoryPanel';
+import SwingComparisonPanel from '@/components/ui/SwingComparisonPanel';
+import SampleVideoSelector from '@/components/ui/SampleVideoSelector';
+import { SwingHistoryManager, SwingHistoryEntry, SwingComparison } from '@/lib/swing-history';
 import { lazy, Suspense } from 'react';
 import SwingFeedback from '@/components/analysis/SwingFeedback';
 import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
@@ -143,7 +153,7 @@ interface UploadState {
   result: AnalysisResult | null;
   poses: PoseResult[] | null;
   aiAnalysis: AIAnalysisResult | null;
-  activeTab: 'video' | 'video-analysis' | 'metrics' | 'progress' | 'processed-video';
+  activeTab: 'analysis' | 'metrics' | 'history' | 'grading';
   isAnalyzing: boolean;
   progressHistory: ProgressEntry[];
   analysisStartTime: number | null;
@@ -151,6 +161,20 @@ interface UploadState {
   videoCurrentTime: number;
   isVideoPlaying: boolean;
   videoDuration: number;
+  // Visualization controls
+  overlaySettings: {
+    stickFigure: boolean;
+    swingPlane: boolean;
+    phaseMarkers: boolean;
+    clubPath: boolean;
+    impactZone: boolean;
+    weightTransfer: boolean;
+    spineAngle: boolean;
+  };
+  playbackSpeed: number;
+  isMuted: boolean;
+  selectedSwing: SwingHistoryEntry | null;
+  comparison: SwingComparison | null;
 }
 
 type UploadAction = 
@@ -161,7 +185,7 @@ type UploadAction =
   | { type: 'SET_RESULT'; payload: AnalysisResult | null }
   | { type: 'SET_POSES'; payload: PoseResult[] | null }
   | { type: 'SET_AI_ANALYSIS'; payload: AIAnalysisResult | null }
-  | { type: 'SET_ACTIVE_TAB'; payload: 'video' | 'video-analysis' | 'metrics' | 'progress' | 'processed-video' }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'analysis' | 'metrics' | 'history' | 'grading' }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_PROGRESS_HISTORY'; payload: ProgressEntry[] }
   | { type: 'SET_ANALYSIS_START_TIME'; payload: number | null }
@@ -169,6 +193,11 @@ type UploadAction =
   | { type: 'SET_VIDEO_CURRENT_TIME'; payload: number }
   | { type: 'SET_VIDEO_PLAYING'; payload: boolean }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
+  | { type: 'SET_OVERLAY_SETTING'; payload: { overlayType: string; enabled: boolean } }
+  | { type: 'SET_PLAYBACK_SPEED'; payload: number }
+  | { type: 'SET_MUTED'; payload: boolean }
+  | { type: 'SET_SELECTED_SWING'; payload: SwingHistoryEntry | null }
+  | { type: 'SET_COMPARISON'; payload: SwingComparison | null }
   | { type: 'RESET' };
 
 const initialState: UploadState = {
@@ -179,14 +208,27 @@ const initialState: UploadState = {
   result: null,
   poses: null,
   aiAnalysis: null,
-  activeTab: 'video',
+  activeTab: 'analysis',
   isAnalyzing: false,
   progressHistory: [],
   analysisStartTime: null,
   elapsedTime: 0,
   videoCurrentTime: 0,
   isVideoPlaying: false,
-  videoDuration: 0
+  videoDuration: 0,
+  overlaySettings: {
+    stickFigure: true,
+    swingPlane: true,
+    phaseMarkers: true,
+    clubPath: true,
+    impactZone: true,
+    weightTransfer: true,
+    spineAngle: true
+  },
+  playbackSpeed: 1.0,
+  isMuted: false,
+  selectedSwing: null,
+  comparison: null
 };
 
 function uploadReducer(state: UploadState, action: UploadAction): UploadState {
@@ -221,6 +263,22 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
       return { ...state, isVideoPlaying: action.payload };
     case 'SET_VIDEO_DURATION':
       return { ...state, videoDuration: action.payload };
+    case 'SET_OVERLAY_SETTING':
+      return {
+        ...state,
+        overlaySettings: {
+          ...state.overlaySettings,
+          [action.payload.overlayType]: action.payload.enabled
+        }
+      };
+    case 'SET_PLAYBACK_SPEED':
+      return { ...state, playbackSpeed: action.payload };
+    case 'SET_MUTED':
+      return { ...state, isMuted: action.payload };
+    case 'SET_SELECTED_SWING':
+      return { ...state, selectedSwing: action.payload };
+    case 'SET_COMPARISON':
+      return { ...state, comparison: action.payload };
     case 'RESET':
       return { ...initialState, progressHistory: state.progressHistory };
     default:
@@ -229,7 +287,7 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
 }
 
 export default function UploadPage() {
-  console.log('UploadPage component mounted');
+  // console.log('UploadPage component mounted'); // Disabled to reduce console spam
   const [state, dispatch] = useReducer(uploadReducer, initialState);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -244,15 +302,73 @@ export default function UploadPage() {
     return () => console.log('UploadPage unmounted');
   }, []);
 
+  // Store original file reference to recreate blob URLs when needed
+  const originalFileRef = useRef<File | null>(null);
+  
+  // Force video URL refresh when analysis completes
+  const [videoUrlKey, setVideoUrlKey] = useState(0);
+  const refreshVideoUrl = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      console.log('🎥 VIDEO URL DEBUG: Refreshing video URL...');
+      setVideoUrlKey(prev => prev + 1);
+    }
+  }, []);
+
+  // Force component refresh when video URL changes
+  const [forceRefresh, setForceRefresh] = useState(0);
+  const forceComponentRefresh = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      console.log('🎥 VIDEO URL DEBUG: Force refreshing component...');
+      setForceRefresh(prev => prev + 1);
+    }
+  }, []);
+  
   const videoUrl = useMemo(() => {
-    if (!state.file) return null;
-    return URL.createObjectURL(state.file);
-  }, [state.file]);
+    if (typeof window === 'undefined' || !state.file) return null;
+    
+    // Store original file reference
+    originalFileRef.current = state.file;
+    
+    // Handle sample videos
+    if ((window as any).sampleVideoUrl) {
+      console.log('🎥 SAMPLE VIDEO DEBUG: Using sample video URL:', (window as any).sampleVideoUrl);
+      return (window as any).sampleVideoUrl;
+    }
+    
+    // Handle regular uploaded files - create a fresh blob URL
+    try {
+      const url = URL.createObjectURL(state.file);
+      console.log('🎥 VIDEO URL DEBUG: Created blob URL:', url);
+      return url;
+    } catch (error) {
+      console.error('🎥 VIDEO URL DEBUG: Failed to create blob URL:', error);
+      return null;
+    }
+  }, [state.file, videoUrlKey]);
+
+  // Function to recreate video URL if it becomes stale
+  const recreateVideoUrl = useCallback(() => {
+    if (originalFileRef.current) {
+      try {
+        // Revoke old URL if it exists
+        if (videoUrl) {
+          URL.revokeObjectURL(videoUrl);
+        }
+        
+        const newUrl = URL.createObjectURL(originalFileRef.current);
+        console.log('🎥 VIDEO URL DEBUG: Recreated blob URL:', newUrl);
+        return newUrl;
+      } catch (error) {
+        console.error('🎥 VIDEO URL DEBUG: Failed to recreate blob URL:', error);
+        return null;
+      }
+    }
+    return null;
+  }, [videoUrl]);
 
   // Video event handlers
-  const handleVideoTimeUpdate = useCallback((event: Event) => {
-    const video = event.target as HTMLVideoElement;
-    dispatch({ type: 'SET_VIDEO_CURRENT_TIME', payload: video.currentTime * 1000 }); // Convert to milliseconds
+  const handleVideoTimeUpdate = useCallback((currentTime: number) => {
+    dispatch({ type: 'SET_VIDEO_CURRENT_TIME', payload: currentTime * 1000 }); // Convert to milliseconds
   }, []);
 
   const handleVideoPlay = useCallback(() => {
@@ -263,10 +379,104 @@ export default function UploadPage() {
     dispatch({ type: 'SET_VIDEO_PLAYING', payload: false });
   }, []);
 
-  const handleVideoLoadedMetadata = useCallback((event: Event) => {
-    const video = event.target as HTMLVideoElement;
-    dispatch({ type: 'SET_VIDEO_DURATION', payload: video.duration * 1000 }); // Convert to milliseconds
+  const handleVideoLoadedMetadata = useCallback((duration: number) => {
+    dispatch({ type: 'SET_VIDEO_DURATION', payload: duration * 1000 }); // Convert to milliseconds
   }, []);
+
+  // Visualization control handlers
+  const handleOverlayToggle = useCallback((overlayType: string, enabled: boolean) => {
+    console.log('🎬 OVERLAY TOGGLE DEBUG: Toggling overlay:', overlayType, 'to', enabled);
+    dispatch({ type: 'SET_OVERLAY_SETTING', payload: { overlayType, enabled } });
+  }, []);
+
+  const handlePlaybackSpeedChange = useCallback((speed: number) => {
+    console.log('🎬 PLAYBACK SPEED DEBUG: Changing speed to:', speed);
+    dispatch({ type: 'SET_PLAYBACK_SPEED', payload: speed });
+  }, []);
+
+  const handleResetVisualizationSettings = useCallback(() => {
+    // Reset all overlay settings to default
+    const defaultSettings = {
+      stickFigure: true,
+      swingPlane: true,
+      phaseMarkers: true,
+      clubPath: true,
+      impactZone: true,
+      weightTransfer: true,
+      spineAngle: true
+    };
+    
+    Object.entries(defaultSettings).forEach(([key, value]) => {
+      dispatch({ type: 'SET_OVERLAY_SETTING', payload: { overlayType: key, enabled: value } });
+    });
+    
+    dispatch({ type: 'SET_PLAYBACK_SPEED', payload: 1.0 });
+  }, []);
+
+  // Audio control handlers
+  const handleMuteToggle = useCallback((muted: boolean) => {
+    dispatch({ type: 'SET_MUTED', payload: muted });
+  }, []);
+
+  // Swing history handlers
+  const handleSwingSelect = useCallback((swing: SwingHistoryEntry) => {
+    dispatch({ type: 'SET_SELECTED_SWING', payload: swing });
+  }, []);
+
+  const handleSwingCompare = useCallback((comparison: SwingComparison) => {
+    dispatch({ type: 'SET_COMPARISON', payload: comparison });
+  }, []);
+
+  const handleCloseComparison = useCallback(() => {
+    dispatch({ type: 'SET_COMPARISON', payload: null });
+  }, []);
+
+  // Save current swing to history
+  const saveCurrentSwingToHistory = useCallback(() => {
+    if (!state.result || !state.poses || !state.file) return;
+
+    try {
+      const swingEntry: Omit<SwingHistoryEntry, 'id' | 'timestamp' | 'date'> = {
+        fileName: state.file.name,
+        fileSize: state.file.size,
+        duration: state.videoDuration,
+        poses: state.poses,
+        phases: (state.result.enhancedPhases || []) as any,
+        metrics: {
+          tempo: state.result.metrics.tempo,
+          rotation: state.result.metrics.rotation,
+          weightTransfer: state.result.metrics.weightTransfer,
+          swingPlane: state.result.metrics.swingPlane,
+          bodyAlignment: state.result.metrics.bodyAlignment,
+          overallScore: state.result.metrics.overallScore,
+          letterGrade: state.result.metrics.letterGrade
+        },
+        grade: (state.result as any).grade || {
+          overall: {
+            score: state.result.metrics.overallScore,
+            letter: state.result.metrics.letterGrade,
+            description: 'Analysis completed'
+          },
+          categories: {
+            tempo: { score: state.result.metrics.tempo.score, letter: 'B', description: 'Tempo analysis' },
+            rotation: { score: state.result.metrics.rotation.score, letter: 'B', description: 'Rotation analysis' },
+            balance: { score: state.result.metrics.weightTransfer.score, letter: 'B', description: 'Balance analysis' },
+            plane: { score: state.result.metrics.swingPlane.score, letter: 'B', description: 'Swing plane analysis' },
+            power: { score: 75, letter: 'B', description: 'Power analysis' },
+            consistency: { score: 75, letter: 'B', description: 'Consistency analysis' }
+          }
+        },
+        videoUrl: videoUrl || undefined
+      };
+
+      const id = SwingHistoryManager.saveSwing(swingEntry);
+      console.log('Swing saved to history with ID:', id);
+    } catch (error) {
+      console.error('Failed to save swing to history:', error);
+    }
+  }, [state.result, state.poses, state.file, state.videoDuration, videoUrl]);
+
+  // Sample video handler - will be defined after analyze function
 
   const workerPool = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -294,7 +504,7 @@ export default function UploadPage() {
     
     if (state.isAnalyzing && state.analysisStartTime) {
       interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - state.analysisStartTime!) / 1000);
+        const elapsed = state.analysisStartTime ? Math.floor((Date.now() - state.analysisStartTime) / 1000) : 0;
         dispatch({ type: 'SET_ELAPSED_TIME', payload: elapsed });
       }, 1000);
     }
@@ -337,7 +547,9 @@ export default function UploadPage() {
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
-    console.log('File selected:', f?.name, f?.size);
+    console.log('🎬 VIDEO UPLOAD DEBUG: File selected:', f?.name, 'Size:', f?.size, 'bytes');
+    console.log('🎬 VIDEO UPLOAD DEBUG: File type:', f?.type);
+    console.log('🎬 VIDEO UPLOAD DEBUG: File last modified:', f?.lastModified);
     dispatch({ type: 'SET_FILE', payload: f });
     dispatch({ type: 'SET_RESULT', payload: null });
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -423,7 +635,7 @@ export default function UploadPage() {
     }
     reset();
     dispatch({ type: 'SET_ANALYZING', payload: true });
-    dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: Date.now() });
+    dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: typeof window !== 'undefined' ? Date.now() : 0 });
     dispatch({ type: 'SET_ELAPSED_TIME', payload: 0 });
     
       // Add timeout protection with longer duration for worker processing
@@ -441,30 +653,8 @@ export default function UploadPage() {
       dispatch({ type: 'SET_PROGRESS', payload: 5 });
       const startTime = performance.now();
 
-      // EMERGENCY FIX: Run MediaPipe diagnostics on startup
-      console.group('🔍 EMERGENCY MEDIAPIPE DIAGNOSTICS');
-      console.log('Browser environment:', typeof window !== 'undefined');
-      console.log('MediaPipe global available:', !!(window as any).MediaPipePose);
-      console.log('MediaPipe global Pose:', !!(window as any).MediaPipePose?.Pose);
-      
-      try {
-        const mp = await import('@mediapipe/pose');
-        console.log('MediaPipe module import success:', !!mp);
-        console.log('MediaPipe module keys:', Object.keys(mp));
-        console.log('MediaPipe Pose constructor:', !!mp.Pose);
-        console.log('MediaPipe default type:', typeof mp.default);
-        console.log('MediaPipe default keys:', mp.default ? Object.keys(mp.default) : 'N/A');
-      } catch (e) {
-        console.error('MediaPipe module import failed:', e);
-      }
-      
-      try {
-        const test = await fetch('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js', { method: 'HEAD' });
-        console.log('MediaPipe CDN available:', test.ok);
-      } catch (e) {
-        console.error('MediaPipe CDN check failed:', e);
-      }
-      console.groupEnd();
+      // MediaPipe diagnostics removed - using TensorFlow.js only
+      console.log('🔍 POSE DETECTION: Using TensorFlow.js (MoveNet) - MediaPipe disabled');
 
       // EMERGENCY FIX: Temporarily disable cache system to prevent errors
       dispatch({ type: 'SET_STEP', payload: 'Skipping cache (emergency mode)...' });
@@ -486,8 +676,17 @@ export default function UploadPage() {
       });
       
       // EMERGENCY FIX: Force fresh analysis for all videos since cache is disabled
-      const isSampleVideo = state.file?.name?.includes('max_homa') || state.file?.name?.includes('ludvig_aberg');
+      const isSampleVideo = state.file?.name?.includes('max_homa') || 
+                           state.file?.name?.includes('ludvig_aberg') || 
+                           state.file?.name?.includes('Tiger Woods') ||
+                           (window as any).sampleVideoUrl;
       const hasDatabaseError = true; // EMERGENCY FIX: Always skip cache
+      
+      console.log('🎥 SAMPLE VIDEO DEBUG: Sample video detection:', {
+        fileName: state.file?.name,
+        isSampleVideo,
+        sampleVideoUrl: (window as any).sampleVideoUrl
+      });
       
       if (isSampleVideo || hasDatabaseError) {
         console.log('Sample video or database error detected, skipping cache for fresh analysis');
@@ -523,30 +722,86 @@ export default function UploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
       dispatch({ type: 'SET_PROGRESS', payload: 10 });
       
-      console.log('Starting pose extraction with enhanced settings...');
-      console.log('Video file:', state.file?.name, 'Size:', state.file?.size, 'bytes');
+      console.log('🔍 PIPELINE DEBUG: ===== VIDEO TO ANALYSIS PIPELINE =====');
+      console.log('🔍 PIPELINE DEBUG: Step 1 - Starting pose extraction...');
+      console.log('🔍 PIPELINE DEBUG: Video file:', state.file?.name, 'Size:', state.file?.size, 'bytes');
+      console.log('🔍 PIPELINE DEBUG: Sample video URL:', (window as any).sampleVideoUrl);
       
       let extracted;
       try {
-        // EMERGENCY FIX: Use improved pose detection settings
-        extracted = await withRetry(
-          () => extractPosesFromVideo(state.file!, { sampleFps: 20, maxFrames: 200, minConfidence: 0.4, qualityThreshold: 0.3 }, (s: string, p: number) => { 
-            const message = s === 'Reading video frames...' ? `Processing frame ${Math.round(p)}%` : s;
-            dispatch({ type: 'SET_STEP', payload: message }); 
-            // Map progress 0-100 to 10-60% of overall progress
-            const mappedProgress = 10 + (p * 0.5);
-            dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
-            console.log(`Progress update: ${message} (${Math.round(mappedProgress)}%)`);
-          }),
-          3, // retry 3 times
-          2000 // 2 second delay between retries
-        );
+        // Handle sample videos differently
+        if ((window as any).sampleVideoUrl) {
+          console.log('🎥 SAMPLE VIDEO DEBUG: Processing sample video from URL:', (window as any).sampleVideoUrl);
+          
+          // For sample videos, we need to fetch the video and create a File object
+          const response = await fetch((window as any).sampleVideoUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch sample video: ${response.status} ${response.statusText}`);
+          }
+          
+          const videoBlob = await response.blob();
+          const sampleFile = new File([videoBlob], state.file?.name || 'sample-video.mp4', { type: 'video/mp4' });
+          
+          console.log('🎥 SAMPLE VIDEO DEBUG: Created file from sample video:', sampleFile.name, 'Size:', sampleFile.size);
+          
+          extracted = await withRetry(
+            () => extractPosesFromVideo(sampleFile, { sampleFps: 20, maxFrames: 200, minConfidence: 0.4, qualityThreshold: 0.3 }, (progress: { step: string; progress: number; frame?: number; totalFrames?: number }) => { 
+              const message = progress.step === 'Reading video frames...' ? `Processing sample video frame ${progress.progress}%` : progress.step;
+              dispatch({ type: 'SET_STEP', payload: message }); 
+              // Map progress 0-100 to 10-60% of overall progress
+              const mappedProgress = 10 + (progress.progress * 0.5);
+              dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
+              console.log(`🎥 SAMPLE VIDEO DEBUG: Progress update: ${message} (${Math.round(mappedProgress)}%)`);
+            }),
+            3, // retry 3 times
+            2000 // 2 second delay between retries
+          );
+        } else {
+          // Regular file upload
+          extracted = await withRetry(
+            () => extractPosesFromVideo(state.file!, { sampleFps: 20, maxFrames: 200, minConfidence: 0.4, qualityThreshold: 0.3 }, (progress: { step: string; progress: number; frame?: number; totalFrames?: number }) => { 
+              const message = progress.step === 'Reading video frames...' ? `Processing frame ${progress.progress}%` : progress.step;
+              dispatch({ type: 'SET_STEP', payload: message }); 
+              // Map progress 0-100 to 10-60% of overall progress
+              const mappedProgress = 10 + (progress.progress * 0.5);
+              dispatch({ type: 'SET_PROGRESS', payload: Math.round(mappedProgress) });
+              console.log(`🔍 POSE DETECTION DEBUG: Progress update: ${message} (${Math.round(mappedProgress)}%)`);
+            }),
+            3, // retry 3 times
+            2000 // 2 second delay between retries
+          );
+        }
         
-        console.log('Pose extraction completed!');
-        console.log('Total poses extracted:', extracted.length);
-        console.log('Pose quality warnings:', (extracted as any).qualityWarnings?.length || 0);
-        console.log('Recording angle detected:', (extracted as any).recordingAngle || 'unknown');
-        console.log('Overall quality score:', (extracted as any).overallQuality?.score || 'unknown');
+        console.log('🔍 PIPELINE DEBUG: Step 1 - Pose extraction completed!');
+        console.log('🔍 PIPELINE DEBUG: Total poses extracted:', extracted.length);
+        console.log('🔍 PIPELINE DEBUG: Pose quality warnings:', (extracted as any).qualityWarnings?.length || 0);
+        console.log('🔍 PIPELINE DEBUG: Recording angle detected:', (extracted as any).recordingAngle || 'unknown');
+        console.log('✅ POSE DETECTION DEBUG: Overall quality score:', (extracted as any).overallQuality?.score || 'unknown');
+        
+        // CRITICAL: Validate pose data quality
+        if (extracted.length > 0) {
+          const firstPose = extracted[0];
+          const isMockData = firstPose.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5) || false;
+          
+          console.log('🔍 PIPELINE DEBUG: Step 1 - Pose data validation:', {
+            hasLandmarks: !!firstPose.landmarks,
+            landmarksCount: firstPose.landmarks?.length || 0,
+            hasTimestamp: !!firstPose.timestamp,
+            timestamp: firstPose.timestamp,
+            isMockData: isMockData,
+            dataQuality: isMockData ? 'MOCK DATA - INVALID' : 'REAL DATA - VALID'
+          });
+          
+          if (isMockData) {
+            console.error('❌ PIPELINE DEBUG: CRITICAL ERROR - Mock data detected! This should not happen with real pose detection.');
+            throw new Error('Mock data detected in pose extraction. Real pose detection failed.');
+          } else {
+            console.log('✅ PIPELINE DEBUG: Real pose data validated successfully');
+          }
+        } else {
+          console.error('❌ PIPELINE DEBUG: No poses extracted from video');
+          throw new Error('No poses could be extracted from the video. Please try a different video.');
+        }
       } catch (error) {
         if (error instanceof Error) {
           if (error.message.includes('too long')) {
@@ -584,15 +839,16 @@ export default function UploadPage() {
       }
 
       const club = 'driver';
-      const swingId = `swing_${Date.now()}`;
+      const swingId = `swing_${typeof window !== 'undefined' ? Date.now() : Math.floor(Math.random() * 1000000)}`;
       const source = 'upload' as const;
 
       // Use worker pool for better performance
       dispatch({ type: 'SET_STEP', payload: 'Analyzing swing mechanics...' });
       dispatch({ type: 'SET_PROGRESS', payload: 65 });
-      console.log('Starting swing mechanics analysis...');
-      console.log('Worker pool available:', !!workerPool);
-      console.log('Poses to analyze:', extracted.length);
+      console.log('🔍 PIPELINE DEBUG: Step 2 - Starting swing mechanics analysis...');
+      console.log('🔍 PIPELINE DEBUG: Worker pool available:', !!workerPool);
+      console.log('🔍 PIPELINE DEBUG: Poses to analyze:', extracted.length);
+      console.log('🔍 PIPELINE DEBUG: Using real pose data:', !extracted[0]?.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5));
       
       // Set up progress tracking for worker
       const workerProgressHandler = (event: MessageEvent) => {
@@ -656,6 +912,9 @@ export default function UploadPage() {
         } catch (error) {
           console.error('Main thread analysis failed:', error);
           // Create a basic analysis result if everything fails
+          console.warn('⚠️ GRADING DEBUG: All analysis methods failed, creating fallback analysis');
+          console.warn('⚠️ GRADING DEBUG: This will give inaccurate results!');
+          
           analysis = {
             trajectory: { clubhead: [], rightWrist: [] },
             phases: [],
@@ -673,16 +932,18 @@ export default function UploadPage() {
               overallScore: 77,
               strengths: ['Basic swing fundamentals present'],
               improvements: ['Work on consistency and timing'],
-              technicalNotes: ['Analysis completed with basic metrics'],
-              swingSummary: 'Focus on maintaining consistent tempo and smooth weight transfer throughout your swing for better ball striking.'
-            }
+              technicalNotes: ['Analysis completed with basic metrics - FALLBACK DATA'],
+              swingSummary: '⚠️ FALLBACK ANALYSIS: This analysis used placeholder data due to processing errors. Please try a different video or check your connection.'
+            },
+            isFallback: true,
+            error: 'Analysis failed - using fallback data'
           };
-          console.log('Fallback analysis created');
+          console.log('⚠️ GRADING DEBUG: Fallback analysis created with warning flags');
         }
       }
       
-      console.log('Setting analysis result:', analysis);
-      console.log('Analysis structure check:', {
+      console.log('🔍 PIPELINE DEBUG: Step 3 - Setting analysis result...');
+      console.log('🔍 PIPELINE DEBUG: Analysis structure check:', {
         hasPhases: !!analysis?.phases,
         phasesCount: analysis?.phases?.length || 0,
         hasMetrics: !!analysis?.metrics,
@@ -690,6 +951,27 @@ export default function UploadPage() {
         hasLandmarks: !!analysis?.landmarks,
         landmarksCount: analysis?.landmarks?.length || 0
       });
+      
+      // CRITICAL: Validate metrics quality
+      if (analysis?.metrics) {
+        const isFallbackData = analysis.isFallback || (analysis.metrics.overallScore === 77 && analysis.metrics.letterGrade === 'C');
+        
+        console.log('🔍 PIPELINE DEBUG: Step 3 - Metrics validation:', {
+          overallScore: analysis.metrics.overallScore,
+          letterGrade: analysis.metrics.letterGrade,
+          tempoScore: analysis.metrics.tempo?.score,
+          rotationScore: analysis.metrics.rotation?.score,
+          isFallbackData: isFallbackData,
+          dataQuality: isFallbackData ? 'FALLBACK DATA - INVALID' : 'REAL DATA - VALID'
+        });
+        
+        if (isFallbackData) {
+          console.error('❌ PIPELINE DEBUG: CRITICAL ERROR - Fallback/mock metrics detected! This indicates analysis failure.');
+          throw new Error('Analysis failed and returned fallback data. Please try a different video.');
+        } else {
+          console.log('✅ PIPELINE DEBUG: Real metrics validated successfully');
+        }
+      }
       
       // Create enhanced swing phases
       dispatch({ type: 'SET_STEP', payload: 'Analyzing swing phases...' });
@@ -748,7 +1030,22 @@ export default function UploadPage() {
       // Generate AI analysis (lazy loaded)
       dispatch({ type: 'SET_STEP', payload: 'Generating AI analysis...' });
       dispatch({ type: 'SET_PROGRESS', payload: 80 });
+      console.log('🔍 PIPELINE DEBUG: Step 4 - Starting AI analysis...');
+      console.log('🔍 PIPELINE DEBUG: Input data:', {
+        posesCount: extracted.length,
+        trajectoryPoints: normalizedAnalysis.trajectory?.clubhead?.length || 0,
+        phasesCount: normalizedAnalysis.phases?.length || 0,
+        club: club
+      });
+      
       const aiResult = await lazyAIAnalyzer.analyze(extracted, normalizedAnalysis.trajectory, normalizedAnalysis.phases, club);
+      console.log('🔍 PIPELINE DEBUG: Step 4 - AI analysis completed:', {
+        overallScore: aiResult?.overallScore,
+        strengthsCount: aiResult?.strengths?.length || 0,
+        improvementsCount: aiResult?.improvements?.length || 0,
+        technicalNotesCount: aiResult?.technicalNotes?.length || 0
+      });
+      
       dispatch({ type: 'SET_AI_ANALYSIS', payload: aiResult });
       
       // Save to progress history
@@ -787,6 +1084,10 @@ export default function UploadPage() {
         landmarksInResult: normalizedAnalysis?.landmarks?.length || 0
       });
       
+      // Refresh video URL to prevent blob URL issues
+      refreshVideoUrl();
+      forceComponentRefresh();
+      
       // Ensure poses are set in the result for video analysis
       if (normalizedAnalysis && extracted) {
         normalizedAnalysis.landmarks = extracted;
@@ -796,29 +1097,53 @@ export default function UploadPage() {
         (normalizedAnalysis as any).poses = extracted;
         console.log('Poses also stored as poses property:', (normalizedAnalysis as any).poses?.length, 'poses');
         
-      // EMERGENCY FIX: Store video URL in the analysis result for video display with validation
-      if (videoUrl) {
-        (normalizedAnalysis as any).videoUrl = videoUrl;
-        console.log('Video URL stored in analysis result:', videoUrl);
-      } else {
-        console.error('EMERGENCY: Video URL is undefined - this will cause video display issues');
-        // Try to regenerate the video URL from the file
-        if (state.file) {
-          try {
-            const regeneratedUrl = URL.createObjectURL(state.file);
-            (normalizedAnalysis as any).videoUrl = regeneratedUrl;
-            console.log('EMERGENCY FIX: Regenerated video URL:', regeneratedUrl);
-          } catch (urlError) {
-            console.error('EMERGENCY: Failed to regenerate video URL:', urlError);
+        // EMERGENCY FIX: Store video URL in the analysis result for video display with validation
+        if (videoUrl) {
+          (normalizedAnalysis as any).videoUrl = videoUrl;
+          console.log('Video URL stored in analysis result:', videoUrl);
+        } else {
+          console.error('EMERGENCY: Video URL is undefined - this will cause video display issues');
+          // Try to regenerate the video URL from the file
+          if (state.file) {
+            try {
+              const regeneratedUrl = URL.createObjectURL(state.file);
+              (normalizedAnalysis as any).videoUrl = regeneratedUrl;
+              console.log('EMERGENCY FIX: Regenerated video URL:', regeneratedUrl);
+            } catch (urlError) {
+              console.error('EMERGENCY: Failed to regenerate video URL:', urlError);
+            }
           }
         }
-      }
       }
       
       // Force a small delay to ensure state is updated
       setTimeout(() => {
-        console.log('Dispatching tab switch to video-analysis');
-        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' });
+        console.log('🔍 PIPELINE DEBUG: ===== PIPELINE COMPLETE =====');
+        console.log('🔍 PIPELINE DEBUG: Final validation:', {
+          posesCount: state.poses?.length || 0,
+          hasResult: !!state.result,
+          hasAIAnalysis: !!state.aiAnalysis,
+          activeTab: state.activeTab,
+          isAnalyzing: state.isAnalyzing
+        });
+        
+        // CRITICAL: Final validation of the complete pipeline
+        console.log('🔍 PIPELINE DEBUG: Checking complete pipeline...');
+        if (state.poses && state.poses.length > 0) {
+          const isRealPoses = !state.poses[0]?.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+          console.log('🔍 FINAL VALIDATION DEBUG: Pose data quality:', isRealPoses ? 'REAL' : 'MOCK');
+        }
+        
+        if (state.result?.metrics) {
+          const isRealMetrics = !(state.result.metrics.overallScore === 77 && state.result.metrics.letterGrade === 'C');
+          console.log('🔍 FINAL VALIDATION DEBUG: Metrics quality:', isRealMetrics ? 'REAL' : 'MOCK');
+        }
+        
+        if (state.aiAnalysis) {
+          console.log('🔍 FINAL VALIDATION DEBUG: AI analysis quality:', state.aiAnalysis.overallScore > 0 ? 'REAL' : 'MOCK');
+        }
+        
+        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' });
       }, 100);
       
       clearTimeout(timeoutId);
@@ -826,21 +1151,81 @@ export default function UploadPage() {
       console.error('Analysis error:', err);
       dispatch({ type: 'SET_ERROR', payload: err?.message || 'Failed to analyze video. Please try a different video or check your internet connection.' });
       clearTimeout(timeoutId);
+      
+      // Even if analysis fails, try to show the video
+      if (videoUrl) {
+        console.log('🎥 VIDEO DEBUG: Analysis failed but video URL available, showing video anyway');
+        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' });
+      }
     } finally {
       dispatch({ type: 'SET_ANALYZING', payload: false });
       dispatch({ type: 'SET_ANALYSIS_START_TIME', payload: null });
     }
   }, [state.file, workerPool, videoUrl, reset, loadProgressHistory, state.error, state.isAnalyzing, state.progress, state.step]);
 
+  // Sample video handler
+  const handleSampleVideoSelect = useCallback(async (videoUrl: string, videoName: string) => {
+    console.log('🎥 SAMPLE VIDEO DEBUG: Selected sample video:', videoName, 'URL:', videoUrl);
+    
+    try {
+      // Create a mock file object for the sample video
+      const mockFile = new File([], videoName, { type: 'video/mp4' });
+      dispatch({ type: 'SET_FILE', payload: mockFile });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      // Set the video URL for display
+      const fullVideoUrl = videoUrl.startsWith('/') ? videoUrl : `/${videoUrl}`;
+      console.log('🎥 SAMPLE VIDEO DEBUG: Full video URL:', fullVideoUrl);
+      
+      // Verify the video exists by trying to fetch it
+      try {
+        const response = await fetch(fullVideoUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          throw new Error(`Sample video not found: ${response.status} ${response.statusText}`);
+        }
+        console.log('🎥 SAMPLE VIDEO DEBUG: Video exists and is accessible');
+      } catch (error) {
+        console.error('🎥 SAMPLE VIDEO DEBUG: Video fetch failed:', error);
+        console.warn('🎥 SAMPLE VIDEO DEBUG: Continuing anyway - video might be accessible during analysis');
+        // Don't return here - let the analysis try to handle it
+      }
+      
+      // Store the video URL for later use
+      (window as any).sampleVideoUrl = fullVideoUrl;
+      
+      // Automatically trigger analysis
+      console.log('🎥 SAMPLE VIDEO DEBUG: Triggering automatic analysis...');
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' });
+      
+      // Start analysis after a short delay to ensure state is updated
+      setTimeout(() => {
+        console.log('🎥 SAMPLE VIDEO DEBUG: Starting sample video analysis...');
+        analyze();
+      }, 200);
+      
+    } catch (error) {
+      console.error('🎥 SAMPLE VIDEO DEBUG: Error selecting sample video:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load sample video: ${error instanceof Error ? error.message : 'Unknown error'}` });
+    }
+  }, [analyze]);
+
   return (
-    <main className="max-w-5xl mx-auto px-4 py-16">
+    <main className="max-w-5xl mx-auto px-4 py-16" suppressHydrationWarning>
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-6 text-gray-900">
           📤 Upload Video
         </h1>
-        <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
+        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
           Upload your golf swing videos for detailed analysis and personalized feedback.
         </p>
+        
+        {/* Sample Video Selector */}
+        <div className="mb-12">
+          <SampleVideoSelector
+            onSelectVideo={handleSampleVideoSelect}
+            className="max-w-md mx-auto"
+          />
+        </div>
         
         <div className="bg-gray-50 rounded-2xl p-8 md:p-12 mb-12 text-left">
           <h2 className="text-2xl font-semibold mb-4 text-gray-800">Upload Area</h2>
@@ -911,14 +1296,8 @@ export default function UploadPage() {
           <div className="mt-12 text-left">
             <div className="flex border-b border-gray-200 mb-6">
               <button
-                className={`py-2 px-4 font-medium ${state.activeTab === 'video' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video' })}
-              >
-                Swing Analysis
-              </button>
-              <button
-                className={`py-2 px-4 font-medium ${state.activeTab === 'video-analysis' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video-analysis' })}
+                className={`py-2 px-4 font-medium ${state.activeTab === 'analysis' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' })}
               >
                 Video Analysis
               </button>
@@ -929,299 +1308,211 @@ export default function UploadPage() {
                 Swing Metrics
               </button>
               <button
-                className={`py-2 px-4 font-medium ${state.activeTab === 'progress' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'progress' })}
+                className={`py-2 px-4 font-medium ${state.activeTab === 'history' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'history' })}
               >
-                Progress Tracking
+                Swing History
               </button>
               <button
-                className={`py-2 px-4 font-medium ${state.activeTab === 'processed-video' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'processed-video' })}
+                className={`py-2 px-4 font-medium ${state.activeTab === 'grading' ? 'border-b-2 border-green-600 text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'grading' })}
               >
-                Processed Video
+                Comprehensive Grading
               </button>
             </div>
 
-            {state.activeTab === 'video' && videoUrl && state.poses && (
-              <div className="mb-10">
-                <h2 className="text-xl font-semibold mb-4">Your Swing Analysis</h2>
-                <div className="relative w-full max-w-4xl mx-auto">
-                  <video 
-                    ref={(video) => {
-                      if (video) {
-                        video.addEventListener('timeupdate', handleVideoTimeUpdate);
-                        video.addEventListener('play', handleVideoPlay);
-                        video.addEventListener('pause', handleVideoPause);
-                        video.addEventListener('loadedmetadata', handleVideoLoadedMetadata);
-                      }
-                    }}
-                    src={videoUrl} 
-                    controls 
-                    className="w-full rounded-lg bg-black" 
-                    playsInline
-                  />
-                  
-                  {/* Enhanced Overlay System */}
-                  <VideoOverlayContainer
-                    videoRef={{ current: document.querySelector('video') as HTMLVideoElement }}
-                    poses={state.poses}
-                    phases={state.result?.enhancedPhases || []}
-                    currentTime={state.videoCurrentTime}
-                    isPlaying={state.isVideoPlaying}
-                    duration={state.videoDuration}
-                  />
+            {state.activeTab === 'analysis' && (
+              <div className="space-y-8">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Swing Analysis</h2>
+                  <p className="text-gray-600">Interactive video analysis with real-time overlays</p>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-lg mt-4">
-                  <h3 className="font-medium mb-2">Enhanced Analysis Features:</h3>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Real-time stick figure overlay with pose detection</li>
-                    <li>Swing plane visualization and club path tracking</li>
-                    <li>Phase-specific markers and recommendations</li>
-                    <li>Live metrics and weight transfer indicators</li>
-                    <li>Interactive overlay controls for customization</li>
-                  </ul>
+
+                {/* Video URL Debug Info */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h3 className="font-medium text-yellow-900 mb-2">Debug Information</h3>
+                  <div className="text-sm text-yellow-800 space-y-1">
+                    <div>Video URL: {videoUrl || 'No video URL'}</div>
+                    <div>Video URL Key: {videoUrlKey}</div>
+                    <div>Force Refresh: {forceRefresh}</div>
+                    <div>Poses count: {state.poses?.length || 0}</div>
+                    <div>Phases count: {state.result?.enhancedPhases?.length || 0}</div>
+                    <div>File name: {state.file?.name || 'No file'}</div>
+                    <div>Result exists: {state.result ? 'Yes' : 'No'}</div>
+                    <div>Result video URL: {(state.result as any)?.videoUrl || 'No result video URL'}</div>
+                  </div>
+                </div>
+
+                {(videoUrl || (state.result as any)?.videoUrl) ? (
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    {/* Video Player */}
+                    <div className="xl:col-span-2">
+                      <VideoPlayerWithOverlay
+                        key={`video-${videoUrlKey}-${forceRefresh}`}
+                        videoUrl={videoUrl || (state.result as any)?.videoUrl}
+                        poses={state.poses || []}
+                        phases={state.result?.enhancedPhases || []}
+                        overlaySettings={state.overlaySettings || {
+                          stickFigure: true,
+                          swingPlane: true,
+                          phaseMarkers: true,
+                          clubPath: true,
+                          impactZone: true,
+                          weightTransfer: true,
+                          spineAngle: true
+                        }}
+                        playbackSpeed={state.playbackSpeed || 1.0}
+                        onTimeUpdate={handleVideoTimeUpdate}
+                        onPlay={handleVideoPlay}
+                        onPause={handleVideoPause}
+                        onLoadedMetadata={handleVideoLoadedMetadata}
+                        isMuted={state.isMuted}
+                        onMuteChange={handleMuteToggle}
+                        onVideoError={() => {
+                          console.log('🎥 VIDEO ERROR: Attempting to refresh video URL...');
+                          refreshVideoUrl();
+                          forceComponentRefresh();
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Controls Panel */}
+                    <div className="space-y-6">
+                      <VisualizationControls
+                        onToggleOverlay={handleOverlayToggle}
+                        onPlaybackSpeedChange={handlePlaybackSpeedChange}
+                        onResetSettings={handleResetVisualizationSettings}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🎥</div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Video Not Available</h3>
+                    <p className="text-gray-600 mb-6">
+                      {!videoUrl ? 'No video URL available' : 
+                       !state.poses ? 'No pose data available' : 
+                       'Pose data is empty'}
+                    </p>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'metrics' })}
+                      className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                    >
+                      View Metrics Instead
+                    </button>
+                  </div>
+                )}
+
+                {/* Analysis Features Info */}
+                <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-6 border border-gray-200">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">🎯</span>
+                    Analysis Features
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Visual Overlays</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• Real-time stick figure pose detection</li>
+                        <li>• Swing plane visualization with angle measurements</li>
+                        <li>• Phase-specific markers with grades and recommendations</li>
+                        <li>• Club path tracking and impact zone highlighting</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Interactive Controls</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• Toggle individual overlay types on/off</li>
+                        <li>• Adjust playback speed (0.25x to 2x)</li>
+                        <li>• Quick preset configurations</li>
+                        <li>• Reset all settings to defaults</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-        {state.activeTab === 'video-analysis' && state.result && (
-          <div className="mb-10">
-            <h2 className="text-xl font-semibold mb-4">Enhanced Video Analysis with Phase Detection</h2>
-            {(() => {
-              const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
-              if (!videoUrlToUse) {
-                return (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h3 className="text-red-800 font-medium mb-2">Video Not Available</h3>
-                    <p className="text-red-700 text-sm">
-                      The video file could not be loaded. Please try uploading the video again.
-                    </p>
+            {state.activeTab === 'history' && (
+              <div className="space-y-8">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Swing History</h2>
+                  <p className="text-gray-600">Track your progress and compare swings over time</p>
+                </div>
+
+                {/* Save Current Swing Button */}
+                {state.result && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-blue-900">Save Current Analysis</h3>
+                        <p className="text-sm text-blue-700">
+                          Save this swing to your history for future comparison and progress tracking.
+                        </p>
+                      </div>
+                      <button
+                        onClick={saveCurrentSwingToHistory}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Save to History
+                      </button>
+                    </div>
                   </div>
-                );
-              }
-              return (
-                <div className="relative w-full max-w-4xl mx-auto">
-                  <video 
-                    ref={(video) => {
-                      if (video) {
-                        video.addEventListener('timeupdate', handleVideoTimeUpdate);
-                        video.addEventListener('play', handleVideoPlay);
-                        video.addEventListener('pause', handleVideoPause);
-                        video.addEventListener('loadedmetadata', handleVideoLoadedMetadata);
-                      }
-                    }}
-                    src={videoUrlToUse} 
-                    controls 
-                    className="w-full rounded-lg bg-black" 
-                    playsInline
+                )}
+
+                {/* Swing History Panel */}
+                <SwingHistoryPanel
+                  currentSwing={state.selectedSwing || undefined}
+                  onSelectSwing={handleSwingSelect}
+                  onCompareSwings={handleSwingCompare}
+                />
+
+                {/* Comparison Panel */}
+                {state.comparison && (
+                  <SwingComparisonPanel
+                    comparison={state.comparison}
+                    onClose={handleCloseComparison}
                   />
-                  
-                  {/* Enhanced Overlay System */}
-                  <VideoOverlayContainer
-                    videoRef={{ current: document.querySelector('video') as HTMLVideoElement }}
-                    poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
-                    phases={state.result?.enhancedPhases || []}
-                    currentTime={state.videoCurrentTime}
-                    isPlaying={state.isVideoPlaying}
-                    duration={state.videoDuration}
-                  />
-                </div>
-              );
-            })()}
-                <div className="bg-green-50 p-4 rounded-lg mt-4">
-                  <h3 className="font-medium mb-2">Advanced Video Analysis Features:</h3>
-                  <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Interactive stick figure overlay with real-time pose tracking</li>
-                    <li>Swing plane visualization with angle measurements</li>
-                    <li>Phase-specific markers with grades and recommendations</li>
-                    <li>Club path tracking and impact zone visualization</li>
-                    <li>Weight transfer and spine angle indicators</li>
-                    <li>Customizable overlay controls and playback speed</li>
-                    <li>Timeline visualization with phase progress bars</li>
-                  </ul>
-                </div>
+                )}
               </div>
             )}
 
             {state.activeTab === 'metrics' && (
               <div className="space-y-8">
-                {state.result ? (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div>
-                        <h3 className="text-xl font-semibold mb-4">Swing Metrics</h3>
-                        {state.result.metrics ? (
-                          <MetricsVisualizer metrics={state.result.metrics} />
-                        ) : (
-                          <div className="text-center py-8">
-                            <p className="text-gray-500">Metrics not available</p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-8">
-                        <div>
-                          <h3 className="text-xl font-semibold mb-4">Swing Analysis</h3>
-                          
-                          {/* Swing Summary - Most Important Takeaway */}
-                          {state.result.aiFeedback?.swingSummary && (
-                            <div className="mb-6">
-                              <SwingSummary summary={state.result.aiFeedback.swingSummary} />
-                            </div>
-                          )}
-                          
-                          {state.result.aiFeedback && (
-                            <SwingFeedback 
-                              analysis={{
-                                swingMetrics: {
-                                  tempo: {
-                                    ratio: state.result.metrics.tempo.tempoRatio,
-                                    backswingTime: state.result.metrics.tempo.backswingTime,
-                                    downswingTime: state.result.metrics.tempo.downswingTime,
-                                    assessment: state.result.metrics.tempo.tempoRatio > 3.0 ? 'Good tempo' : 'Work on tempo'
-                                  },
-                                  rotation: {
-                                    shoulders: state.result.metrics.rotation.shoulderTurn,
-                                    hips: state.result.metrics.rotation.hipTurn,
-                                    xFactor: state.result.metrics.rotation.xFactor,
-                                    assessment: state.result.metrics.rotation.xFactor > 35 ? 'Good separation' : 'Increase separation'
-                                  },
-                                  balance: {
-                                    score: state.result.metrics.weightTransfer.score,
-                                    assessment: state.result.metrics.weightTransfer.score > 80 ? 'Good balance' : 'Work on balance'
-                                  },
-                                  plane: {
-                                    angle: state.result.metrics.swingPlane.shaftAngle,
-                                    consistency: 100 - state.result.metrics.swingPlane.planeDeviation,
-                                    assessment: state.result.metrics.swingPlane.planeDeviation < 5 ? 'Consistent plane' : 'Work on plane consistency'
-                                  }
-                                },
-                                overallScore: state.result.aiFeedback.overallScore,
-                                strengths: state.result.aiFeedback.strengths,
-                                improvements: state.result.aiFeedback.improvements,
-                                technicalNotes: state.result.aiFeedback.technicalNotes || [],
-                                recordingQuality: { angle: 'side', score: 80, recommendations: [] },
-                                openAI: {
-                                  overallAssessment: 'AI analysis completed',
-                                  keyTip: 'Focus on maintaining tempo and balance',
-                                  recordingTips: ['Ensure good lighting and full body visibility']
-                                }
-                              }}
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-semibold mb-4">Drill Recommendations</h3>
-                          <Suspense fallback={<LoadingSpinner text="Loading recommendations..." />}>
-                            <DrillRecommendations metrics={state.result.metrics} />
-                          </Suspense>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <LoadingSpinner size="lg" text="Generating AI analysis..." />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {state.activeTab === 'progress' && (
-              <div className="space-y-8">
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Progress</h2>
-                  <p className="text-gray-600">Track your improvement over time</p>
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Swing Metrics</h2>
+                  <p className="text-gray-600">Detailed analysis of your swing performance</p>
                 </div>
 
-                {state.progressHistory.length > 0 ? (
-                  <>
-                    {/* Overall Progress */}
-                    <div className="bg-white rounded-lg border p-6">
-                      <h3 className="text-lg font-semibold mb-4">Overall Progress</h3>
-                      <ProgressChart metric="overall" className="mb-6" />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {state.progressHistory.length}
-                          </div>
-                          <div className="text-sm text-gray-600">Sessions</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
-                            {ProgressTracker.getAverageScore().toFixed(0)}
-                          </div>
-                          <div className="text-sm text-gray-600">Average Score</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {ProgressTracker.getImprovementRate() > 0 ? '+' : ''}{ProgressTracker.getImprovementRate().toFixed(1)}
-                          </div>
-                          <div className="text-sm text-gray-600">Improvement Rate</div>
-                        </div>
-                      </div>
-                    </div>
+                {state.result ? (
+                  <div className="space-y-8">
+                    {/* Main Metrics Panel */}
+                    <MetricsPanel
+                      metrics={state.result.metrics}
+                      aiFeedback={state.result.aiFeedback}
+                    />
 
-                    {/* Individual Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="tempo" />
-                      </Suspense>
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="rotation" />
-                      </Suspense>
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="balance" />
-                      </Suspense>
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="plane" />
-                      </Suspense>
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="power" />
-                      </Suspense>
-                      <Suspense fallback={<div className="h-40 bg-gray-100 rounded animate-pulse" />}>
-                      <ProgressChart metric="consistency" />
+                    {/* Drill Recommendations */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                        <span className="text-2xl mr-2">🏌️</span>
+                        Drill Recommendations
+                      </h3>
+                      <Suspense fallback={<LoadingSpinner text="Loading recommendations..." />}>
+                        <DrillRecommendations metrics={state.result.metrics} />
                       </Suspense>
                     </div>
-
-                    {/* Recent Sessions */}
-                    <div className="bg-white rounded-lg border p-6">
-                      <h3 className="text-lg font-semibold mb-4">Recent Sessions</h3>
-                      <div className="space-y-3">
-                        {state.progressHistory.slice(-5).reverse().map((session: ProgressEntry, index: number) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <div className="font-medium">
-                                Session {state.progressHistory.length - index}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {new Date(session.date).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-green-600">
-                                {session.overallScore}/100
-                              </div>
-                              {session.grade && (
-                                <div className="text-sm text-gray-600">
-                                  Grade: {session.grade.overall.letter}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📈</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Progress Data Yet</h3>
+                    <div className="text-6xl mb-4">📊</div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Analysis Data</h3>
                     <p className="text-gray-600 mb-6">
-                      Complete your first swing analysis to start tracking your progress!
+                      Complete your swing analysis to view detailed metrics and recommendations.
                     </p>
                     <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'video' })}
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' })}
                       className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
                     >
                       Analyze Your Swing
@@ -1231,72 +1522,54 @@ export default function UploadPage() {
               </div>
             )}
 
-        {state.activeTab === 'processed-video' && state.result && (
-          <div className="space-y-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Slow-Motion Swing Analysis</h2>
-              <p className="text-gray-600">Generate a professional slow-motion video with phase overlays and analysis</p>
-            </div>
 
-            <div className="bg-white rounded-lg border p-6">
-              {(() => {
-                const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
-                if (!videoUrlToUse) {
-                  return (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h3 className="text-red-800 font-medium mb-2">Video Not Available</h3>
-                      <p className="text-red-700 text-sm">
-                        The video file could not be loaded. Please try uploading the video again.
+
+            {state.activeTab === 'grading' && (
+              <div className="space-y-8">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Comprehensive Golf Grading</h2>
+                  <p className="text-gray-600">Professional-grade swing analysis with 12-level grading system</p>
+                </div>
+
+                {state.result ? (
+                  <div className="space-y-8">
+                    {/* Comprehensive Grading Display */}
+                    <ComprehensiveGradingDisplay
+                      grade={state.result as any}
+                      className="w-full"
+                    />
+                    
+                    {/* Debug Panel */}
+                    <GradingDebugPanel
+                      poses={state.poses || []}
+                      phases={state.result?.phases || []}
+                      trajectory={state.result?.trajectory || { rightWrist: [], leftWrist: [] }}
+                      className="w-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {/* Test the grading system */}
+                    <GradingSystemTest className="w-full" />
+                    
+                    {/* Professional Swing Validator */}
+                    <ProfessionalSwingValidator className="w-full" />
+                    
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">🏌️</div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Analysis Data</h3>
+                      <p className="text-gray-600 mb-6">
+                        Complete your swing analysis to view comprehensive grading results.
                       </p>
-                    </div>
-                  );
-                }
-                return (
-                  <ProcessedVideoPlayer
-                    videoUrl={videoUrlToUse}
-                    poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
-                    phases={state.result.phases || []}
-                    timestamps={state.result.timestamps || []}
-                    slowMotionFactor={3}
-                    showOverlays={true}
-                    showGrades={true}
-                    showAdvice={true}
-                    showTimestamps={true}
-                    onProcessingComplete={(blob) => {
-                      console.log('Video processing complete:', blob.size, 'bytes');
-                      // You could save the blob to IndexedDB or show a success message
-                    }}
-                    onProcessingProgress={(progress, message) => {
-                      console.log(`Processing: ${message} (${progress}%)`);
-                    }}
-                  />
-                );
-              })()}
-            </div>
-
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4">Features of Processed Video:</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium text-blue-900 mb-2">Visual Overlays</h4>
-                      <ul className="text-sm text-blue-800 space-y-1">
-                        <li>• Real-time pose detection stick figure</li>
-                        <li>• Swing phase identification</li>
-                        <li>• Grade indicators for each phase</li>
-                        <li>• Phase-specific advice and tips</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-blue-900 mb-2">Slow Motion Effects</h4>
-                      <ul className="text-sm text-blue-800 space-y-1">
-                        <li>• 3x slower playback for detailed analysis</li>
-                        <li>• Timestamp and frame number display</li>
-                        <li>• Professional video quality output</li>
-                        <li>• Download as WebM format</li>
-                      </ul>
+                      <button
+                        onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'analysis' })}
+                        className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                      >
+                        Analyze Your Swing
+                      </button>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>

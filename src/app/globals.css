@@ -18,6 +18,12 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   }
 
+  /* FOUC prevention - prevents hydration mismatch */
+  .fouc-prevention {
+    background-color: #FAFAFA !important;
+    color: #1A1A1A !important;
+  }
+
   /* Ensure no FOUC on any elements */
   * {
     box-sizing: border-box;

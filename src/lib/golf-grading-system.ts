@@ -2,6 +2,7 @@
 
 import { PoseResult, TrajectoryPoint } from './mediapipe';
 import { SwingPhase } from './swing-phases';
+import { ComprehensiveGolfGradingSystem } from './comprehensive-golf-grading';
 
 export interface GolfGrade {
   overall: {
@@ -75,73 +76,103 @@ const PROFESSIONAL_BENCHMARKS = {
 };
 
 export class GolfGradingSystem {
+  private comprehensiveGrading = new ComprehensiveGolfGradingSystem();
+
   public gradeSwing(
     poses: PoseResult[],
     trajectory: { rightWrist: TrajectoryPoint[]; leftWrist: TrajectoryPoint[] },
     phases: SwingPhase[],
     club: string = 'driver'
   ): GolfGrade {
-    console.log('=== GRADING DEBUG INFO ===');
+    console.log('=== COMPREHENSIVE GRADING SYSTEM ===');
     console.log('Video duration:', phases.length > 0 ? phases[phases.length - 1].endTime - phases[0].startTime : 'unknown', 'ms');
     console.log('Total poses:', poses.length);
     console.log('Phases detected:', phases.map(p => `${p.name}: ${p.duration.toFixed(0)}ms`));
     
-    // Calculate individual metrics
-    const tempo = this.gradeTempo(phases);
-    const rotation = this.gradeRotation(poses, phases);
-    const balance = this.gradeBalance(poses, trajectory);
-    const plane = this.gradeSwingPlane(trajectory, phases);
-    const power = this.gradePower(trajectory, phases, club);
-    const consistency = this.gradeConsistency(poses, trajectory);
-
-    console.log('Raw metrics scores:');
-    console.log('- Tempo:', tempo.score);
-    console.log('- Rotation:', rotation.score);
-    console.log('- Balance:', balance.score);
-    console.log('- Plane:', plane.score);
-    console.log('- Power:', power.score);
-    console.log('- Consistency:', consistency.score);
-
-    // Calculate overall score
-    const overallScore = this.calculateOverallScore(tempo, rotation, balance, plane, power, consistency);
+    // Use the comprehensive grading system
+    const comprehensiveGrade = this.comprehensiveGrading.gradeSwing(poses, trajectory, phases, club);
     
-    // Check if this looks like a professional swing and validate grading
-    const validatedGrade = this.validateProSwingGrading({
-      tempo: tempo.score,
-      rotation: rotation.score,
-      balance: balance.score,
-      plane: plane.score,
-      power: power.score,
-      consistency: consistency.score,
-      overallScore
-    }, poses, phases);
-    
-    console.log('Final overall score:', overallScore);
-    console.log('Validated grade:', validatedGrade);
+    console.log('Comprehensive grade:', comprehensiveGrade.overall);
+    console.log('Emergency overrides applied:', comprehensiveGrade.emergencyOverrides.applied);
     console.log('========================');
     
-    // Generate comparison metrics
-    const comparison = this.generateComparison(tempo, rotation, balance, plane, power, consistency);
-    
-    // Generate recommendations
-    const recommendations = this.generateRecommendations(tempo, rotation, balance, plane, power, consistency);
-
+    // Convert comprehensive grade to legacy format for compatibility
     return {
       overall: {
-        score: overallScore,
-        letter: validatedGrade,
-        description: this.getOverallDescription(overallScore)
+        score: comprehensiveGrade.overall.score,
+        letter: comprehensiveGrade.overall.letter,
+        description: comprehensiveGrade.overall.description
       },
       categories: {
-        tempo,
-        rotation,
-        balance,
-        plane,
-        power,
-        consistency
+        tempo: {
+          score: comprehensiveGrade.categories.tempo.score,
+          letter: comprehensiveGrade.categories.tempo.letter,
+          description: comprehensiveGrade.categories.tempo.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.tempo.benchmark.professional,
+            amateur: comprehensiveGrade.categories.tempo.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.tempo.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.tempo.benchmark.current
+        },
+        rotation: {
+          score: comprehensiveGrade.categories.rotation.score,
+          letter: comprehensiveGrade.categories.rotation.letter,
+          description: comprehensiveGrade.categories.rotation.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.rotation.benchmark.professional,
+            amateur: comprehensiveGrade.categories.rotation.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.rotation.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.rotation.benchmark.current
+        },
+        balance: {
+          score: comprehensiveGrade.categories.balance.score,
+          letter: comprehensiveGrade.categories.balance.letter,
+          description: comprehensiveGrade.categories.balance.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.balance.benchmark.professional,
+            amateur: comprehensiveGrade.categories.balance.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.balance.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.balance.benchmark.current
+        },
+        plane: {
+          score: comprehensiveGrade.categories.swingPlane.score,
+          letter: comprehensiveGrade.categories.swingPlane.letter,
+          description: comprehensiveGrade.categories.swingPlane.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.swingPlane.benchmark.professional,
+            amateur: comprehensiveGrade.categories.swingPlane.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.swingPlane.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.swingPlane.benchmark.current
+        },
+        power: {
+          score: comprehensiveGrade.categories.power.score,
+          letter: comprehensiveGrade.categories.power.letter,
+          description: comprehensiveGrade.categories.power.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.power.benchmark.professional,
+            amateur: comprehensiveGrade.categories.power.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.power.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.power.benchmark.current
+        },
+        consistency: {
+          score: comprehensiveGrade.categories.consistency.score,
+          letter: comprehensiveGrade.categories.consistency.letter,
+          description: comprehensiveGrade.categories.consistency.description,
+          benchmark: {
+            professional: comprehensiveGrade.categories.consistency.benchmark.professional,
+            amateur: comprehensiveGrade.categories.consistency.benchmark.amateur,
+            beginner: comprehensiveGrade.categories.consistency.benchmark.amateur - 10
+          },
+          current: comprehensiveGrade.categories.consistency.benchmark.current
+        }
       },
-      comparison,
-      recommendations
+      comparison: comprehensiveGrade.comparison,
+      recommendations: comprehensiveGrade.recommendations
     };
   }
 

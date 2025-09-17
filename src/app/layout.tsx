@@ -39,30 +39,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.className} ${inter.variable}`}>
+    <html lang="en" className={`${inter.className} ${inter.variable}`} suppressHydrationWarning>
       <head>
-        {/* Critical CSS inlined to prevent FOUC - no hydration mismatch */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              html { 
-                background-color: #FAFAFA !important; 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-              }
-              body { 
-                margin: 0 !important; 
-                background-color: #FAFAFA !important;
-                color: #1A1A1A !important;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-              }
-              /* Prevent FOUC during hydration */
-              .fouc-prevention {
-                background-color: #FAFAFA !important;
-                color: #1A1A1A !important;
-              }
-            `,
-          }}
-        />
+        {/* Critical CSS moved to globals.css to prevent hydration mismatch */}
       </head>
       <body className="min-h-screen bg-white text-gray-900 antialiased fouc-prevention">
         <Header />

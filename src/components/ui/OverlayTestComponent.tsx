@@ -230,7 +230,7 @@ const OverlayTestComponent: React.FC<OverlayTestComponentProps> = ({ className =
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
         {/* Mock video element */}
         <div 
-          ref={videoRef}
+          ref={videoRef as unknown as React.RefObject<HTMLDivElement>}
           className="w-full h-full bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center text-white text-2xl"
         >
           Mock Video Feed
@@ -238,7 +238,7 @@ const OverlayTestComponent: React.FC<OverlayTestComponentProps> = ({ className =
 
         {/* Test overlays */}
         <StickFigureOverlay
-          videoRef={videoRef}
+          videoRef={videoRef as React.RefObject<HTMLVideoElement>}
           poses={poses}
           currentTime={currentTime}
           phases={phases}
@@ -250,7 +250,7 @@ const OverlayTestComponent: React.FC<OverlayTestComponentProps> = ({ className =
         />
 
         <SwingPlaneVisualization
-          videoRef={videoRef}
+          videoRef={videoRef as React.RefObject<HTMLVideoElement>}
           poses={poses}
           currentTime={currentTime}
           phases={phases}
@@ -262,7 +262,7 @@ const OverlayTestComponent: React.FC<OverlayTestComponentProps> = ({ className =
         />
 
         <PhaseMarkers
-          videoRef={videoRef}
+          videoRef={videoRef as React.RefObject<HTMLVideoElement>}
           phases={phases}
           currentTime={currentTime}
           showPhaseBars={true}

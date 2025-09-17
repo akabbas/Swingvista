@@ -261,6 +261,7 @@ const CameraOverlayContainer = React.forwardRef<HTMLDivElement, CameraOverlayCon
               {phases.length > 0 && (
                 <div>Phases: {phases.length}</div>
               )}
+              <div className="text-green-400">Overlay: {isOverlayVisible ? 'ON' : 'OFF'}</div>
             </div>
           </div>
 
@@ -276,6 +277,11 @@ const CameraOverlayContainer = React.forwardRef<HTMLDivElement, CameraOverlayCon
               </div>
             </div>
           )}
+
+          {/* Test Rectangle to confirm overlay container is working */}
+          <div className="absolute top-20 left-4 z-30 bg-red-500 w-20 h-20 flex items-center justify-center text-white font-bold text-xs">
+            TEST
+          </div>
 
           {/* Overlay Components */}
           {isOverlayVisible && (
