@@ -5,6 +5,7 @@ import VideoPreview from '@/components/ui/VideoPreview';
 import ProgressBar from '@/components/ui/ProgressBar';
 import ErrorAlert from '@/components/ui/ErrorAlert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import VideoOverlayContainer from '@/components/ui/VideoOverlayContainer';
 import { lazy, Suspense } from 'react';
 import SwingFeedback from '@/components/analysis/SwingFeedback';
 import MetricsVisualizer from '@/components/analysis/MetricsVisualizer';
@@ -147,6 +148,9 @@ interface UploadState {
   progressHistory: ProgressEntry[];
   analysisStartTime: number | null;
   elapsedTime: number;
+  videoCurrentTime: number;
+  isVideoPlaying: boolean;
+  videoDuration: number;
 }
 
 type UploadAction = 
@@ -162,6 +166,9 @@ type UploadAction =
   | { type: 'SET_PROGRESS_HISTORY'; payload: ProgressEntry[] }
   | { type: 'SET_ANALYSIS_START_TIME'; payload: number | null }
   | { type: 'SET_ELAPSED_TIME'; payload: number }
+  | { type: 'SET_VIDEO_CURRENT_TIME'; payload: number }
+  | { type: 'SET_VIDEO_PLAYING'; payload: boolean }
+  | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'RESET' };
 
 const initialState: UploadState = {
@@ -176,7 +183,10 @@ const initialState: UploadState = {
   isAnalyzing: false,
   progressHistory: [],
   analysisStartTime: null,
-  elapsedTime: 0
+  elapsedTime: 0,
+  videoCurrentTime: 0,
+  isVideoPlaying: false,
+  videoDuration: 0
 };
 
 function uploadReducer(state: UploadState, action: UploadAction): UploadState {
@@ -205,6 +215,12 @@ function uploadReducer(state: UploadState, action: UploadAction): UploadState {
       return { ...state, analysisStartTime: action.payload };
     case 'SET_ELAPSED_TIME':
       return { ...state, elapsedTime: action.payload };
+    case 'SET_VIDEO_CURRENT_TIME':
+      return { ...state, videoCurrentTime: action.payload };
+    case 'SET_VIDEO_PLAYING':
+      return { ...state, isVideoPlaying: action.payload };
+    case 'SET_VIDEO_DURATION':
+      return { ...state, videoDuration: action.payload };
     case 'RESET':
       return { ...initialState, progressHistory: state.progressHistory };
     default:
@@ -232,6 +248,25 @@ export default function UploadPage() {
     if (!state.file) return null;
     return URL.createObjectURL(state.file);
   }, [state.file]);
+
+  // Video event handlers
+  const handleVideoTimeUpdate = useCallback((event: Event) => {
+    const video = event.target as HTMLVideoElement;
+    dispatch({ type: 'SET_VIDEO_CURRENT_TIME', payload: video.currentTime * 1000 }); // Convert to milliseconds
+  }, []);
+
+  const handleVideoPlay = useCallback(() => {
+    dispatch({ type: 'SET_VIDEO_PLAYING', payload: true });
+  }, []);
+
+  const handleVideoPause = useCallback(() => {
+    dispatch({ type: 'SET_VIDEO_PLAYING', payload: false });
+  }, []);
+
+  const handleVideoLoadedMetadata = useCallback((event: Event) => {
+    const video = event.target as HTMLVideoElement;
+    dispatch({ type: 'SET_VIDEO_DURATION', payload: video.duration * 1000 }); // Convert to milliseconds
+  }, []);
 
   const workerPool = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -910,23 +945,40 @@ export default function UploadPage() {
             {state.activeTab === 'video' && videoUrl && state.poses && (
               <div className="mb-10">
                 <h2 className="text-xl font-semibold mb-4">Your Swing Analysis</h2>
-                {state.result ? (
-                  <SwingAnalysisOverlay 
-                    videoUrl={videoUrl} 
-                    poseData={state.poses} 
-                    metrics={state.result.metrics}
-                    className="mb-6" 
+                <div className="relative w-full max-w-4xl mx-auto">
+                  <video 
+                    ref={(video) => {
+                      if (video) {
+                        video.addEventListener('timeupdate', handleVideoTimeUpdate);
+                        video.addEventListener('play', handleVideoPlay);
+                        video.addEventListener('pause', handleVideoPause);
+                        video.addEventListener('loadedmetadata', handleVideoLoadedMetadata);
+                      }
+                    }}
+                    src={videoUrl} 
+                    controls 
+                    className="w-full rounded-lg bg-black" 
+                    playsInline
                   />
-                ) : (
-                  <PoseOverlay videoUrl={videoUrl} poseData={state.poses} className="mb-6" />
-                )}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-medium mb-2">Real-time Analysis Guide:</h3>
+                  
+                  {/* Enhanced Overlay System */}
+                  <VideoOverlayContainer
+                    videoRef={{ current: document.querySelector('video') as HTMLVideoElement }}
+                    poses={state.poses}
+                    phases={state.result?.enhancedPhases || []}
+                    currentTime={state.videoCurrentTime}
+                    isPlaying={state.isVideoPlaying}
+                    duration={state.videoDuration}
+                  />
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg mt-4">
+                  <h3 className="font-medium mb-2">Enhanced Analysis Features:</h3>
                   <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Green dots show body position tracking</li>
-                    <li>Blue lines indicate body alignment</li>
-                    <li>Watch for phase-specific feedback as the video plays</li>
-                    <li>Metrics update based on your position in the swing</li>
+                    <li>Real-time stick figure overlay with pose detection</li>
+                    <li>Swing plane visualization and club path tracking</li>
+                    <li>Phase-specific markers and recommendations</li>
+                    <li>Live metrics and weight transfer indicators</li>
+                    <li>Interactive overlay controls for customization</li>
                   </ul>
                 </div>
               </div>
@@ -935,26 +987,6 @@ export default function UploadPage() {
         {state.activeTab === 'video-analysis' && state.result && (
           <div className="mb-10">
             <h2 className="text-xl font-semibold mb-4">Enhanced Video Analysis with Phase Detection</h2>
-            {(() => {
-              const posesToUse = state.poses || state.result?.landmarks || (state.result as any)?.poses || [];
-              const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
-              const enhancedPhases = state.result?.enhancedPhases || [];
-              console.log('Rendering EnhancedVideoAnalysisPlayer with:', { 
-                videoUrl: videoUrlToUse, 
-                posesCount: posesToUse.length, 
-                result: !!state.result, 
-                phases: state.result?.phases?.length || 0,
-                enhancedPhases: enhancedPhases.length,
-                metrics: !!state.result?.metrics,
-                usingResultPoses: !state.poses && !!state.result?.landmarks,
-                usingResultPosesProperty: !!(state.result as any)?.poses,
-                statePoses: state.poses?.length || 0,
-                resultLandmarks: state.result?.landmarks?.length || 0,
-                resultPoses: (state.result as any)?.poses?.length || 0,
-                usingResultVideoUrl: !videoUrl && !!(state.result as any)?.videoUrl
-              });
-              return null;
-            })()}
             {(() => {
               const videoUrlToUse = videoUrl || (state.result as any)?.videoUrl;
               if (!videoUrlToUse) {
@@ -968,23 +1000,44 @@ export default function UploadPage() {
                 );
               }
               return (
-                <EnhancedVideoAnalysisPlayer
-                  videoUrl={videoUrlToUse}
-                  poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
-                  metrics={state.result.metrics || {}}
-                  phases={state.result?.enhancedPhases || []}
-                  className="mb-6"
-                />
+                <div className="relative w-full max-w-4xl mx-auto">
+                  <video 
+                    ref={(video) => {
+                      if (video) {
+                        video.addEventListener('timeupdate', handleVideoTimeUpdate);
+                        video.addEventListener('play', handleVideoPlay);
+                        video.addEventListener('pause', handleVideoPause);
+                        video.addEventListener('loadedmetadata', handleVideoLoadedMetadata);
+                      }
+                    }}
+                    src={videoUrlToUse} 
+                    controls 
+                    className="w-full rounded-lg bg-black" 
+                    playsInline
+                  />
+                  
+                  {/* Enhanced Overlay System */}
+                  <VideoOverlayContainer
+                    videoRef={{ current: document.querySelector('video') as HTMLVideoElement }}
+                    poses={state.poses || state.result?.landmarks || (state.result as any)?.poses || []}
+                    phases={state.result?.enhancedPhases || []}
+                    currentTime={state.videoCurrentTime}
+                    isPlaying={state.isVideoPlaying}
+                    duration={state.videoDuration}
+                  />
+                </div>
               );
             })()}
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="font-medium mb-2">Video Analysis Features:</h3>
+                <div className="bg-green-50 p-4 rounded-lg mt-4">
+                  <h3 className="font-medium mb-2">Advanced Video Analysis Features:</h3>
                   <ul className="list-disc list-inside text-sm space-y-1">
-                    <li>Green dots and lines show pose detection and body connections</li>
-                    <li>Red dashed line indicates your swing plane angle</li>
-                    <li>Real-time metrics overlay shows key swing data</li>
-                    <li>Use controls to play/pause and scrub through the video</li>
-                    <li>Toggle overlays on/off to see clean video or analysis</li>
+                    <li>Interactive stick figure overlay with real-time pose tracking</li>
+                    <li>Swing plane visualization with angle measurements</li>
+                    <li>Phase-specific markers with grades and recommendations</li>
+                    <li>Club path tracking and impact zone visualization</li>
+                    <li>Weight transfer and spine angle indicators</li>
+                    <li>Customizable overlay controls and playback speed</li>
+                    <li>Timeline visualization with phase progress bars</li>
                   </ul>
                 </div>
               </div>

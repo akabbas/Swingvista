@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MediaPipePoseDetector, type PoseResult } from '@/lib/mediapipe';
 import { trackEvent } from '@/lib/analytics';
+import CameraOverlayContainer from '@/components/ui/CameraOverlayContainer';
+import { EnhancedSwingPhaseDetector, type EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
 // import { SwingPhase } from '@/lib/swing-phases';
 // import { calculateSwingMetrics } from '@/lib/golf-metrics';
 
@@ -21,6 +23,8 @@ export default function CameraPage() {
   const [poseHistory, setPoseHistory] = useState<PoseResult[]>([]);
   const [isSwinging, setIsSwinging] = useState(false);
   const [swingStartTime, setSwingStartTime] = useState<number | null>(null);
+  const [enhancedPhases, setEnhancedPhases] = useState<EnhancedSwingPhase[]>([]);
+  const [currentTime, setCurrentTime] = useState(0);
 
   // Simple moving FPS calculator
   const fpsSamples = useRef<number[]>([]);
@@ -182,205 +186,59 @@ export default function CameraPage() {
     }
   }, [isSwinging]);
 
-  const drawPose = useCallback((pose: PoseResult | null) => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Ensure canvas matches video dimensions exactly
-    const videoWidth = video.videoWidth || video.clientWidth;
-    const videoHeight = video.videoHeight || video.clientHeight;
-    
-    if (videoWidth && videoHeight) {
-      if (canvas.width !== videoWidth || canvas.height !== videoHeight) {
-        canvas.width = videoWidth;
-        canvas.height = videoHeight;
-        console.log('Canvas resized to match video:', canvas.width, 'x', canvas.height);
-      }
+  // Update current time for overlays
+  const updateCurrentTime = useCallback(() => {
+    if (isSwinging && swingStartTime) {
+      setCurrentTime(Date.now() - swingStartTime);
     } else {
-      console.log('Video dimensions not available yet:', { 
-        videoWidth, 
-        videoHeight, 
-        actualVideoWidth: video.videoWidth, 
-        actualVideoHeight: video.videoHeight, 
-        clientWidth: video.clientWidth, 
-        clientHeight: video.clientHeight 
-      });
+      setCurrentTime(0);
     }
+  }, [isSwinging, swingStartTime]);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Debug: Draw a test circle to verify canvas is working
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, 30, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-    ctx.fill();
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText('CANVAS WORKING!', 10, 40);
-    ctx.fillText(`Size: ${canvas.width}x${canvas.height}`, 10, 70);
-    
-    // Debug logging
-    console.log('Drawing pose:', pose ? 'pose detected' : 'no pose');
-    if (pose && pose.landmarks) {
-      console.log('Landmarks count:', pose.landmarks.length);
-      console.log('First few landmarks:', pose.landmarks.slice(0, 3));
+  // Generate enhanced phases from pose history
+  const generateEnhancedPhases = useCallback(() => {
+    if (poseHistory.length < 10) return;
+
+    try {
+      const phaseDetector = new EnhancedSwingPhaseDetector();
+      const landmarks = poseHistory.map(pose => pose.landmarks || []);
+      const timestamps = poseHistory.map(pose => pose.timestamp || 0);
+      
+      // Create a simple trajectory from wrist positions
+      const trajectory = {
+        rightWrist: poseHistory.map(pose => ({
+          x: pose.landmarks?.[16]?.x || 0,
+          y: pose.landmarks?.[16]?.y || 0,
+          z: pose.landmarks?.[16]?.z || 0,
+          timestamp: pose.timestamp || 0,
+          frame: poseHistory.indexOf(pose)
+        })),
+        leftWrist: poseHistory.map(pose => ({
+          x: pose.landmarks?.[15]?.x || 0,
+          y: pose.landmarks?.[15]?.y || 0,
+          z: pose.landmarks?.[15]?.z || 0,
+          timestamp: pose.timestamp || 0,
+          frame: poseHistory.indexOf(pose)
+        })),
+        clubhead: [],
+        rightShoulder: [],
+        leftShoulder: [],
+        rightHip: [],
+        leftHip: []
+      };
+
+      const phases = phaseDetector.detectPhases(landmarks, trajectory, timestamps);
+      setEnhancedPhases(phases);
+    } catch (error) {
+      console.error('Error generating enhanced phases:', error);
     }
-    
-    if (!pose || !pose.landmarks) {
-      console.log('No pose or landmarks, drawing test stick figure');
-      
-      // Draw a simple test stick figure
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      
-      // Head
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - 60, 15, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
-      ctx.fill();
-      
-      // Body
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY - 45);
-      ctx.lineTo(centerX, centerY + 30);
-      ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-      
-      // Arms
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY - 30);
-      ctx.lineTo(centerX - 30, centerY);
-      ctx.lineTo(centerX - 20, centerY + 10);
-      ctx.moveTo(centerX, centerY - 30);
-      ctx.lineTo(centerX + 30, centerY);
-      ctx.lineTo(centerX + 20, centerY + 10);
-      ctx.stroke();
-      
-      // Legs
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY + 30);
-      ctx.lineTo(centerX - 20, centerY + 60);
-      ctx.moveTo(centerX, centerY + 30);
-      ctx.lineTo(centerX + 20, centerY + 60);
-      ctx.stroke();
-      
-      return;
-    }
+  }, [poseHistory]);
 
-    // Analyze swing phase
-    analyzeSwingPhase(pose);
-    addPoseToHistory(pose);
-
-    const points = pose.landmarks;
-    
-    // Draw stick figure with enhanced visibility
-    const connect = (a: number, b: number, color = 'rgba(0, 255, 0, 0.8)', width = 3) => {
-      const pa = points[a];
-      const pb = points[b];
-      if (!pa || !pb || (pa.visibility && pa.visibility < 0.5) || (pb.visibility && pb.visibility < 0.5)) return;
-      
-      ctx.beginPath();
-      ctx.moveTo(pa.x * canvas.width, pa.y * canvas.height);
-      ctx.lineTo(pb.x * canvas.width, pb.y * canvas.height);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.stroke();
-    };
-
-    // Draw joints with different colors based on importance
-    const drawJoint = (index: number, color = 'rgba(0, 255, 0, 0.9)', size = 4) => {
-      const p = points[index];
-      if (!p || (p.visibility && p.visibility < 0.5)) return;
-      
-      const x = p.x * canvas.width;
-      const y = p.y * canvas.height;
-      
-      // Outer glow
-      ctx.beginPath();
-      ctx.arc(x, y, size + 2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fill();
-      
-      // Main joint
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-    };
-
-    // Draw body skeleton
-    // Head and neck
-    drawJoint(0, 'rgba(255, 100, 100, 0.9)', 5); // Nose
-    connect(0, 1, 'rgba(255, 100, 100, 0.8)', 2); // Nose to left eye
-    connect(0, 2, 'rgba(255, 100, 100, 0.8)', 2); // Nose to right eye
-    connect(1, 2, 'rgba(255, 100, 100, 0.8)', 2); // Eyes
-    connect(1, 3, 'rgba(255, 100, 100, 0.8)', 2); // Left eye to ear
-    connect(2, 4, 'rgba(255, 100, 100, 0.8)', 2); // Right eye to ear
-
-    // Shoulders and arms
-    drawJoint(11, 'rgba(0, 200, 255, 0.9)', 6); // Left shoulder
-    drawJoint(12, 'rgba(0, 200, 255, 0.9)', 6); // Right shoulder
-    connect(11, 12, 'rgba(0, 200, 255, 0.8)', 4); // Shoulders
-    
-    // Arms
-    connect(11, 13, 'rgba(0, 200, 255, 0.8)', 3); // Left shoulder to elbow
-    connect(13, 15, 'rgba(0, 200, 255, 0.8)', 3); // Left elbow to wrist
-    connect(12, 14, 'rgba(0, 200, 255, 0.8)', 3); // Right shoulder to elbow
-    connect(14, 16, 'rgba(0, 200, 255, 0.8)', 3); // Right elbow to wrist
-    
-    // Hands
-    drawJoint(15, 'rgba(255, 255, 0, 0.9)', 4); // Left wrist
-    drawJoint(16, 'rgba(255, 255, 0, 0.9)', 4); // Right wrist
-
-    // Torso
-    drawJoint(11, 'rgba(0, 200, 255, 0.9)', 6); // Left shoulder
-    drawJoint(12, 'rgba(0, 200, 255, 0.9)', 6); // Right shoulder
-    drawJoint(23, 'rgba(255, 150, 0, 0.9)', 6); // Left hip
-    drawJoint(24, 'rgba(255, 150, 0, 0.9)', 6); // Right hip
-    
-    // Torso connections
-    connect(11, 23, 'rgba(0, 200, 255, 0.8)', 4); // Left shoulder to hip
-    connect(12, 24, 'rgba(0, 200, 255, 0.8)', 4); // Right shoulder to hip
-    connect(23, 24, 'rgba(255, 150, 0, 0.8)', 4); // Hips
-
-    // Legs
-    drawJoint(25, 'rgba(255, 150, 0, 0.9)', 5); // Left knee
-    drawJoint(26, 'rgba(255, 150, 0, 0.9)', 5); // Right knee
-    drawJoint(27, 'rgba(255, 150, 0, 0.9)', 4); // Left ankle
-    drawJoint(28, 'rgba(255, 150, 0, 0.9)', 4); // Right ankle
-    
-    connect(23, 25, 'rgba(255, 150, 0, 0.8)', 3); // Left hip to knee
-    connect(25, 27, 'rgba(255, 150, 0, 0.8)', 3); // Left knee to ankle
-    connect(24, 26, 'rgba(255, 150, 0, 0.8)', 3); // Right hip to knee
-    connect(26, 28, 'rgba(255, 150, 0, 0.8)', 3); // Right knee to ankle
-
-    // Draw swing plane line if swinging
-    if (isSwinging && points[11] && points[12] && points[23] && points[24]) {
-      const leftShoulder = points[11];
-      const rightShoulder = points[12];
-      const leftHip = points[23];
-      const rightHip = points[24];
-      
-      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-      const hipCenterX = (leftHip.x + rightHip.x) / 2;
-      const hipCenterY = (leftHip.y + rightHip.y) / 2;
-      
-      // Draw swing plane line
-      ctx.beginPath();
-      ctx.moveTo(shoulderCenterX * canvas.width, shoulderCenterY * canvas.height);
-      ctx.lineTo(hipCenterX * canvas.width, hipCenterY * canvas.height);
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  }, [analyzeSwingPhase, addPoseToHistory, isSwinging]);
+  // Update current time and generate phases
+  useEffect(() => {
+    updateCurrentTime();
+    generateEnhancedPhases();
+  }, [updateCurrentTime, generateEnhancedPhases]);
 
   const stopCamera = useCallback(() => {
     console.log('Stopping camera...');
@@ -430,15 +288,9 @@ export default function CameraPage() {
       // Wait for video metadata to load before starting detection
       video.addEventListener('loadedmetadata', () => {
         console.log('Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
-        // Test canvas after video is ready
-        drawPose(null); // This should draw the test stick figure
       });
       
       await video.play();
-      
-      // Test canvas immediately as fallback
-      console.log('Testing canvas immediately...');
-      drawPose(null); // This should draw the test stick figure
 
       const detector = MediaPipePoseDetector.getInstance();
       console.log('Initializing MediaPipe detector...');
@@ -482,7 +334,11 @@ export default function CameraPage() {
               console.log('No pose or landmarks detected');
             }
             
-            drawPose(pose);
+            // Analyze swing phase and add to history
+            if (pose) {
+              analyzeSwingPhase(pose);
+              addPoseToHistory(pose);
+            }
             
             const t1 = performance.now();
             const instantFps = 1000 / Math.max(1, (t1 - t0));
@@ -504,7 +360,7 @@ export default function CameraPage() {
       console.error('Camera start failed', err);
       stopCamera();
     }
-  }, [drawPose, isRunning, stopCamera, updateFps]);
+  }, [isRunning, stopCamera, updateFps, analyzeSwingPhase, addPoseToHistory]);
 
   // Handle canvas resizing when video dimensions change
   useEffect(() => {
@@ -521,8 +377,6 @@ export default function CameraPage() {
         canvas.width = videoWidth;
         canvas.height = videoHeight;
         console.log('Canvas resized via observer:', canvas.width, 'x', canvas.height);
-        // Redraw the test figure
-        drawPose(null);
       }
     };
     
@@ -538,7 +392,7 @@ export default function CameraPage() {
       video.removeEventListener('loadedmetadata', resizeCanvas);
       clearInterval(interval);
     };
-  }, [drawPose]);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -559,30 +413,17 @@ export default function CameraPage() {
         <div className="bg-gray-50 rounded-2xl p-6 mb-8">
           <div className="relative w-full max-w-3xl mx-auto">
             <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline muted />
-            <canvas 
-              ref={canvasRef} 
-              className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" 
-              style={{ imageRendering: 'pixelated' }}
+            
+            {/* Enhanced Overlay System */}
+            <CameraOverlayContainer
+              videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+              poses={poseHistory}
+              phases={enhancedPhases}
+              currentTime={currentTime}
+              isSwinging={isSwinging}
+              swingPhase={currentPhase}
+              liveFeedback={liveFeedback}
             />
-            
-            {/* Live feedback overlay */}
-            <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white p-3 rounded-lg max-w-xs">
-              <div className="text-sm font-semibold mb-1">Swing Phase: {currentPhase}</div>
-              <div className="text-xs text-gray-300">{liveFeedback}</div>
-            </div>
-            
-            {/* Swing status indicator */}
-            <div className="absolute top-4 right-4">
-              {isSwinging ? (
-                <div className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
-                  SWINGING
-                </div>
-              ) : (
-                <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                  READY
-                </div>
-              )}
-            </div>
           </div>
           
           <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600">
