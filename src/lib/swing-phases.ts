@@ -113,7 +113,6 @@ export class SwingPhaseDetector {
     // Look for first significant movement of right wrist (club takeaway)
     for (let i = 1; i < Math.min(30, rightWrist.length); i++) {
       const velocity = this.calculateVelocity(rightWrist[i - 1], rightWrist[i]);
-      const timeDiff = timestamps[i] - timestamps[0];
       
       // Check for movement in any direction (back, up, or away from body)
       const dx = rightWrist[i].x - rightWrist[0].x;
@@ -130,7 +129,7 @@ export class SwingPhaseDetector {
     return Math.min(10, landmarks.length - 1);
   }
 
-  private detectBackswingTop(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): number {
+  private detectBackswingTop(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, _timestamps: number[]): number {
     console.log('⏰ PHASE TIMING DEBUG: Detecting backswing top...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3) return Math.min(15, landmarks.length - 1);
@@ -165,7 +164,7 @@ export class SwingPhaseDetector {
     return Math.max(this.config.minPhaseDuration, finalFrame);
   }
 
-  private detectDownswingStart(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[], backswingTop: number): number {
+  private detectDownswingStart(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, _timestamps: number[], backswingTop: number): number {
     console.log('Detecting downswing start...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3 || backswingTop >= rightWrist.length - 1) return backswingTop + 1;
@@ -186,7 +185,7 @@ export class SwingPhaseDetector {
     return Math.min(backswingTop + 2, landmarks.length - 1);
   }
 
-  private detectImpact(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): number {
+  private detectImpact(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, _timestamps: number[]): number {
     console.log('Detecting impact...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3) return Math.min(20, landmarks.length - 1);
@@ -225,7 +224,7 @@ export class SwingPhaseDetector {
     return Math.max(this.config.minPhaseDuration, finalFrame);
   }
 
-  private detectFollowThroughStart(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[], impactFrame: number): number {
+  private detectFollowThroughStart(landmarks: PoseLandmark[][], trajectory: SwingTrajectory, _timestamps: number[], impactFrame: number): number {
     console.log('Detecting follow-through start...');
     const rightWrist = trajectory.rightWrist;
     if (rightWrist.length < 3 || impactFrame >= rightWrist.length - 1) return Math.min(impactFrame + 2, landmarks.length - 1);
@@ -273,7 +272,6 @@ export class SwingPhaseDetector {
   private calculatePhaseMetrics(landmarks: PoseLandmark[][], startFrame: number, endFrame: number, midFrame: number) {
     const midLandmarks = landmarks[midFrame] || [];
     const startLandmarks = landmarks[startFrame] || [];
-    const endLandmarks = landmarks[endFrame] || [];
     
     // Calculate club position (approximate from right wrist)
     const rightWrist = midLandmarks[16]; // Right wrist
@@ -540,7 +538,7 @@ export class SwingPhaseDetector {
     return smoothed;
   }
   
-  private addPhaseSpecificMetrics(phases: SwingPhase[], landmarks: PoseLandmark[][], trajectory: SwingTrajectory, timestamps: number[]): SwingPhase[] {
+  private addPhaseSpecificMetrics(phases: SwingPhase[], landmarks: PoseLandmark[][], trajectory: SwingTrajectory, _timestamps: number[]): SwingPhase[] {
     return phases.map(phase => {
       const enhancedPhase = { ...phase };
       
@@ -812,7 +810,7 @@ export class SwingPhaseDetector {
     console.log('⏰ PHASE TIMING DEBUG: Input phases:', { addressEnd, backswingTop, downswingStart, impact, followThroughStart });
     
     // Ensure phases are in correct order and have reasonable timing
-    let validatedAddressEnd = Math.max(1, Math.min(addressEnd, totalFrames - 1));
+    const validatedAddressEnd = Math.max(1, Math.min(addressEnd, totalFrames - 1));
     let validatedBackswingTop = Math.max(validatedAddressEnd + 1, Math.min(backswingTop, totalFrames - 1));
     let validatedDownswingStart = Math.max(validatedBackswingTop + 1, Math.min(downswingStart, totalFrames - 1));
     let validatedImpact = Math.max(validatedDownswingStart + 1, Math.min(impact, totalFrames - 1));

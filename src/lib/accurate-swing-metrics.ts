@@ -906,7 +906,7 @@ function calculateKneeFlexAtAddress(poses: PoseResult[]): number {
 }
 
 // Proper angle calculation function for golf swing rotation
-function calculateAngle(leftShoulder: any, rightShoulder: any, leftHip: any, rightHip: any): number {
+function _calculateAngle(leftShoulder: any, rightShoulder: any, leftHip: any, rightHip: any): number {
   console.log('🔍 ANGLE CALCULATION: Input landmarks:', {
     leftShoulder: { x: leftShoulder.x, y: leftShoulder.y, visibility: leftShoulder.visibility },
     rightShoulder: { x: rightShoulder.x, y: rightShoulder.y, visibility: rightShoulder.visibility },
@@ -965,7 +965,7 @@ function calculateAngle(leftShoulder: any, rightShoulder: any, leftHip: any, rig
   return angleDegrees;
 }
 
-function calculateAngleBetweenLines(
+function _calculateAngleBetweenLines(
   line1Start: { x: number; y: number },
   line1End: { x: number; y: number },
   line2Start: { x: number; y: number },

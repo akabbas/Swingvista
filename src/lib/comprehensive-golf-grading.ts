@@ -610,7 +610,7 @@ export class ComprehensiveGolfGradingSystem {
     };
   }
 
-  private gradeConsistency(poses: PoseResult[], trajectory: any, metrics: any): CategoryGrade {
+  private gradeConsistency(poses: PoseResult[], _trajectory: any, _metrics: any): CategoryGrade {
     // Calculate consistency from pose smoothness and repeatability
     const smoothness = this.calculateSmoothness(poses);
     const repeatability = this.calculateRepeatability(poses);
@@ -863,7 +863,7 @@ export class ComprehensiveGolfGradingSystem {
   /**
    * Generate a failing grade with validation error details
    */
-  private generateFailingGrade(reason: string, errors: string[]): ComprehensiveGolfGrade {
+  private generateFailingGrade(reason: string, _errors: string[]): ComprehensiveGolfGrade {
     const failingGrade: ComprehensiveGolfGrade = {
       overall: {
         score: 40, // Failing score
