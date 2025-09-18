@@ -29,6 +29,12 @@ export default function Header() {
           >
             📤 Upload
           </Link>
+          <Link 
+            href="/test-enhanced-analysis" 
+            className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
+          >
+            🔬 Analysis Test
+          </Link>
         </nav>
       </div>
     </header>

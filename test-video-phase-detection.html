@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Phase Detection Test - Real Video Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .video-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .video-container {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover { background: #0056b3; }
+        .button:disabled { background: #ccc; cursor: not-allowed; }
+        .button.success { background: #28a745; }
+        .button.warning { background: #ffc107; color: #000; }
+        .button.danger { background: #dc3545; }
+        
+        .analysis-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .phase-display {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .phase-address { background-color: #e3f2fd; color: #1976d2; }
+        .phase-backswing { background-color: #e8f5e8; color: #2e7d32; }
+        .phase-top { background-color: #fff3e0; color: #f57c00; }
+        .phase-downswing { background-color: #ffebee; color: #d32f2f; }
+        .phase-impact { background-color: #fce4ec; color: #c2185b; }
+        .phase-follow-through { background-color: #f3e5f5; color: #7b1fa2; }
+        
+        .weight-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .weight-bar {
+            flex: 1;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+        }
+        .weight-left {
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+        .weight-right {
+            background-color: #28a745;
+            transition: width 0.3s ease;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .debug-output {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+            margin: 10px 0;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏌️‍♂️ Video Phase Detection Test - Real Video Analysis</h1>
+    <p>This page tests the phase detection and weight distribution fixes with actual golf swing videos.</p>
+
+    <div class="container">
+        <h2>📹 Video Selection</h2>
+        <div class="controls">
+            <button class="button" onclick="loadVideo('tiger-woods-swing.mp4')">Tiger Woods Swing</button>
+            <button class="button" onclick="loadVideo('tiger-woods-swing-slow.mp4')">Tiger Woods (Slow)</button>
+            <button class="button" onclick="loadVideo('ludvig_aberg_driver.mp4')">Ludvig Aberg Driver</button>
+            <button class="button" onclick="loadVideo('max_homa_iron.mp4')">Max Homa Iron</button>
+            <button class="button" onclick="loadVideo('tiger-woods-swing-original.mp4')">Tiger Woods Original</button>
+        </div>
+        
+        <div class="video-section">
+            <div>
+                <h3>Video Player</h3>
+                <div class="video-container">
+                    <video id="videoPlayer" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <canvas id="overlayCanvas" class="canvas-overlay"></canvas>
+                </div>
+                <div class="controls">
+                    <button class="button" id="playBtn" onclick="togglePlay()">Play</button>
+                    <button class="button" id="analyzeBtn" onclick="startAnalysis()" disabled>Start Analysis</button>
+                    <button class="button" id="stopBtn" onclick="stopAnalysis()" disabled>Stop Analysis</button>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div>
+                <h3>Real-time Analysis</h3>
+                <div class="analysis-panel">
+                    <div class="phase-display phase-address" id="currentPhase">READY</div>
+                    
+                    <div class="weight-display">
+                        <span>Left: <span id="leftWeight">50</span>%</span>
+                        <div class="weight-bar">
+                            <div class="weight-left" id="leftBar" style="width: 50%"></div>
+                            <div class="weight-right" id="rightBar" style="width: 50%"></div>
+                        </div>
+                        <span>Right: <span id="rightWeight">50</span>%</span>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #666;">
+                        Total: <span id="totalWeight">100</span>%
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value" id="frameCount">0</div>
+                            <div class="metric-label">Frame</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="fps">0</div>
+                            <div class="metric-label">FPS</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="confidence">0%</div>
+                            <div class="metric-label">Confidence</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="transitions">0</div>
+                            <div class="metric-label">Transitions</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Debug Information</h2>
+        <div class="debug-output" id="debugOutput">Click "Start Analysis" to begin real-time phase detection...</div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Analysis Results</h2>
+        <div id="analysisResults">
+            <p>Analysis will appear here after processing...</p>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let isAnalyzing = false;
+        let frameCount = 0;
+        let startTime = 0;
+        let lastFrameTime = 0;
+        let phaseHistory = [];
+        let weightHistory = [];
+        let debugOutput = '';
+
+        // Mock MediaPipe pose detection (replace with real implementation)
+        class MockMediaPipeDetector {
+            async detectPoses(canvas) {
+                // Simulate pose detection with realistic data
+                const poses = [];
+                const currentTime = Date.now();
+                const videoTime = video.currentTime;
+                
+                // Generate mock landmarks based on video time
+                const landmarks = this.generateMockLandmarks(videoTime);
+                
+                poses.push({
+                    landmarks: landmarks,
+                    timestamp: currentTime
+                });
+                
+                return poses;
+            }
+            
+            generateMockLandmarks(videoTime) {
+                // Generate realistic landmarks based on video time
+                const landmarks = new Array(33).fill(null);
+                
+                // Simulate swing phases based on video time
+                const phase = this.determinePhaseFromTime(videoTime);
+                
+                // Generate landmarks for different phases
+                switch(phase) {
+                    case 'address':
+                        return this.generateAddressLandmarks();
+                    case 'backswing':
+                        return this.generateBackswingLandmarks(videoTime);
+                    case 'top':
+                        return this.generateTopLandmarks();
+                    case 'downswing':
+                        return this.generateDownswingLandmarks(videoTime);
+                    case 'impact':
+                        return this.generateImpactLandmarks();
+                    case 'follow-through':
+                        return this.generateFollowThroughLandmarks(videoTime);
+                    default:
+                        return this.generateAddressLandmarks();
+                }
+            }
+            
+            determinePhaseFromTime(videoTime) {
+                const duration = video.duration || 5; // Assume 5 second video
+                const progress = videoTime / duration;
+                
+                if (progress < 0.1) return 'address';
+                if (progress < 0.3) return 'backswing';
+                if (progress < 0.4) return 'top';
+                if (progress < 0.7) return 'downswing';
+                if (progress < 0.8) return 'impact';
+                return 'follow-through';
+            }
+            
+            generateAddressLandmarks() {
+                const landmarks = new Array(33).fill(null);
+                
+                // Head
+                landmarks[0] = { x: 0.5, y: 0.1, z: 0.5, visibility: 0.9 }; // nose
+                
+                // Shoulders
+                landmarks[11] = { x: 0.3, y: 0.2, z: 0.5, visibility: 0.8 }; // left_shoulder
+                landmarks[12] = { x: 0.7, y: 0.2, z: 0.5, visibility: 0.8 }; // right_shoulder
+                
+                // Wrists
+                landmarks[15] = { x: 0.2, y: 0.4, z: 0.5, visibility: 0.7 }; // left_wrist
+                landmarks[16] = { x: 0.8, y: 0.4, z: 0.5, visibility: 0.7 }; // right_wrist
+                
+                // Hips
+                landmarks[23] = { x: 0.3, y: 0.6, z: 0.5, visibility: 0.8 }; // left_hip
+                landmarks[24] = { x: 0.7, y: 0.6, z: 0.5, visibility: 0.8 }; // right_hip
+                
+                // Ankles
+                landmarks[27] = { x: 0.2, y: 0.9, z: 0.5, visibility: 0.9 }; // left_ankle
+                landmarks[28] = { x: 0.8, y: 0.9, z: 0.5, visibility: 0.9 }; // right_ankle
+                
+                // Feet
+                landmarks[29] = { x: 0.1, y: 0.95, z: 0.5, visibility: 0.8 }; // left_heel
+                landmarks[30] = { x: 0.9, y: 0.95, z: 0.5, visibility: 0.8 }; // right_heel
+                landmarks[31] = { x: 0.15, y: 0.9, z: 0.5, visibility: 0.7 }; // left_foot_index
+                landmarks[32] = { x: 0.85, y: 0.9, z: 0.5, visibility: 0.7 }; // right_foot_index
+                
+                return landmarks;
+            }
+            
+            generateBackswingLandmarks(videoTime) {
+                const landmarks = this.generateAddressLandmarks();
+                const progress = (videoTime % 1) * 2; // 0-2 range
+                
+                // Move wrists up and back
+                landmarks[15].y = 0.4 - progress * 0.2; // left_wrist up
+                landmarks[16].y = 0.4 - progress * 0.2; // right_wrist up
+                landmarks[15].x = 0.2 - progress * 0.1; // left_wrist back
+                landmarks[16].x = 0.8 + progress * 0.1; // right_wrist back
+                
+                // Rotate shoulders
+                landmarks[11].x = 0.3 - progress * 0.1; // left_shoulder back
+                landmarks[12].x = 0.7 + progress * 0.1; // right_shoulder forward
+                
+                return landmarks;
+            }
+            
+            generateTopLandmarks() {
+                const landmarks = this.generateAddressLandmarks();
+                
+                // Maximum backswing position
+                landmarks[15].y = 0.2; // left_wrist high
+                landmarks[16].y = 0.2; // right_wrist high
+                landmarks[15].x = 0.1; // left_wrist back
+                landmarks[16].x = 0.9; // right_wrist forward
+                
+                // Maximum shoulder turn
+                landmarks[11].x = 0.2; // left_shoulder back
+                landmarks[12].x = 0.8; // right_shoulder forward
+                
+                return landmarks;
+            }
+            
+            generateDownswingLandmarks(videoTime) {
+                const landmarks = this.generateTopLandmarks();
+                const progress = (videoTime % 1) * 3; // 0-3 range
+                
+                // Move wrists down and forward
+                landmarks[15].y = 0.2 + progress * 0.2; // left_wrist down
+                landmarks[16].y = 0.2 + progress * 0.2; // right_wrist down
+                landmarks[15].x = 0.1 + progress * 0.2; // left_wrist forward
+                landmarks[16].x = 0.9 - progress * 0.2; // right_wrist forward
+                
+                return landmarks;
+            }
+            
+            generateImpactLandmarks() {
+                const landmarks = this.generateAddressLandmarks();
+                
+                // Impact position - wrists at ball level
+                landmarks[15].y = 0.5; // left_wrist at impact
+                landmarks[16].y = 0.5; // right_wrist at impact
+                landmarks[15].x = 0.4; // left_wrist at impact
+                landmarks[16].x = 0.6; // right_wrist at impact
+                
+                return landmarks;
+            }
+            
+            generateFollowThroughLandmarks(videoTime) {
+                const landmarks = this.generateAddressLandmarks();
+                const progress = (videoTime % 1) * 2; // 0-2 range
+                
+                // Follow through - wrists past impact
+                landmarks[15].y = 0.5 + progress * 0.1; // left_wrist up
+                landmarks[16].y = 0.5 + progress * 0.1; // right_wrist up
+                landmarks[15].x = 0.4 + progress * 0.3; // left_wrist forward
+                landmarks[16].x = 0.6 - progress * 0.3; // right_wrist back
+                
+                return landmarks;
+            }
+        }
+
+        // Enhanced Phase Detector (using our fixed implementation)
+        class EnhancedPhaseDetector {
+            constructor() {
+                this.phaseHistory = [];
+                this.currentPhase = 'address';
+                this.phaseStartTime = 0;
+                this.phaseStartFrame = 0;
+            }
+
+            calculateWeightDistribution(pose) {
+                const leftAnkle = pose.landmarks[27];
+                const rightAnkle = pose.landmarks[28];
+                const leftHeel = pose.landmarks[29];
+                const rightHeel = pose.landmarks[30];
+                const leftFootIndex = pose.landmarks[31];
+                const rightFootIndex = pose.landmarks[32];
+
+                const leftFoot = leftAnkle || leftHeel;
+                const rightFoot = rightAnkle || rightHeel;
+
+                if (!leftFoot || !rightFoot) {
+                    return { left: 50, right: 50, total: 100 };
+                }
+
+                const leftFootPressure = this.calculateFootPressure(leftFoot, leftFootIndex || leftFoot);
+                const rightFootPressure = this.calculateFootPressure(rightFoot, rightFootIndex || rightFoot);
+
+                const totalPressure = leftFootPressure + rightFootPressure;
+                
+                if (totalPressure === 0) {
+                    return { left: 50, right: 50, total: 100 };
+                }
+
+                const leftPercent = Math.round((leftFootPressure / totalPressure) * 100);
+                const rightPercent = 100 - leftPercent; // Ensure sum is exactly 100%
+
+                // Validate the result
+                const total = leftPercent + rightPercent;
+                if (total !== 100) {
+                    console.warn('⚠️ Weight distribution validation failed:', `${leftPercent}% + ${rightPercent}% = ${total}%`);
+                }
+
+                return {
+                    left: leftPercent,
+                    right: rightPercent,
+                    total: 100
+                };
+            }
+
+            calculateFootPressure(heel, footIndex) {
+                const heelPressure = 1.0 - Math.max(0, Math.min(1, heel.y));
+                const toePressure = 1.0 - Math.max(0, Math.min(1, footIndex.y));
+                return (heelPressure + toePressure) / 2;
+            }
+
+            calculateClubHeadPosition(pose) {
+                const rightWrist = pose.landmarks[16];
+                const leftWrist = pose.landmarks[15];
+
+                if (!rightWrist || !leftWrist) {
+                    return { x: 0.5, y: 0.5, z: 0.5 };
+                }
+
+                const clubX = (rightWrist.x + leftWrist.x) / 2;
+                const clubY = Math.min(rightWrist.y, leftWrist.y) + 0.1;
+                const clubZ = ((rightWrist.z || 0.5) + (leftWrist.z || 0.5)) / 2;
+
+                const dx = rightWrist.x - leftWrist.x;
+                const dy = rightWrist.y - leftWrist.y;
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                return { x: clubX, y: clubY, z: clubZ, angle: angle };
+            }
+
+            calculateBodyRotation(pose) {
+                const leftShoulder = pose.landmarks[11];
+                const rightShoulder = pose.landmarks[12];
+                const leftHip = pose.landmarks[23];
+                const rightHip = pose.landmarks[24];
+
+                if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+                    return { shoulder: 0, hip: 0 };
+                }
+
+                const shoulderAngle = this.calculateAngle(leftShoulder, rightShoulder);
+                const hipAngle = this.calculateAngle(leftHip, rightHip);
+
+                return { shoulder: shoulderAngle, hip: hipAngle };
+            }
+
+            calculateAngle(point1, point2) {
+                const dx = point2.x - point1.x;
+                const dy = point2.y - point1.y;
+                return Math.atan2(dy, dx) * (180 / Math.PI);
+            }
+
+            detectSwingPhase(poses, currentFrame, currentTime) {
+                const currentPose = poses[currentFrame];
+                if (!currentPose) {
+                    return this.createPhase('address', currentFrame, currentFrame, currentTime, currentTime, 0);
+                }
+
+                const clubPosition = this.calculateClubHeadPosition(currentPose);
+                const bodyRotation = this.calculateBodyRotation(currentPose);
+                const weightDistribution = this.calculateWeightDistribution(currentPose);
+                const swingVelocity = this.calculateSwingVelocity(poses, currentFrame);
+
+                let detectedPhase = 'address';
+
+                if (this.isAddressPhase(currentPose, weightDistribution)) {
+                    detectedPhase = 'address';
+                } else if (this.isBackswingPhase(currentPose, clubPosition, bodyRotation)) {
+                    detectedPhase = 'backswing';
+                } else if (this.isTopOfSwingPhase(currentPose, clubPosition, bodyRotation, weightDistribution)) {
+                    detectedPhase = 'top';
+                } else if (this.isDownswingPhase(currentPose, clubPosition, swingVelocity)) {
+                    detectedPhase = 'downswing';
+                } else if (this.isImpactPhase(currentPose, clubPosition, swingVelocity, weightDistribution)) {
+                    detectedPhase = 'impact';
+                } else if (this.isFollowThroughPhase(currentPose, clubPosition, bodyRotation)) {
+                    detectedPhase = 'follow-through';
+                }
+
+                this.updatePhase(detectedPhase, currentFrame, currentTime);
+
+                return this.createPhase(
+                    detectedPhase,
+                    this.phaseStartFrame,
+                    currentFrame,
+                    this.phaseStartTime,
+                    currentTime,
+                    this.calculatePhaseConfidence(currentPose, detectedPhase)
+                );
+            }
+
+            isAddressPhase(pose, weightDistribution) {
+                const isBalanced = Math.abs(weightDistribution.left - weightDistribution.right) < 20;
+                const clubPosition = this.calculateClubHeadPosition(pose);
+                const clubBehindBall = clubPosition.x < 0.5;
+                return isBalanced && clubBehindBall;
+            }
+
+            isBackswingPhase(pose, clubPosition, bodyRotation) {
+                const clubMovingUp = clubPosition.y < 0.6;
+                const shoulderTurnIncreasing = bodyRotation.shoulder > 20;
+                const clubMovingBack = clubPosition.x < 0.4;
+                return clubMovingUp && shoulderTurnIncreasing && clubMovingBack;
+            }
+
+            isTopOfSwingPhase(pose, clubPosition, bodyRotation, weightDistribution) {
+                const maxShoulderTurn = bodyRotation.shoulder > 80;
+                const clubParallel = Math.abs(clubPosition.angle - 90) < 15;
+                const weightTransferStarted = Math.abs(weightDistribution.left - weightDistribution.right) > 30;
+                return maxShoulderTurn && clubParallel && weightTransferStarted;
+            }
+
+            isDownswingPhase(pose, clubPosition, swingVelocity) {
+                const maxSpeed = swingVelocity > 0.8;
+                const clubMovingDown = clubPosition.y > 0.4;
+                const clubMovingForward = clubPosition.x > 0.3;
+                return maxSpeed && clubMovingDown && clubMovingForward;
+            }
+
+            isImpactPhase(pose, clubPosition, swingVelocity, weightDistribution) {
+                const maxSpeed = swingVelocity > 0.9;
+                const atImpactPosition = clubPosition.x > 0.4 && clubPosition.x < 0.6 && 
+                                       clubPosition.y > 0.3 && clubPosition.y < 0.7;
+                const weightTransferComplete = Math.abs(weightDistribution.left - weightDistribution.right) > 70;
+                return maxSpeed && atImpactPosition && weightTransferComplete;
+            }
+
+            isFollowThroughPhase(pose, clubPosition, bodyRotation) {
+                const clubPastImpact = clubPosition.x > 0.6;
+                const bodyContinuingRotation = bodyRotation.shoulder > 0;
+                const clubMovingUp = clubPosition.y < 0.7;
+                return clubPastImpact && bodyContinuingRotation && clubMovingUp;
+            }
+
+            calculateSwingVelocity(poses, currentFrame) {
+                if (currentFrame < 2) return 0;
+
+                const currentPose = poses[currentFrame];
+                const previousPose = poses[currentFrame - 1];
+                const twoFramesAgo = poses[currentFrame - 2];
+
+                if (!currentPose || !previousPose || !twoFramesAgo) return 0;
+
+                const currentClub = this.calculateClubHeadPosition(currentPose);
+                const previousClub = this.calculateClubHeadPosition(previousPose);
+                const twoFramesAgoClub = this.calculateClubHeadPosition(twoFramesAgo);
+
+                const dx1 = currentClub.x - previousClub.x;
+                const dy1 = currentClub.y - previousClub.y;
+                const velocity1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+
+                const dx2 = previousClub.x - twoFramesAgoClub.x;
+                const dy2 = previousClub.y - twoFramesAgoClub.y;
+                const velocity2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+                return (velocity1 + velocity2) / 2;
+            }
+
+            calculatePhaseConfidence(pose, phase) {
+                let confidence = 0.5;
+
+                const keyLandmarks = [11, 12, 15, 16, 23, 24, 27, 28];
+                const visibleLandmarks = keyLandmarks.filter(idx => 
+                    pose.landmarks[idx] && (pose.landmarks[idx].visibility || 1) > 0.5
+                );
+                confidence += (visibleLandmarks.length / keyLandmarks.length) * 0.3;
+
+                switch (phase) {
+                    case 'address':
+                        if (Math.abs(50 - 50) < 20) confidence += 0.2;
+                        break;
+                    case 'top':
+                        if (Math.abs(90) > 80) confidence += 0.2;
+                        break;
+                    case 'impact':
+                        if (Math.abs(50 - 50) > 70) confidence += 0.2;
+                        break;
+                }
+
+                return Math.min(1.0, confidence);
+            }
+
+            updatePhase(newPhase, currentFrame, currentTime) {
+                if (newPhase !== this.currentPhase) {
+                    this.phaseHistory.push({
+                        from: this.currentPhase,
+                        to: newPhase,
+                        frame: currentFrame,
+                        time: currentTime
+                    });
+
+                    console.log(`🔄 Phase transition: ${this.currentPhase} → ${newPhase} at frame ${currentFrame}, time ${currentTime}ms`);
+
+                    this.currentPhase = newPhase;
+                    this.phaseStartTime = currentTime;
+                    this.phaseStartFrame = currentFrame;
+                }
+            }
+
+            createPhase(name, startFrame, endFrame, startTime, endTime, confidence) {
+                return {
+                    name: name,
+                    startFrame,
+                    endFrame,
+                    startTime,
+                    endTime,
+                    duration: endTime - startTime,
+                    confidence
+                };
+            }
+
+            getPhaseHistory() {
+                return this.phaseHistory;
+            }
+
+            reset() {
+                this.phaseHistory = [];
+                this.currentPhase = 'address';
+                this.phaseStartTime = 0;
+                this.phaseStartFrame = 0;
+            }
+        }
+
+        // Initialize
+        let poseDetector = new MockMediaPipeDetector();
+        let phaseDetector = new EnhancedPhaseDetector();
+        let poses = [];
+
+        function loadVideo(videoName) {
+            video = document.getElementById('videoPlayer');
+            canvas = document.getElementById('overlayCanvas');
+            ctx = canvas.getContext('2d');
+            
+            video.src = `/fixtures/swings/${videoName}`;
+            video.load();
+            
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                debugOutput += `📹 Loaded video: ${videoName}\n`;
+                debugOutput += `   Duration: ${video.duration.toFixed(2)}s\n`;
+                debugOutput += `   Resolution: ${video.videoWidth}x${video.videoHeight}\n\n`;
+                updateDebugOutput();
+            });
+            
+            video.addEventListener('play', () => {
+                document.getElementById('analyzeBtn').disabled = false;
+            });
+        }
+
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+                document.getElementById('playBtn').textContent = 'Pause';
+            } else {
+                video.pause();
+                document.getElementById('playBtn').textContent = 'Play';
+            }
+        }
+
+        async function startAnalysis() {
+            if (!video || video.paused) {
+                alert('Please load and play a video first');
+                return;
+            }
+
+            isAnalyzing = true;
+            poses = [];
+            phaseDetector.reset();
+            frameCount = 0;
+            startTime = Date.now();
+            
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('playBtn').disabled = true;
+            
+            debugOutput += '🚀 Starting real-time analysis...\n';
+            updateDebugOutput();
+            
+            // Start analysis loop
+            analyzeFrame();
+        }
+
+        function stopAnalysis() {
+            isAnalyzing = false;
+            
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('playBtn').disabled = false;
+            
+            debugOutput += '⏹️ Analysis stopped\n';
+            updateDebugOutput();
+            
+            // Generate final results
+            generateAnalysisResults();
+        }
+
+        async function analyzeFrame() {
+            if (!isAnalyzing || video.paused) return;
+
+            const currentTime = Date.now();
+            const videoTime = video.currentTime;
+            
+            // Detect poses
+            const detectedPoses = await poseDetector.detectPoses(canvas);
+            
+            if (detectedPoses.length > 0) {
+                const pose = detectedPoses[0];
+                poses.push(pose);
+                
+                // Detect phase
+                const detectedPhase = phaseDetector.detectSwingPhase(poses, poses.length - 1, currentTime);
+                
+                // Calculate metrics
+                const weightDistribution = phaseDetector.calculateWeightDistribution(pose);
+                const clubPosition = phaseDetector.calculateClubHeadPosition(pose);
+                const bodyRotation = phaseDetector.calculateBodyRotation(pose);
+                
+                // Update UI
+                updatePhaseDisplay(detectedPhase.name);
+                updateWeightDisplay(weightDistribution);
+                updateMetrics(frameCount, currentTime - startTime, detectedPhase.confidence, phaseDetector.getPhaseHistory().length);
+                
+                // Draw pose landmarks
+                drawPoseLandmarks(pose);
+                
+                // Update debug output
+                debugOutput += `Frame ${frameCount}: ${detectedPhase.name} | Weight: L:${weightDistribution.left}% R:${weightDistribution.right}% | Club: X:${clubPosition.x.toFixed(2)} Y:${clubPosition.y.toFixed(2)}\n`;
+                
+                frameCount++;
+            }
+            
+            // Update progress
+            const progress = (videoTime / video.duration) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            
+            // Continue analysis
+            if (isAnalyzing && !video.paused) {
+                requestAnimationFrame(analyzeFrame);
+            }
+            
+            updateDebugOutput();
+        }
+
+        function updatePhaseDisplay(phase) {
+            const phaseElement = document.getElementById('currentPhase');
+            phaseElement.textContent = phase.toUpperCase();
+            phaseElement.className = `phase-display phase-${phase}`;
+        }
+
+        function updateWeightDisplay(weightDistribution) {
+            document.getElementById('leftWeight').textContent = weightDistribution.left;
+            document.getElementById('rightWeight').textContent = weightDistribution.right;
+            document.getElementById('totalWeight').textContent = weightDistribution.total;
+            document.getElementById('leftBar').style.width = weightDistribution.left + '%';
+            document.getElementById('rightBar').style.width = weightDistribution.right + '%';
+        }
+
+        function updateMetrics(frame, time, confidence, transitions) {
+            document.getElementById('frameCount').textContent = frame;
+            document.getElementById('fps').textContent = frame > 0 ? Math.round(frame / (time / 1000)) : 0;
+            document.getElementById('confidence').textContent = Math.round(confidence * 100) + '%';
+            document.getElementById('transitions').textContent = transitions;
+        }
+
+        function drawPoseLandmarks(pose) {
+            if (!ctx) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00FF00';
+            
+            pose.landmarks.forEach((landmark, index) => {
+                if (landmark && landmark.visibility && landmark.visibility > 0.5) {
+                    const x = landmark.x * canvas.width;
+                    const y = landmark.y * canvas.height;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function updateDebugOutput() {
+            document.getElementById('debugOutput').textContent = debugOutput;
+            document.getElementById('debugOutput').scrollTop = document.getElementById('debugOutput').scrollHeight;
+        }
+
+        function generateAnalysisResults() {
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            let html = '<h3>📊 Analysis Results</h3>';
+            
+            // Weight distribution validation
+            const weightValidation = validateWeightDistribution();
+            html += `<div class="${weightValidation.isValid ? 'success-message' : 'error-message'}">`;
+            html += `Weight Distribution: ${weightValidation.isValid ? '✅ VALID' : '❌ INVALID'}`;
+            if (weightValidation.error) {
+                html += `<br>Error: ${weightValidation.error}`;
+            }
+            html += '</div>';
+            
+            // Phase detection results
+            const phaseHistory = phaseDetector.getPhaseHistory();
+            html += '<h4>Phase Transitions:</h4>';
+            html += '<ul>';
+            phaseHistory.forEach(transition => {
+                html += `<li>${transition.from} → ${transition.to} (Frame ${transition.frame}, ${transition.time}ms)</li>`;
+            });
+            html += '</ul>';
+            
+            // Summary statistics
+            html += '<h4>Summary Statistics:</h4>';
+            html += `<p>Total Frames Analyzed: ${frameCount}</p>`;
+            html += `<p>Phase Transitions: ${phaseHistory.length}</p>`;
+            html += `<p>Analysis Duration: ${((Date.now() - startTime) / 1000).toFixed(2)}s</p>`;
+            html += `<p>Average FPS: ${frameCount > 0 ? Math.round(frameCount / ((Date.now() - startTime) / 1000)) : 0}</p>`;
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function validateWeightDistribution() {
+            let isValid = true;
+            let error = null;
+            
+            // Check if any weight distributions don't sum to 100%
+            for (let i = 0; i < poses.length; i++) {
+                const pose = poses[i];
+                const weightDist = phaseDetector.calculateWeightDistribution(pose);
+                if (weightDist.left + weightDist.right !== 100) {
+                    isValid = false;
+                    error = `Frame ${i}: Weight distribution sums to ${weightDist.left + weightDist.right}% instead of 100%`;
+                    break;
+                }
+            }
+            
+            return { isValid, error };
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            debugOutput = '🎯 Video Phase Detection Test Ready\n';
+            debugOutput += '================================\n\n';
+            debugOutput += 'Instructions:\n';
+            debugOutput += '1. Select a video from the buttons above\n';
+            debugOutput += '2. Play the video\n';
+            debugOutput += '3. Click "Start Analysis" to begin real-time phase detection\n';
+            debugOutput += '4. Watch the real-time analysis in the right panel\n';
+            debugOutput += '5. Check debug output for detailed information\n\n';
+            updateDebugOutput();
+        });
+    </script>
+</body>
+</html>
+

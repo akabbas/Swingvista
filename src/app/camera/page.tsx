@@ -5,6 +5,7 @@ import { MediaPipePoseDetector, type PoseResult } from '@/lib/mediapipe';
 import { trackEvent } from '@/lib/analytics';
 import CameraOverlayContainer from '@/components/ui/CameraOverlayContainer';
 import { EnhancedSwingPhaseDetector, type EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
+import { EnhancedPhaseDetector, WeightDistribution, ClubPosition } from '@/lib/enhanced-phase-detector';
 // import { SwingPhase } from '@/lib/swing-phases';
 // import { calculateSwingMetrics } from '@/lib/golf-metrics';
 
@@ -25,6 +26,11 @@ export default function CameraPage() {
   const [swingStartTime, setSwingStartTime] = useState<number | null>(null);
   const [enhancedPhases, setEnhancedPhases] = useState<EnhancedSwingPhase[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
+  const [weightDistribution, setWeightDistribution] = useState<WeightDistribution>({ left: 50, right: 50, total: 100 });
+  const [clubPosition, setClubPosition] = useState<ClubPosition>({ x: 0.5, y: 0.5 });
+  
+  // Enhanced phase detector instance
+  const phaseDetectorRef = useRef<EnhancedPhaseDetector | null>(null);
 
   // Simple moving FPS calculator
   const fpsSamples = useRef<number[]>([]);

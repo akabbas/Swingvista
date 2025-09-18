@@ -290,18 +290,34 @@ function calculateRotationAngle(right: any, left: any): number {
   return Math.atan2(dz, dx) * (180 / Math.PI);
 }
 
-function calculateWeightDistribution(pose: PoseResult): number {
+function calculateWeightDistribution(pose: PoseResult): { left: number; right: number } {
   const rightFoot = pose.landmarks[32];
   const leftFoot = pose.landmarks[31];
   const rightAnkle = pose.landmarks[28];
   const leftAnkle = pose.landmarks[27];
+  
+  if (!rightFoot || !leftFoot || !rightAnkle || !leftAnkle) {
+    return { left: 50, right: 50 };
+  }
   
   // Calculate weight distribution based on vertical pressure and foot position
   const rightPressure = (rightFoot.y - rightAnkle.y) / (rightFoot.visibility || 1);
   const leftPressure = (leftFoot.y - leftAnkle.y) / (leftFoot.visibility || 1);
   
   const totalPressure = rightPressure + leftPressure;
-  return (rightPressure / totalPressure) * 100;
+  
+  if (totalPressure === 0) {
+    return { left: 50, right: 50 };
+  }
+  
+  // Calculate percentages and ensure they sum to exactly 100%
+  const rightWeight = (rightPressure / totalPressure) * 100;
+  const leftWeight = 100 - rightWeight; // Ensure exact 100% total
+  
+  return { 
+    left: Math.max(0, Math.min(100, leftWeight)), 
+    right: Math.max(0, Math.min(100, rightWeight)) 
+  };
 }
 
 function calculateShaftAngle(trajectory: SwingTrajectory): number {

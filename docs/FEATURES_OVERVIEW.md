@@ -2,7 +2,62 @@
 
 ## 🎯 Core Capabilities
 
-SwingVista is a comprehensive golf swing analysis platform that provides professional-grade analysis using advanced AI and computer vision technologies.
+SwingVista is a comprehensive golf swing analysis platform that provides professional-grade analysis using advanced AI and computer vision technologies. The platform now includes advanced weight distribution analysis, dynamic swing feedback, and comprehensive debug tools for developers.
+
+## ⚖️ Advanced Weight Distribution Analysis
+
+### Camera-Angle Compensated Tracking
+- **Automatic Detection**: Detects face-on, side-view, down-the-line, diagonal, and unknown camera angles
+- **Rotation Compensation**: Adjusts analysis based on body orientation relative to camera
+- **Tilt Compensation**: Accounts for camera tilt up/down for accurate analysis
+- **Distance Estimation**: Determines if camera is close, medium, or far for optimal analysis
+- **Confidence Scoring**: Rates accuracy of angle detection (0-1 scale)
+
+### Real-Time Weight Tracking
+- **Frame-by-Frame Analysis**: Tracks weight distribution for every frame of the swing
+- **Multi-Method Detection**: Uses ankle height, hip position, and knee flex for accurate analysis
+- **Confidence Weighting**: Only uses high-confidence detections for reliable results
+- **Phase-Aware Analysis**: Adjusts analysis based on current swing phase
+
+### Visual Indicators
+- **Weight Distribution Bars**: Visual bars showing left/right foot weight percentages
+- **Center of Gravity**: Yellow circle showing body's center of mass
+- **Balance Arrows**: Arrows showing forward/back and lateral balance
+- **Stability Indicator**: Color-coded stability percentage
+- **Phase Display**: Shows current swing phase
+- **Confidence Indicator**: Shows analysis confidence level
+
+## 💬 Dynamic Swing Feedback System
+
+### Phase-Specific Feedback
+- **Address Phase**: Proper weight distribution setup guidance
+- **Backswing Phase**: Weight shift to back foot recommendations
+- **Top Phase**: Maximum weight on back foot validation
+- **Downswing Phase**: Weight transfer to lead foot guidance
+- **Impact Phase**: Optimal weight distribution for power
+- **Follow-through Phase**: Complete weight transfer validation
+
+### Real-Time Recommendations
+- **Priority System**: High/medium/low priority feedback
+- **Visual Indicators**: Circles, arrows, and text overlays
+- **Improvement Tips**: Specific advice for each issue
+- **Scoring System**: 0-100 scores for each aspect
+
+## 🛠️ Comprehensive Debug System
+
+### Developer-Focused Monitoring
+- **Real-Time Status Dashboard**: Color-coded indicators for each component
+- **Performance Metrics**: Frame rates, processing times, confidence scores
+- **Error Detection**: Automatic issue identification and reporting
+- **Validation Suite**: Automated testing of all analysis components
+
+### Monitored Components
+- **Stick Figure Overlay**: Body landmark detection and rendering
+- **Swing Plane Visualization**: Club path and plane analysis
+- **Club Path Tracking**: Actual club head trajectory
+- **Phase Detection**: Swing phase identification
+- **Metrics Calculation**: Tempo, rotation, balance, etc.
+- **Grading System**: Score calculation and validation
 
 ## 🎥 Real-Time Camera Analysis
 

@@ -15,8 +15,115 @@ SwingVista is a comprehensive golf swing analysis platform built with Next.js 15
 - MediaPipe integration for pose detection
 - OpenAI integration for AI-powered analysis
 - Supabase integration for data storage
+- Advanced weight distribution analysis with camera-angle compensation
+- Dynamic swing feedback system with phase-specific recommendations
+- Comprehensive debug system for developers
 
 ## Current API Endpoints
+
+### Weight Distribution Analysis
+```
+POST /api/analyze-weight-distribution
+```
+**Description**: Analyzes weight distribution throughout the golf swing
+**Request Body**:
+```typescript
+{
+  poses: PoseResult[];
+  cameraAngle?: CameraAngle;
+  currentPhase?: string;
+}
+```
+**Response**:
+```typescript
+{
+  success: boolean;
+  weightDistribution: {
+    leftFoot: number;
+    rightFoot: number;
+    centerOfGravity: {
+      x: number;
+      y: number;
+      z: number;
+    };
+    balance: {
+      forward: number;
+      lateral: number;
+      stability: number;
+    };
+    phase: string;
+    confidence: number;
+  };
+  feedback: {
+    realTime: SwingFeedback[];
+    phaseSpecific: Record<string, SwingFeedback[]>;
+    overall: SwingFeedback[];
+    recommendations: string[];
+  };
+}
+```
+
+### Debug System
+```
+GET /api/debug/status
+```
+**Description**: Get current debug system status
+**Response**:
+```typescript
+{
+  success: boolean;
+  debugStatus: {
+    totalComponents: number;
+    okComponents: number;
+    warningComponents: number;
+    errorComponents: number;
+    overallHealth: 'excellent' | 'good' | 'warning' | 'critical';
+    performanceScore: number;
+  };
+  components: Record<string, DebugComponent>;
+  performanceMetrics: DebugMetrics;
+}
+```
+
+```
+POST /api/debug/validate
+```
+**Description**: Run validation suite on all components
+**Response**:
+```typescript
+{
+  success: boolean;
+  validationResults: ValidationResult[];
+  summary: {
+    totalTests: number;
+    passedTests: number;
+    failedTests: number;
+    criticalFailures: number;
+  };
+}
+```
+
+```
+POST /api/debug/export
+```
+**Description**: Export debug data for analysis
+**Response**:
+```typescript
+{
+  success: boolean;
+  debugData: {
+    timestamp: string;
+    components: Record<string, DebugComponent>;
+    performanceMetrics: DebugMetrics;
+    validationResults: ValidationResult[];
+    systemInfo: {
+      userAgent: string;
+      platform: string;
+      language: string;
+    };
+  };
+}
+```
 
 ### Swing Analysis
 ```

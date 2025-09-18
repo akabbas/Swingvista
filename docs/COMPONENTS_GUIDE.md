@@ -10,6 +10,8 @@ SwingVista uses a component-based architecture with:
 - **Page Components**: Full page layouts
 - **Analysis Components**: Golf swing analysis and visualization
 - **Feature Components**: Specific functionality
+- **Debug Components**: Developer monitoring and validation tools
+- **Weight Distribution Components**: Advanced weight tracking and analysis
 
 ## Layout Components
 
@@ -567,6 +569,152 @@ Renders pose landmarks and swing phase information on video.
 5. **Responsive**: Mobile-first design
 6. **Testing**: Include test cases
 7. **Documentation**: Document all props and usage
+
+## Debug Components
+
+### DebugOverlay
+
+**Location**: `src/components/debug/DebugOverlay.tsx`
+
+Real-time debug monitoring overlay for developers.
+
+```typescript
+<DebugOverlay
+  debugger={debugger}
+  className="optional-class"
+/>
+```
+
+**Props**:
+- `debugger`: SwingAnalysisDebugger instance
+- `className`: Optional CSS class
+
+**Features**:
+- Real-time component status monitoring
+- Performance metrics display
+- Error and warning indicators
+- Validation results
+- System health summary
+- Auto-refresh capability
+- Export functionality
+
+**Status Indicators**:
+- ✅ Green (OK): Component working correctly
+- ⚠️ Orange (Warning): Component has minor issues
+- ❌ Red (Error): Component has critical issues
+- ❓ Gray (Unknown): Component status not determined
+
+### DebugControls
+
+**Location**: `src/components/debug/DebugControls.tsx`
+
+Debug control panel for developers.
+
+```typescript
+<DebugControls
+  debugger={debugger}
+  className="optional-class"
+/>
+```
+
+**Props**:
+- `debugger`: SwingAnalysisDebugger instance
+- `className`: Optional CSS class
+
+**Features**:
+- Toggle debug mode
+- Run validation suite
+- Export debug data
+- Clear errors and warnings
+- Force refresh components
+- Verbose logging toggle
+- System information display
+
+### DebugProvider
+
+**Location**: `src/contexts/DebugContext.tsx`
+
+Context provider for debug system state management.
+
+```typescript
+<DebugProvider enableDebug={true}>
+  <YourApp />
+</DebugProvider>
+```
+
+**Props**:
+- `enableDebug`: Whether to enable debug mode by default
+- `children`: React children components
+
+**Features**:
+- Global debug state management
+- Component registration
+- Status updates
+- Performance tracking
+- Error handling
+
+## Weight Distribution Components
+
+### WeightDistributionAnalyzer
+
+**Location**: `src/lib/weight-distribution-analysis.ts`
+
+Core analyzer for weight distribution tracking.
+
+```typescript
+const analyzer = new WeightDistributionAnalyzer();
+
+// Analyze current pose
+const weightDist = analyzer.analyzeWeightDistribution(landmarks, frameIndex, totalFrames);
+
+// Get swing metrics
+const metrics = analyzer.analyzeSwingMetrics(poses);
+```
+
+**Features**:
+- Camera angle detection and compensation
+- Multi-method weight distribution calculation
+- Real-time confidence scoring
+- Phase-aware analysis
+- Performance optimization
+
+### SwingFeedbackSystem
+
+**Location**: `src/lib/swing-feedback-system.ts`
+
+Dynamic feedback generation system.
+
+```typescript
+const feedbackSystem = new SwingFeedbackSystem(weightAnalyzer);
+
+// Generate feedback
+const feedback = feedbackSystem.generateFeedback(weightDist, cameraAngle, swingMetrics, currentPhase);
+```
+
+**Features**:
+- Phase-specific feedback generation
+- Priority-based recommendation system
+- Visual indicator generation
+- Improvement tip suggestions
+- Scoring system integration
+
+## Enhanced OverlaySystem
+
+The OverlaySystem component has been significantly enhanced with new weight distribution and debug features:
+
+### New Weight Distribution Features
+- **Weight Distribution Bars**: Visual bars showing left/right foot percentages
+- **Center of Gravity**: Yellow circle showing body's center of mass
+- **Balance Arrows**: Arrows showing forward/back and lateral balance
+- **Stability Indicator**: Color-coded stability percentage
+- **Phase Display**: Shows current swing phase
+- **Confidence Indicator**: Shows analysis confidence level
+
+### New Debug Features
+- **Real-time Monitoring**: Tracks all 6 analysis components
+- **Performance Metrics**: Frame rate, processing time, confidence scores
+- **Error Detection**: Automatic issue identification and reporting
+- **Validation Suite**: Automated testing of all components
 
 ---
 
