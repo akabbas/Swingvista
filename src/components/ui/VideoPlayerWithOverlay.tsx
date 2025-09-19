@@ -79,6 +79,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [videoKey, setVideoKey] = useState(0); // For forcing video reload
 
   // Update video dimensions when video loads
   const updateVideoDimensions = useCallback(() => {
@@ -103,9 +104,9 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   // Handle video time updates
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
-      const time = videoRef.current.currentTime * 1000; // Convert to milliseconds
-      setCurrentTime(time);
-      onTimeUpdate?.(time);
+      const time = videoRef.current.currentTime; // Keep in seconds
+      setCurrentTime(time * 1000); // Convert to milliseconds for state
+      onTimeUpdate?.(time); // Pass seconds to parent
     }
   }, [onTimeUpdate]);
 
@@ -124,10 +125,17 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   // Handle video loaded metadata
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
-      const videoDuration = videoRef.current.duration * 1000; // Convert to milliseconds
-      setDuration(videoDuration);
-      onLoadedMetadata?.(videoDuration);
+      const videoDuration = videoRef.current.duration; // Keep in seconds
+      setDuration(videoDuration * 1000); // Convert to milliseconds for state
+      onLoadedMetadata?.(videoDuration); // Pass seconds to parent
       updateVideoDimensions();
+      
+      // Ensure video is ready for playback
+      console.log('🎥 Video metadata loaded:', {
+        duration: videoDuration,
+        readyState: videoRef.current.readyState,
+        paused: videoRef.current.paused
+      });
     }
   }, [onLoadedMetadata, updateVideoDimensions]);
 
@@ -178,6 +186,83 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
     }
   }, [playbackSpeed]);
 
+  // Ensure consistent overlay rendering
+  useEffect(() => {
+    if (!canvasRef.current || !videoRef.current || !poses || poses.length === 0) return;
+    
+    let animationId: number;
+    
+    const drawConsistentOverlays = () => {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      
+      if (!canvas || !video) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Update canvas size if needed
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth || video.clientWidth;
+        canvas.height = video.videoHeight || video.clientHeight;
+      }
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Find current pose
+      const currentPose = findClosestPose(currentTime);
+      
+      if (currentPose && currentPose.landmarks) {
+        // Draw stick figure if enabled
+        if (overlaySettings.stickFigure) {
+          ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+          
+          // Simple stick figure drawing
+          const connections = [
+            [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+            [11, 23], [12, 24], [23, 24],
+            [23, 25], [25, 27], [24, 26], [26, 28]
+          ];
+          
+          connections.forEach(([start, end]) => {
+            const startLandmark = currentPose.landmarks[start];
+            const endLandmark = currentPose.landmarks[end];
+            
+            if (startLandmark && endLandmark) {
+              ctx.beginPath();
+              ctx.moveTo(startLandmark.x * canvas.width, startLandmark.y * canvas.height);
+              ctx.lineTo(endLandmark.x * canvas.width, endLandmark.y * canvas.height);
+              ctx.stroke();
+            }
+          });
+          
+          // Draw joints
+          currentPose.landmarks.forEach((landmark, index) => {
+            if (landmark && (!landmark.visibility || landmark.visibility > 0.5)) {
+              ctx.beginPath();
+              ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+        }
+      }
+      
+      // Continue animation
+      animationId = requestAnimationFrame(drawConsistentOverlays);
+    };
+    
+    drawConsistentOverlays();
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [currentTime, poses, overlaySettings, findClosestPose]);
+
   // Find closest pose for current time
   const findClosestPose = useCallback((time: number) => {
     if (!poses || poses.length === 0) return null;
@@ -189,10 +274,102 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
     });
   }, [poses]);
 
+  // Find impact frame
+  const findImpactFrame = useCallback(() => {
+    if (!phases || phases.length === 0) return null;
+    
+    // Look for impact phase
+    const impactPhase = phases.find(phase => 
+      phase.name.toLowerCase() === 'impact' || 
+      phase.name.toLowerCase().includes('impact')
+    );
+    
+    if (impactPhase) {
+      // Return the middle of the impact phase
+      return (impactPhase.startTime + impactPhase.endTime) / 2;
+    }
+    
+    // Fallback: estimate impact at 70% through the swing
+    const totalDuration = phases[phases.length - 1].endTime;
+    return totalDuration * 0.7;
+  }, [phases]);
+
+  // Handle impact button click
+  const handleImpactSeek = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    const impactTime = findImpactFrame();
+    if (impactTime === null) {
+      console.error('Could not find impact frame');
+      return;
+    }
+    
+    console.log('🎯 Seeking to impact at:', impactTime, 'ms');
+    
+    // Convert milliseconds to seconds
+    const impactTimeSeconds = impactTime / 1000;
+    
+    // Seek to impact frame
+    videoRef.current.currentTime = impactTimeSeconds;
+    
+    // Play video from impact point
+    videoRef.current.play().catch(error => {
+      console.error('Failed to play video after impact seek:', error);
+    });
+  }, [findImpactFrame]);
+
+  // Handle reload video
+  const handleReloadVideo = useCallback(() => {
+    if (!videoRef.current || !videoUrl) return;
+    
+    console.log('🔄 Reloading video from URL:', videoUrl.substring(0, 50) + '...');
+    
+    // Pause current playback
+    videoRef.current.pause();
+    
+    // Reset video to beginning
+    videoRef.current.currentTime = 0;
+    
+    // Force video reload by incrementing key
+    setVideoKey(prev => prev + 1);
+    
+    // Reset states
+    setCurrentTime(0);
+    setIsPlaying(false);
+    
+    // Wait for next render cycle to ensure new video element is created
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const newVideo = videoRef.current;
+        if (newVideo) {
+          console.log('🔄 Loading new video element...');
+          newVideo.load();
+          
+          // Wait for video to be ready
+          const playWhenReady = () => {
+            if (newVideo.readyState >= 3) {
+              newVideo.play().then(() => {
+                console.log('🔄 Video reloaded and playing');
+              }).catch(error => {
+                console.error('Failed to play video after reload:', error);
+              });
+            } else {
+              // Try again after a short delay
+              setTimeout(playWhenReady, 100);
+            }
+          };
+          
+          playWhenReady();
+        }
+      }, 50);
+    });
+  }, [videoUrl]);
+
   return (
     <div className={`relative w-full ${className}`}>
       {/* Video Element */}
       <video
+        key={videoKey} // Force remount on reload
         ref={videoRef}
         src={videoUrl}
         controls
@@ -204,15 +381,36 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
         onError={handleVideoError}
       />
       
-      {/* Audio Toggle */}
-      {onMuteChange && (
-        <div className="absolute top-4 right-4 z-20">
+      {/* Video Controls */}
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        {/* Impact Button */}
+        <button
+          onClick={handleImpactSeek}
+          className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-colors shadow-lg flex items-center gap-2"
+          title="Jump to impact frame"
+        >
+          <span>🎯</span>
+          <span>Impact</span>
+        </button>
+        
+        {/* Reload Video Button */}
+        <button
+          onClick={handleReloadVideo}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium transition-colors shadow-lg flex items-center gap-2"
+          title="Reload video from beginning"
+        >
+          <span>🔄</span>
+          <span>Reload Video</span>
+        </button>
+        
+        {/* Audio Toggle */}
+        {onMuteChange && (
           <AudioToggle
             isMuted={isMuted}
             onToggle={onMuteChange}
           />
-        </div>
-      )}
+        )}
+      </div>
       
       {/* Debug Info Overlay */}
       <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-green-400 font-mono text-xs p-2 rounded z-50 pointer-events-none">
