@@ -21,15 +21,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prompt = `Analyze this swing based on provided metrics and poses.`;
+    const prompt = `Analyze this golf swing comprehensively based on the provided metrics. Provide specific, actionable feedback as a professional golf instructor would.`;
+    
+    const systemPrompt = `You are a world-class golf instructor with 20+ years of experience teaching professional and amateur golfers. 
+
+Analyze the swing metrics provided and give:
+1. An overall assessment of the swing quality
+2. Specific strengths to highlight
+3. Concrete improvements with actionable advice
+4. One key tip that would make the biggest difference
+5. Recording quality tips if needed
+
+Be specific, encouraging, and focus on the most impactful changes. Use golf terminology appropriately and provide drills or practice suggestions when relevant.
+
+Format your response as JSON with these fields:
+- overallAssessment: string (2-3 sentences about the swing)
+- strengths: string[] (2-4 specific strengths)
+- improvements: string[] (2-4 specific improvements with advice)
+- keyTip: string (one key insight)
+- recordingTips: string[] (if recording quality is poor)`;
+
     const completion = await ai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a seasoned golf coach. Be constructive and specific.' },
-        { role: 'user', content: JSON.stringify({ prompt, swingMetrics, recordingQuality }) }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Swing Metrics: ${JSON.stringify(swingMetrics, null, 2)}\n\nRecording Quality: ${JSON.stringify(recordingQuality, null, 2)}\n\nPlease analyze this swing and provide your professional assessment.` }
       ],
-      temperature: 0.7,
-      max_tokens: 800,
+      temperature: 0.6,
+      max_tokens: 1000,
     });
 
     const text = completion.choices[0]?.message?.content || '';
