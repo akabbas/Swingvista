@@ -409,6 +409,7 @@ export default function UploadPage() {
               
               {/* Video Debugger */}
               <VideoDebugger
+                key={`debugger-${state.file.name}-${state.isSampleVideo}`}
                 videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '')}
                 videoName={state.file.name}
                 isSampleVideo={state.isSampleVideo}
@@ -439,14 +440,6 @@ export default function UploadPage() {
               </div>
             )}
 
-          {/* Video Debugger */}
-          {state.file && (
-            <VideoDebugger
-              videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '')}
-              videoName={state.file.name}
-              isSampleVideo={state.isSampleVideo}
-            />
-          )}
 
           {/* Video Analysis Display */}
           {state.result?.realAnalysis && state.file && (
