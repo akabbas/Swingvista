@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Loading Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        video { max-width: 100%; height: auto; border: 2px solid #ccc; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .info { color: blue; background: #e6f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Video Loading Test</h1>
+    
+    <div id="status">Testing video loading...</div>
+    
+    <h2>Sample Videos Test</h2>
+    <div id="sample-videos"></div>
+    
+    <h2>File Upload Test</h2>
+    <input type="file" id="file-input" accept="video/*">
+    <div id="uploaded-video"></div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const sampleVideosDiv = document.getElementById('sample-videos');
+        const uploadedVideoDiv = document.getElementById('uploaded-video');
+        const fileInput = document.getElementById('file-input');
+
+        // Test sample videos
+        const sampleVideos = [
+            '/fixtures/swings/pga_adam_scott_driver_3.mp4',
+            '/fixtures/swings/pga_xander_schauffele_driver_2.mp4',
+            '/fixtures/swings/pga_collin_morikawa_driver_4.mp4'
+        ];
+
+        function createVideoElement(src, title) {
+            const container = document.createElement('div');
+            container.style.margin = '10px 0';
+            
+            const titleEl = document.createElement('h3');
+            titleEl.textContent = title;
+            container.appendChild(titleEl);
+            
+            const video = document.createElement('video');
+            video.src = src;
+            video.controls = true;
+            video.style.width = '300px';
+            video.style.height = 'auto';
+            
+            const status = document.createElement('div');
+            status.className = 'info';
+            status.textContent = `Loading: ${src}`;
+            container.appendChild(status);
+            
+            video.onloadstart = () => {
+                status.textContent = 'Loading started...';
+                status.className = 'info';
+            };
+            
+            video.onloadedmetadata = () => {
+                status.textContent = `Loaded: ${video.videoWidth}x${video.videoHeight}, Duration: ${video.duration}s`;
+                status.className = 'success';
+            };
+            
+            video.oncanplay = () => {
+                status.textContent += ' - Ready to play';
+                status.className = 'success';
+            };
+            
+            video.onerror = (e) => {
+                status.textContent = `Error loading video: ${e.type}`;
+                status.className = 'error';
+                console.error('Video error:', e, src);
+            };
+            
+            container.appendChild(video);
+            return container;
+        }
+
+        // Test sample videos
+        sampleVideos.forEach((src, index) => {
+            const videoContainer = createVideoElement(src, `Sample Video ${index + 1}`);
+            sampleVideosDiv.appendChild(videoContainer);
+        });
+
+        // Test file upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                const videoContainer = createVideoElement(url, `Uploaded: ${file.name}`);
+                uploadedVideoDiv.innerHTML = '';
+                uploadedVideoDiv.appendChild(videoContainer);
+            }
+        });
+
+        // Check if videos are accessible
+        fetch('/fixtures/swings/pga_adam_scott_driver_3.mp4', { method: 'HEAD' })
+            .then(response => {
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="success">✅ Sample videos are accessible</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="error">❌ Sample videos are not accessible (404)</div>';
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML = `<div class="error">❌ Error checking videos: ${error.message}</div>`;
+            });
+    </script>
+</body>
+</html>

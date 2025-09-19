@@ -16,6 +16,7 @@ import SwingHistoryPanel from '@/components/ui/SwingHistoryPanel';
 import SwingComparisonPanel from '@/components/ui/SwingComparisonPanel';
 import SampleVideoSelector from '@/components/ui/SampleVideoSelector';
 import VideoAnalysisDisplay from '@/components/analysis/VideoAnalysisDisplay';
+import SimpleVideoTest from '@/components/analysis/SimpleVideoTest';
 import ProfessionalGolfStandards from '@/components/analysis/ProfessionalGolfStandards';
 import ProfessionalAIFeedback from '@/components/analysis/ProfessionalAIFeedback';
 import { SwingHistoryManager, SwingHistoryEntry, SwingComparison } from '@/lib/swing-history';
@@ -404,21 +405,14 @@ export default function UploadPage() {
           {state.file && !state.result?.realAnalysis && (
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Video Preview</h3>
-              <div className="relative rounded-lg overflow-hidden shadow-lg">
-                <video
-                  src={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
-                  controls
-                  playsInline
-                  className="w-full max-h-[400px] object-contain bg-black"
-                  controlsList="nodownload"
-                  onError={(e) => {
-                    console.error('❌ Video preview error:', e);
-                    console.error('❌ Video source:', state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : '')));
-                  }}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+              
+              {/* Simple Video Test */}
+              <SimpleVideoTest
+                videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
+                videoName={state.file.name}
+                isSampleVideo={state.isSampleVideo}
+              />
+              
               <div className="mt-4 text-center">
                 <p className="text-gray-600 mb-4">
                   Selected: <strong>{state.file.name}</strong>
@@ -443,6 +437,15 @@ export default function UploadPage() {
               <LoadingSpinner />
               </div>
             )}
+
+          {/* Simple Video Test */}
+          {state.file && (
+            <SimpleVideoTest
+              videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
+              videoName={state.file.name}
+              isSampleVideo={state.isSampleVideo}
+            />
+          )}
 
           {/* Video Analysis Display */}
           {state.result?.realAnalysis && state.file && (
