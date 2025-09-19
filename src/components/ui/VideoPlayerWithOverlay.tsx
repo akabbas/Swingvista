@@ -7,6 +7,8 @@ import StickFigureOverlay from './StickFigureOverlay';
 import SwingPlaneVisualization from './SwingPlaneVisualization';
 import PhaseMarkers from './PhaseMarkers';
 import AudioToggle from './AudioToggle';
+import VideoControlButtons from './VideoControlButtons';
+import EnhancedOverlayRenderer from './EnhancedOverlayRenderer';
 
 interface OverlaySettings {
   stickFigure: boolean;
@@ -32,6 +34,7 @@ interface VideoPlayerWithOverlayProps {
   isMuted?: boolean;
   onMuteChange?: (muted: boolean) => void;
   onVideoError?: () => void;
+  onReloadVideo?: () => void;
 }
 
 interface VideoDimensions {
@@ -60,7 +63,8 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   onLoadedMetadata,
   isMuted = false,
   onMuteChange,
-  onVideoError
+  onVideoError,
+  onReloadVideo
 }) => {
   // Debug logging for overlay data
   console.log('🎬 VIDEO PLAYER DEBUG: VideoPlayerWithOverlay props:', {
@@ -191,6 +195,14 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
 
   return (
     <div className={`relative w-full ${className}`}>
+      {/* Video Control Buttons */}
+      <VideoControlButtons
+        videoRef={videoRef}
+        phases={phases}
+        onReloadVideo={onReloadVideo}
+        className="mb-2"
+      />
+      
       {/* Video Element */}
       <video
         ref={videoRef}
@@ -234,6 +246,18 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           border: '1px solid rgba(0,255,0,0.5)' // Debug border to confirm canvas position
         }}
       />
+      
+      {/* Enhanced Overlay Renderer */}
+      {poses && poses.length > 0 && (
+        <EnhancedOverlayRenderer
+          videoRef={videoRef}
+          canvasRef={canvasRef}
+          poses={poses}
+          phases={phases}
+          overlaySettings={overlaySettings}
+          currentTime={currentTime}
+        />
+      )}
       
       {/* Overlay Components */}
       {poses && poses.length > 0 ? (

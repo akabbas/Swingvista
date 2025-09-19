@@ -366,6 +366,25 @@ export default function UploadPage() {
     return null;
   }, [videoUrl]);
 
+  // Handle video reload
+  const handleVideoReload = useCallback(() => {
+    console.log('🔄 VIDEO RELOAD: Reloading video...');
+    
+    // For sample videos, keep the same URL
+    if ((window as any).sampleVideoUrl) {
+      console.log('🔄 VIDEO RELOAD: Sample video detected, keeping URL');
+      forceComponentRefresh();
+      return;
+    }
+    
+    // For uploaded files, recreate the blob URL
+    if (originalFileRef.current) {
+      refreshVideoUrl();
+      forceComponentRefresh();
+      console.log('🔄 VIDEO RELOAD: Blob URL refreshed');
+    }
+  }, [refreshVideoUrl, forceComponentRefresh]);
+
   // Video event handlers
   const handleVideoTimeUpdate = useCallback((currentTime: number) => {
     dispatch({ type: 'SET_VIDEO_CURRENT_TIME', payload: currentTime * 1000 }); // Convert to milliseconds
@@ -1373,6 +1392,7 @@ export default function UploadPage() {
                           refreshVideoUrl();
                           forceComponentRefresh();
                         }}
+                        onReloadVideo={handleVideoReload}
                         className="w-full"
                       />
                     </div>
