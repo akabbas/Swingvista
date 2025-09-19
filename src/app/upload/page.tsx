@@ -246,7 +246,7 @@ export default function UploadPage() {
           swingId: `swing_${Date.now()}`,
           timestamp: Date.now(),
           filename: state.file.name,
-          videoUrl: URL.createObjectURL(state.file),
+          videoUrl: state.isSampleVideo ? state.videoUrl : URL.createObjectURL(state.file),
           poses: (result.analysis as any).poses || [], // Use actual pose data from analysis
           analysis: result.analysis,
           realAnalysis: result.analysis,
@@ -409,7 +409,7 @@ export default function UploadPage() {
               
               {/* Video Debugger */}
               <VideoDebugger
-                videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
+                videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '')}
                 videoName={state.file.name}
                 isSampleVideo={state.isSampleVideo}
               />
@@ -442,7 +442,7 @@ export default function UploadPage() {
           {/* Video Debugger */}
           {state.file && (
             <VideoDebugger
-              videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
+              videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '')}
               videoName={state.file.name}
               isSampleVideo={state.isSampleVideo}
             />
@@ -459,7 +459,7 @@ export default function UploadPage() {
               })}
             <VideoAnalysisDisplay
               videoFile={state.file}
-                videoUrl={state.videoUrl || undefined}
+                videoUrl={state.isSampleVideo ? state.videoUrl : (state.file ? URL.createObjectURL(state.file) : undefined)}
                 analysis={state.result.realAnalysis}
               isAnalyzing={state.isAnalyzing}
               isSampleVideo={state.isSampleVideo}
