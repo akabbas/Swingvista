@@ -1,21 +1,20 @@
 # SwingVista - Advanced Golf Swing Analysis Platform
 
-A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, TypeScript, and Tailwind CSS. Features real-time pose detection, comprehensive swing phase analysis, and professional-grade feedback.
+A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, TypeScript, and Tailwind CSS. Features video upload analysis with pose detection, comprehensive swing phase analysis, and professional-grade feedback.
 
 ## 📊 Current Status
 
-**🟢 Production-Ready AI-Powered Golf Swing Analyzer**: Complete golf swing analysis platform with robust pose detection, comprehensive swing phase identification, AI-powered feedback, and professional grading system.
+**🟢 Production-Ready Video Analysis Platform**: Complete golf swing analysis platform with robust pose detection, comprehensive swing phase identification, AI-powered feedback, and professional grading system.
 
 **Core Capabilities:**
-- ✅ **Real-time Camera Analysis** - Live pose detection and swing phase identification
-- ✅ **Video Upload Analysis** - Upload and analyze golf swing videos with 100+ pose detection
+- ✅ **Video Upload Analysis** - Upload and analyze golf swing videos with TensorFlow.js pose detection
 - ✅ **Comprehensive Swing Phase Detection** - 6 specific phases: address, backswing, top, downswing, impact, follow-through
 - ✅ **AI-Powered Analysis** - OpenAI GPT-4o-mini integration for professional golf instructor insights
 - ✅ **Professional Grading System** - A+ to F grading based on PGA Tour benchmarks with emergency overrides
-- ✅ **Robust Pose Detection** - Multi-layered pose detection with TensorFlow.js fallback and mock data
-- ✅ **Real-time Feedback** - Live swing phase detection with instant feedback
+- ✅ **Robust Pose Detection** - TensorFlow.js MoveNet with server-side API fallback
 - ✅ **Comprehensive Metrics** - Tempo, rotation, weight transfer, swing plane, body alignment
-- ✅ **Mobile-Optimized** - Responsive design for recording and analysis on any device
+- ✅ **Visual Overlays** - Stick figure animation, swing plane visualization, phase markers
+- ✅ **Mobile-Optimized** - Responsive design for analysis on any device
 - ✅ **Error Recovery** - Multiple fallback systems ensure analysis always works
 
 ## 📚 Documentation
@@ -30,24 +29,17 @@ A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, 
 
 ## 🏌️ Features
 
-### 🎥 Real-Time Camera Analysis
-- **Live Pose Detection**: Real-time body landmark tracking using MediaPipe
-- **Swing Phase Identification**: Automatic detection of 6 swing phases with confidence scoring
-- **Instant Feedback**: Live feedback as you swing with phase-specific guidance
-- **Stick Figure Overlay**: Visual representation of body landmarks on camera feed
-- **Swing Completion Detection**: Automatic swing analysis when swing is complete
-- **Mobile Optimized**: Works seamlessly on mobile devices for recording
-
 ### 📹 Video Upload Analysis
-- **High-Quality Pose Detection**: Extract 100+ poses from uploaded videos
-- **Comprehensive Analysis**: Full swing analysis with detailed metrics
-- **Visual Overlay**: Stick figure animation overlaid on video playback
-- **Swing Phase Timeline**: See all 6 phases marked on video timeline
+- **High-Quality Pose Detection**: Extract poses from uploaded videos using TensorFlow.js MoveNet
+- **Comprehensive Analysis**: Full swing analysis with detailed metrics and AI feedback
+- **Visual Overlays**: Stick figure animation, swing plane visualization, and phase markers
+- **Swing Phase Timeline**: See all 6 phases marked on video timeline with grades
 - **Quality Assessment**: Automatic detection of recording angle and quality
-- **Multiple Video Formats**: Support for various video formats and codecs
+- **Multiple Video Formats**: Support for MP4 and other common video formats
+- **Interactive Controls**: Play, pause, seek, speed control, and overlay toggles
 
 ### 🤖 AI-Powered Analysis
-- **OpenAI GPT-4o-mini Integration**: Professional golf instructor insights
+- **OpenAI GPT-4o-mini Integration**: Professional golf instructor insights via API
 - **Dynamic Feedback Generation**: Personalized feedback based on actual swing metrics
 - **Professional Grading System**: A+ to F grading based on PGA Tour benchmarks
 - **Multi-Dimensional Analysis**: Tempo, rotation, balance, swing plane, power, and consistency
@@ -72,13 +64,13 @@ A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, 
 
 ### 🛠️ Technical Features
 - **Modern Tech Stack**: Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Multi-Layered Pose Detection**: MediaPipe primary, TensorFlow.js fallback, mock data emergency
+- **Pose Detection**: TensorFlow.js MoveNet with server-side API fallback
 - **Web Workers**: Background processing for smooth UI experience
-- **Intelligent Caching**: Disabled for reliability, with fallback systems
 - **Performance Optimized**: Fast loading and efficient processing
 - **Responsive Design**: Works on all devices and screen sizes
 - **Error Recovery**: Comprehensive fallback systems ensure analysis always works
 - **Professional Grade Override**: Prevents professional swings from getting F grades
+- **Sample Videos**: Pre-loaded Tiger Woods, Ludvig Åberg, and Max Homa swing videos
 
 ## 🏆 AI Grading System
 
@@ -155,19 +147,15 @@ SwingVista uses a comprehensive grading system that compares your swing against 
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
-### Optional: Tiger Woods iron swing sample video
+### Sample Videos Included
 
-To enable the "Use Tiger Sample" button on the Upload page, place a file at `public/fixtures/swings/tiger-iron.mp4`.
+The application includes several professional swing videos for testing:
 
-You can download a YouTube clip locally with `yt-dlp` (ensure you have rights to use the content):
+- **Tiger Woods Swing** (`tiger-woods-swing.mp4`) - Professional driver swing
+- **Ludvig Åberg Driver** (`ludvig_aberg_driver.mp4`) - Modern professional swing
+- **Max Homa Iron** (`max_homa_iron.mp4`) - Professional iron swing
 
-```bash
-brew install yt-dlp ffmpeg
-mkdir -p public/fixtures/swings
-yt-dlp -f "mp4" -S "res:720" -o "public/fixtures/swings/tiger-iron.%(ext)s" "<YOUTUBE_URL_HERE>"
-```
-
-Replace `<YOUTUBE_URL_HERE>` with a Tiger Woods iron swing video URL.
+These videos are automatically available through the sample video selector on the upload page.
 
 ## 🏗️ Project Structure
 
@@ -236,21 +224,19 @@ swingvista/
 - Feature overview and getting started guide
 
 ### Camera Analysis (`/camera`)
-- **Real-time pose detection** with MediaPipe integration
-- **Live swing phase identification** with instant feedback
-- **Stick figure overlay** showing body landmarks
-- **Swing completion detection** with automatic analysis
+- **Camera interface** for future real-time analysis (currently in development)
 - **Mobile-optimized interface** for recording
 - **Live metrics display** showing tempo, rotation, and more
 
 ### Video Upload (`/upload`)
-- **File upload interface** with drag-and-drop support
-- **High-quality pose extraction** (100+ poses per video)
+- **File upload interface** with sample video options
+- **High-quality pose extraction** using TensorFlow.js MoveNet
 - **Comprehensive swing analysis** with detailed metrics
-- **Visual overlay** with stick figure animation
-- **Swing phase timeline** showing all 6 phases
+- **Visual overlays** with stick figure animation and swing plane visualization
+- **Swing phase timeline** showing all 6 phases with grades
 - **AI-powered feedback** with professional insights
-- **Progress tracking** with detailed session history
+- **Interactive video player** with overlay controls and playback options
+- **Sample videos** including Tiger Woods, Ludvig Åberg, and Max Homa swings
 
 ## 🛠️ Development
 
@@ -380,28 +366,29 @@ For support and questions:
 - [x] UI prototypes for camera and upload
 
 ### Phase 2: Core Features ✅
-- [x] Camera integration and recording
 - [x] Video upload functionality
 - [x] Basic swing analysis integration
 - [x] User feedback system
 
 ### Phase 3: Advanced Features ✅
 - [x] AI-powered analysis
-- [x] Real-time pose detection
+- [x] Video pose detection with TensorFlow.js
 - [x] Detailed metrics and insights
 - [x] Comprehensive swing phase detection
 - [x] Professional grading system
 
 ### Phase 4: Enhancement (Current)
-- [x] Advanced pose detection (100+ poses)
+- [x] Advanced pose detection with TensorFlow.js MoveNet
 - [x] Comprehensive swing phase identification
-- [x] Real-time camera analysis
 - [x] AI-powered feedback system
 - [x] Professional grading system
 - [x] Multi-layered pose detection with fallbacks
 - [x] Emergency grade overrides for professional swings
 - [x] Robust error recovery systems
 - [x] Phase duration calculation fixes
+- [x] Visual overlays and interactive video player
+- [x] Sample video integration
+- [ ] Real-time camera analysis
 - [ ] User authentication
 - [ ] Swing history and tracking
 - [ ] Advanced analytics dashboard
