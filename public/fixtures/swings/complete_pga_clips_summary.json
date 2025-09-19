@@ -1,0 +1,31 @@
+{
+  "source": "PGA Tour Driver Swings Compilation",
+  "sourceUrl": "https://www.youtube.com/shorts/UHKApJXBSd0",
+  "totalClips": 3,
+  "clips": [
+    {
+      "file": "pga_collin_morikawa_driver_1.mp4",
+      "player": "Collin Morikawa",
+      "duration": 3.1999999999999993,
+      "startTime": 8.5,
+      "endTime": 11.7,
+      "description": "Collin Morikawa driver swing"
+    },
+    {
+      "file": "pga_collin_morikawa_driver_2.mp4",
+      "player": "Collin Morikawa",
+      "duration": 4.199999999999999,
+      "startTime": 10.5,
+      "endTime": 14.7,
+      "description": "Collin Morikawa driver swing"
+    },
+    {
+      "file": "pga_adam_scott_driver_3.mp4",
+      "player": "Adam Scott",
+      "duration": 5,
+      "startTime": 13.5,
+      "endTime": 18.5,
+      "description": "Adam Scott driver swing"
+    }
+  ]
+}

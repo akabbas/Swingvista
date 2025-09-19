@@ -1,0 +1,761 @@
+{
+  "totalVideos": 18,
+  "videos": [
+    {
+      "original": "pga_adam_scott_driver_3.mp4",
+      "analyzed": "pga_adam_scott_driver_3_real_analyzed.mp4",
+      "golfer": "Adam Scott",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 4,
+          "hipTurn": 2,
+          "xFactor": 3,
+          "score": 6
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 63,
+        "clubSpeed": 111,
+        "overallScore": 59,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_adam_scott_driver_9.mp4",
+      "analyzed": "pga_adam_scott_driver_9_real_analyzed.mp4",
+      "golfer": "Adam Scott",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 3,
+          "hipTurn": 1,
+          "xFactor": 3,
+          "score": 4
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 67,
+        "clubSpeed": 111,
+        "overallScore": 58,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_collin_morikawa_driver_1.mp4",
+      "analyzed": "pga_collin_morikawa_driver_1_real_analyzed.mp4",
+      "golfer": "Collin Morikawa",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": -3,
+          "hipTurn": -2,
+          "xFactor": 0,
+          "score": -2
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 60,
+        "clubSpeed": 109,
+        "overallScore": 56,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_collin_morikawa_driver_3.mp4",
+      "analyzed": "pga_collin_morikawa_driver_3_real_analyzed.mp4",
+      "golfer": "Collin Morikawa",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 2,
+          "hipTurn": 0,
+          "xFactor": 2,
+          "score": 3
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 62,
+        "clubSpeed": 110,
+        "overallScore": 58,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_collin_morikawa_driver_4.mp4",
+      "analyzed": "pga_collin_morikawa_driver_4_real_analyzed.mp4",
+      "golfer": "Collin Morikawa",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": -1,
+          "hipTurn": 2,
+          "xFactor": 0,
+          "score": 1
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 63,
+        "clubSpeed": 110,
+        "overallScore": 57,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_driver_1.mp4",
+      "analyzed": "pga_driver_1_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 3,
+          "hipTurn": 2,
+          "xFactor": 2,
+          "score": 4
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 60,
+        "clubSpeed": 111,
+        "overallScore": 58,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_driver_2.mp4",
+      "analyzed": "pga_driver_2_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 29,
+          "hipTurn": 8,
+          "xFactor": 21,
+          "score": 34
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 62,
+        "clubSpeed": 116,
+        "overallScore": 68,
+        "letterGrade": "D+"
+      }
+    },
+    {
+      "original": "pga_driver_3.mp4",
+      "analyzed": "pga_driver_3_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 3,
+          "hipTurn": 1,
+          "xFactor": 3,
+          "score": 4
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 66,
+        "clubSpeed": 111,
+        "overallScore": 58,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_driver_4.mp4",
+      "analyzed": "pga_driver_4_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 5,
+          "hipTurn": 1,
+          "xFactor": 4,
+          "score": 6
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 67,
+        "clubSpeed": 111,
+        "overallScore": 59,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_driver_5.mp4",
+      "analyzed": "pga_driver_5_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 26,
+          "hipTurn": 12,
+          "xFactor": 14,
+          "score": 29
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 62,
+        "clubSpeed": 116,
+        "overallScore": 66,
+        "letterGrade": "D"
+      }
+    },
+    {
+      "original": "pga_driver_6.mp4",
+      "analyzed": "pga_driver_6_real_analyzed.mp4",
+      "golfer": "Unknown",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 1,
+          "hipTurn": 2,
+          "xFactor": 0,
+          "score": 2
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 63,
+        "clubSpeed": 110,
+        "overallScore": 57,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_hideki_matsuyama_driver_7.mp4",
+      "analyzed": "pga_hideki_matsuyama_driver_7_real_analyzed.mp4",
+      "golfer": "Hideki Matsuyama",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 3,
+          "hipTurn": 2,
+          "xFactor": 4,
+          "score": 6
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 61,
+        "clubSpeed": 111,
+        "overallScore": 59,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_jon_rahm_driver_3.mp4",
+      "analyzed": "pga_jon_rahm_driver_3_real_analyzed.mp4",
+      "golfer": "Jon Rahm",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 5,
+          "hipTurn": -1,
+          "xFactor": 5,
+          "score": 6
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 66,
+        "clubSpeed": 111,
+        "overallScore": 59,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_justin_thomas_driver_8.mp4",
+      "analyzed": "pga_justin_thomas_driver_8_real_analyzed.mp4",
+      "golfer": "Justin Thomas",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 1,
+          "hipTurn": 2,
+          "xFactor": 0,
+          "score": 2
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 63,
+        "clubSpeed": 110,
+        "overallScore": 57,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_rory_mcilroy_driver_2.mp4",
+      "analyzed": "pga_rory_mcilroy_driver_2_real_analyzed.mp4",
+      "golfer": "Rory Mcilroy",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 4,
+          "hipTurn": 0,
+          "xFactor": 4,
+          "score": 6
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 63,
+        "clubSpeed": 111,
+        "overallScore": 59,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_scottie_scheffler_driver_4.mp4",
+      "analyzed": "pga_scottie_scheffler_driver_4_real_analyzed.mp4",
+      "golfer": "Scottie Scheffler",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": -3,
+          "hipTurn": -1,
+          "xFactor": 0,
+          "score": -2
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 65,
+        "clubSpeed": 109,
+        "overallScore": 56,
+        "letterGrade": "F"
+      }
+    },
+    {
+      "original": "pga_xander_schauffele_driver_2.mp4",
+      "analyzed": "pga_xander_schauffele_driver_2_real_analyzed.mp4",
+      "golfer": "Xander Schauffele",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 30,
+          "hipTurn": 12,
+          "xFactor": 18,
+          "score": 34
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 61,
+        "clubSpeed": 117,
+        "overallScore": 68,
+        "letterGrade": "D+"
+      }
+    },
+    {
+      "original": "pga_xander_schauffele_driver_6.mp4",
+      "analyzed": "pga_xander_schauffele_driver_6_real_analyzed.mp4",
+      "golfer": "Xander Schauffele",
+      "metrics": {
+        "tempo": {
+          "backswingTime": 0,
+          "downswingTime": 0,
+          "tempoRatio": 0,
+          "score": 70
+        },
+        "rotation": {
+          "shoulderTurn": 1,
+          "hipTurn": -1,
+          "xFactor": 2,
+          "score": 1
+        },
+        "weightTransfer": {
+          "address": {
+            "left": 0.5,
+            "right": 0.5
+          },
+          "top": {
+            "left": 0.2,
+            "right": 0.8
+          },
+          "impact": {
+            "left": 0.6,
+            "right": 0.4
+          },
+          "finish": {
+            "left": 0.9,
+            "right": 0.1
+          },
+          "score": 100
+        },
+        "swingPlane": 64,
+        "clubSpeed": 110,
+        "overallScore": 57,
+        "letterGrade": "F"
+      }
+    }
+  ]
+}

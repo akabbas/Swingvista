@@ -1,0 +1,49 @@
+{
+  "source": "PGA Tour Driver Swings Compilation",
+  "sourceUrl": "https://www.youtube.com/shorts/UHKApJXBSd0",
+  "totalClips": 6,
+  "clips": [
+    {
+      "file": "pga_driver_1.mp4",
+      "duration": 4.770461,
+      "startTime": 0,
+      "endTime": 4.770461,
+      "description": "PGA Tour driver swing 1"
+    },
+    {
+      "file": "pga_driver_2.mp4",
+      "duration": 4.970460999999999,
+      "startTime": 4.370461,
+      "endTime": 9.340921999999999,
+      "description": "PGA Tour driver swing 2"
+    },
+    {
+      "file": "pga_driver_3.mp4",
+      "duration": 4.9704609999999985,
+      "startTime": 8.940922,
+      "endTime": 13.911382999999999,
+      "description": "PGA Tour driver swing 3"
+    },
+    {
+      "file": "pga_driver_4.mp4",
+      "duration": 4.9704609999999985,
+      "startTime": 13.511383,
+      "endTime": 18.481844,
+      "description": "PGA Tour driver swing 4"
+    },
+    {
+      "file": "pga_driver_5.mp4",
+      "duration": 4.970461,
+      "startTime": 18.081844,
+      "endTime": 23.052305,
+      "description": "PGA Tour driver swing 5"
+    },
+    {
+      "file": "pga_driver_6.mp4",
+      "duration": 4.770460999999997,
+      "startTime": 22.652305000000002,
+      "endTime": 27.422766,
+      "description": "PGA Tour driver swing 6"
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "totalVideos": 22,
+  "videos": [
+    {
+      "original": "pga_adam_scott_driver_3.mp4",
+      "analyzed": "pga_adam_scott_driver_3_analyzed.mp4",
+      "golfer": "Adam Scott"
+    },
+    {
+      "original": "pga_adam_scott_driver_9.mp4",
+      "analyzed": "pga_adam_scott_driver_9_analyzed.mp4",
+      "golfer": "Adam Scott"
+    },
+    {
+      "original": "pga_collin_morikawa_driver_1.mp4",
+      "analyzed": "pga_collin_morikawa_driver_1_analyzed.mp4",
+      "golfer": "Collin Morikawa"
+    },
+    {
+      "original": "pga_collin_morikawa_driver_2.mp4",
+      "analyzed": "pga_collin_morikawa_driver_2_analyzed.mp4",
+      "golfer": "Collin Morikawa"
+    },
+    {
+      "original": "pga_collin_morikawa_driver_3.mp4",
+      "analyzed": "pga_collin_morikawa_driver_3_analyzed.mp4",
+      "golfer": "Collin Morikawa"
+    },
+    {
+      "original": "pga_collin_morikawa_driver_4.mp4",
+      "analyzed": "pga_collin_morikawa_driver_4_analyzed.mp4",
+      "golfer": "Collin Morikawa"
+    },
+    {
+      "original": "pga_collin_morikawa_driver_5.mp4",
+      "analyzed": "pga_collin_morikawa_driver_5_analyzed.mp4",
+      "golfer": "Collin Morikawa"
+    },
+    {
+      "original": "pga_driver_1.mp4",
+      "analyzed": "pga_driver_1_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_driver_2.mp4",
+      "analyzed": "pga_driver_2_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_driver_3.mp4",
+      "analyzed": "pga_driver_3_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_driver_4.mp4",
+      "analyzed": "pga_driver_4_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_driver_5.mp4",
+      "analyzed": "pga_driver_5_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_driver_6.mp4",
+      "analyzed": "pga_driver_6_analyzed.mp4",
+      "golfer": "Unknown"
+    },
+    {
+      "original": "pga_hideki_matsuyama_driver_1.mp4",
+      "analyzed": "pga_hideki_matsuyama_driver_1_analyzed.mp4",
+      "golfer": "Hideki Matsuyama"
+    },
+    {
+      "original": "pga_hideki_matsuyama_driver_7.mp4",
+      "analyzed": "pga_hideki_matsuyama_driver_7_analyzed.mp4",
+      "golfer": "Hideki Matsuyama"
+    },
+    {
+      "original": "pga_jon_rahm_driver_3.mp4",
+      "analyzed": "pga_jon_rahm_driver_3_analyzed.mp4",
+      "golfer": "Jon Rahm"
+    },
+    {
+      "original": "pga_justin_thomas_driver_8.mp4",
+      "analyzed": "pga_justin_thomas_driver_8_analyzed.mp4",
+      "golfer": "Justin Thomas"
+    },
+    {
+      "original": "pga_rory_mcilroy_driver_2.mp4",
+      "analyzed": "pga_rory_mcilroy_driver_2_analyzed.mp4",
+      "golfer": "Rory Mcilroy"
+    },
+    {
+      "original": "pga_scottie_scheffler_driver_4.mp4",
+      "analyzed": "pga_scottie_scheffler_driver_4_analyzed.mp4",
+      "golfer": "Scottie Scheffler"
+    },
+    {
+      "original": "pga_tiger_woods_driver_1.mp4",
+      "analyzed": "pga_tiger_woods_driver_1_analyzed.mp4",
+      "golfer": "Tiger Woods"
+    },
+    {
+      "original": "pga_xander_schauffele_driver_2.mp4",
+      "analyzed": "pga_xander_schauffele_driver_2_analyzed.mp4",
+      "golfer": "Xander Schauffele"
+    },
+    {
+      "original": "pga_xander_schauffele_driver_6.mp4",
+      "analyzed": "pga_xander_schauffele_driver_6_analyzed.mp4",
+      "golfer": "Xander Schauffele"
+    }
+  ]
+}

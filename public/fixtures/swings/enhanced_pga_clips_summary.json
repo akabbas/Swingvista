@@ -1,0 +1,39 @@
+{
+  "source": "PGA Tour Driver Swings Compilation",
+  "sourceUrl": "https://www.youtube.com/shorts/UHKApJXBSd0",
+  "totalClips": 4,
+  "clips": [
+    {
+      "file": "pga_hideki_matsuyama_driver_1.mp4",
+      "player": "Hideki Matsuyama",
+      "duration": 4,
+      "startTime": 0,
+      "endTime": 4,
+      "description": "Hideki Matsuyama driver swing"
+    },
+    {
+      "file": "pga_xander_schauffele_driver_2.mp4",
+      "player": "Xander Schauffele",
+      "duration": 6,
+      "startTime": 2.5,
+      "endTime": 8.5,
+      "description": "Xander Schauffele driver swing"
+    },
+    {
+      "file": "pga_collin_morikawa_driver_3.mp4",
+      "player": "Collin Morikawa",
+      "duration": 3.5,
+      "startTime": 8.5,
+      "endTime": 12,
+      "description": "Collin Morikawa driver swing"
+    },
+    {
+      "file": "pga_collin_morikawa_driver_4.mp4",
+      "player": "Collin Morikawa",
+      "duration": 6,
+      "startTime": 10.5,
+      "endTime": 16.5,
+      "description": "Collin Morikawa driver swing"
+    }
+  ]
+}
