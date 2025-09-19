@@ -20,9 +20,10 @@ export default function VideoDebugger({ videoUrl, videoName, isSampleVideo = fal
   };
 
   useEffect(() => {
-    addEvent(`Component mounted with URL: ${videoUrl}`);
-    addEvent(`Is Sample Video: ${isSampleVideo}`);
-    addEvent(`URL type: ${videoUrl.startsWith('blob:') ? 'BLOB' : 'FILE'}`);
+    const componentId = Math.random().toString(36).substr(2, 9);
+    addEvent(`[${componentId}] Component mounted with URL: ${videoUrl}`);
+    addEvent(`[${componentId}] Is Sample Video: ${isSampleVideo}`);
+    addEvent(`[${componentId}] URL type: ${videoUrl.startsWith('blob:') ? 'BLOB' : 'FILE'}`);
     
     // Only test URL accessibility for non-blob URLs
     if (!videoUrl.startsWith('blob:')) {
@@ -30,18 +31,18 @@ export default function VideoDebugger({ videoUrl, videoName, isSampleVideo = fal
       fetch(videoUrl, { method: 'HEAD' })
         .then(response => {
           if (response.ok) {
-            addEvent(`✅ URL is accessible (${response.status})`);
-            addEvent(`Content-Type: ${response.headers.get('content-type')}`);
-            addEvent(`Content-Length: ${response.headers.get('content-length')}`);
+            addEvent(`[${componentId}] ✅ URL is accessible (${response.status})`);
+            addEvent(`[${componentId}] Content-Type: ${response.headers.get('content-type')}`);
+            addEvent(`[${componentId}] Content-Length: ${response.headers.get('content-length')}`);
           } else {
-            addEvent(`❌ URL not accessible (${response.status})`);
+            addEvent(`[${componentId}] ❌ URL not accessible (${response.status})`);
           }
         })
         .catch(error => {
-          addEvent(`❌ URL fetch error: ${error.message}`);
+          addEvent(`[${componentId}] ❌ URL fetch error: ${error.message}`);
         });
     } else {
-      addEvent(`⚠️ Skipping URL accessibility test for blob URL`);
+      addEvent(`[${componentId}] ⚠️ Skipping URL accessibility test for blob URL`);
     }
   }, [videoUrl, isSampleVideo]);
 

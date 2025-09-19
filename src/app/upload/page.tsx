@@ -408,12 +408,23 @@ export default function UploadPage() {
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Video Preview</h3>
               
               {/* Video Debugger */}
-              <VideoDebugger
-                key={`debugger-${state.file.name}-${state.isSampleVideo}`}
-                videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '')}
-                videoName={state.file.name}
-                isSampleVideo={state.isSampleVideo}
-              />
+              {(() => {
+                const videoUrl = state.isSampleVideo ? (state.videoUrl || '') : (state.file ? URL.createObjectURL(state.file) : '');
+                console.log('🎥 VideoDebugger props:', {
+                  videoUrl,
+                  videoName: state.file.name,
+                  isSampleVideo: state.isSampleVideo,
+                  urlType: videoUrl.startsWith('blob:') ? 'BLOB' : 'FILE'
+                });
+                return (
+                  <VideoDebugger
+                    key={`debugger-${state.file.name}-${state.isSampleVideo}`}
+                    videoUrl={videoUrl}
+                    videoName={state.file.name}
+                    isSampleVideo={state.isSampleVideo}
+                  />
+                );
+              })()}
               
               <div className="mt-4 text-center">
                 <p className="text-gray-600 mb-4">
