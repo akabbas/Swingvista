@@ -283,11 +283,19 @@ export default function UploadPage() {
   // Video URL management
   const videoUrl = useMemo(() => {
     if (!state.file) return null;
-    console.log('🎥 VIDEO URL: Creating URL for file:', state.file.name);
+    
+    // For sample videos, use the direct file path from state.videoUrl
+    if (state.isSampleVideo && state.videoUrl) {
+      console.log('🎥 VIDEO URL: Using sample video path:', state.videoUrl);
+      return state.videoUrl;
+    }
+    
+    // For uploaded videos, create blob URL
+    console.log('🎥 VIDEO URL: Creating blob URL for uploaded file:', state.file.name);
     const url = URL.createObjectURL(state.file);
     console.log('✅ VIDEO URL CREATED:', url);
     return url;
-  }, [state.file]);
+  }, [state.file, state.isSampleVideo, state.videoUrl]);
 
   // Update video URL in state
   useEffect(() => {
