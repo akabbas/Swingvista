@@ -32,6 +32,7 @@ interface VideoPlayerWithOverlayProps {
   isMuted?: boolean;
   onMuteChange?: (muted: boolean) => void;
   onVideoError?: () => void;
+  file?: File;
 }
 
 interface VideoDimensions {
@@ -60,7 +61,8 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   onLoadedMetadata,
   isMuted = false,
   onMuteChange,
-  onVideoError
+  onVideoError,
+  file
 }) => {
   // Debug logging for overlay data
   console.log('🎬 VIDEO PLAYER DEBUG: VideoPlayerWithOverlay props:', {
@@ -79,6 +81,8 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [internalVideoUrl, setInternalVideoUrl] = useState(videoUrl);
+  const [regenerateKey, setRegenerateKey] = useState(0);
 
   // Update video dimensions when video loads
   const updateVideoDimensions = useCallback(() => {
@@ -132,10 +136,36 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   }, [onLoadedMetadata, updateVideoDimensions]);
 
   // Handle video error
-  const handleVideoError = useCallback(() => {
-    console.error('🎥 VIDEO ERROR: Video failed to load');
+  const handleVideoError = useCallback((e: Event) => {
+    const video = e.target as HTMLVideoElement;
+    const error = video.error;
+    
+    console.error('🎥 VIDEO ERROR: Video failed to load', {
+      code: error?.code,
+      message: error?.message,
+      videoSrc: video.src
+    });
+    
+    // Try to recover from blob URL errors
+    if (error && (error.code === 4 || video.src.startsWith('blob:'))) {
+      console.log('🎥 VIDEO ERROR: Attempting to recover from blob URL error');
+      
+      // If we have a file, try to recreate the blob URL
+      if (file) {
+        setTimeout(() => {
+          // Recreate blob URL inline to avoid circular dependency
+          if (internalVideoUrl && internalVideoUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(internalVideoUrl);
+          }
+          const newUrl = URL.createObjectURL(file);
+          setInternalVideoUrl(newUrl);
+          setRegenerateKey(prev => prev + 1);
+        }, 500);
+      }
+    }
+    
     onVideoError?.();
-  }, [onVideoError]);
+  }, [onVideoError, file, internalVideoUrl]);
 
   // Handle video resize
   const handleResize = useCallback(() => {
@@ -178,6 +208,43 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
     }
   }, [playbackSpeed]);
 
+  // Update internal video URL when external URL changes
+  useEffect(() => {
+    setInternalVideoUrl(videoUrl);
+  }, [videoUrl]);
+
+  // Animation frame loop for consistent overlay updates
+  useEffect(() => {
+    let animationFrameId: number;
+    let lastTime = 0;
+    
+    const animate = (timestamp: number) => {
+      // Only update every 16ms (60fps)
+      if (timestamp - lastTime >= 16) {
+        if (videoRef.current && !videoRef.current.paused) {
+          // Force overlay components to update by triggering time update
+          const currentVideoTime = videoRef.current.currentTime * 1000;
+          if (Math.abs(currentVideoTime - currentTime) > 1) {
+            setCurrentTime(currentVideoTime);
+          }
+        }
+        lastTime = timestamp;
+      }
+      
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    
+    if (isPlaying) {
+      animationFrameId = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isPlaying, currentTime]);
+
   // Find closest pose for current time
   const findClosestPose = useCallback((time: number) => {
     if (!poses || poses.length === 0) return null;
@@ -189,12 +256,80 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
     });
   }, [poses]);
 
+  // Handle Impact button click
+  const handleImpactSeek = useCallback(() => {
+    if (!videoRef.current || !phases || phases.length === 0) return;
+    
+    // Find impact phase
+    const impactPhase = phases.find(phase => 
+      phase.name.toLowerCase() === 'impact' || 
+      phase.name.toLowerCase().includes('impact')
+    );
+    
+    if (impactPhase) {
+      console.log('🎯 IMPACT DEBUG: Seeking to impact phase at:', impactPhase.startTime);
+      
+      // Calculate impact time in seconds
+      const impactTime = impactPhase.startTime / 1000;
+      
+      // Seek to impact frame
+      videoRef.current.currentTime = impactTime;
+      
+      // Play video from impact point
+      videoRef.current.play().catch(error => {
+        console.error('Failed to play video after impact seek:', error);
+      });
+      
+      // Update UI state
+      setCurrentTime(impactPhase.startTime);
+      setIsPlaying(true);
+    } else {
+      console.warn('🎯 IMPACT DEBUG: No impact phase found in phases data');
+    }
+  }, [phases]);
+
+  // Handle Reload Video button click
+  const handleReloadVideo = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    console.log('🔄 RELOAD DEBUG: Reloading video...');
+    
+    // If we have a file, recreate the blob URL
+    if (file) {
+      // Revoke previous URL to prevent memory leaks
+      if (internalVideoUrl && internalVideoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(internalVideoUrl);
+      }
+      
+      // Create new URL
+      const newUrl = URL.createObjectURL(file);
+      setInternalVideoUrl(newUrl);
+      setRegenerateKey(prev => prev + 1);
+      
+      console.log('🔄 RELOAD DEBUG: Created new blob URL:', newUrl);
+    }
+    
+    // Reset video state
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(error => {
+          console.error('Failed to play video after reload:', error);
+        });
+        
+        setCurrentTime(0);
+        setIsPlaying(true);
+      }
+    }, 100);
+  }, [file, internalVideoUrl]);
+
   return (
     <div className={`relative w-full ${className}`}>
       {/* Video Element */}
       <video
+        key={regenerateKey}
         ref={videoRef}
-        src={videoUrl}
+        src={internalVideoUrl}
         controls
         className="w-full rounded-lg bg-black"
         playsInline
@@ -214,6 +349,27 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
         </div>
       )}
       
+      {/* Video Control Buttons */}
+      <div className="absolute bottom-20 left-4 z-20 flex gap-2">
+        <button
+          onClick={handleImpactSeek}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-lg flex items-center gap-2"
+          title="Jump to Impact"
+        >
+          <span className="text-lg">🎯</span>
+          <span>Impact</span>
+        </button>
+        
+        <button
+          onClick={handleReloadVideo}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg flex items-center gap-2"
+          title="Reload Video"
+        >
+          <span className="text-lg">🔄</span>
+          <span>Reload Video</span>
+        </button>
+      </div>
+      
       {/* Debug Info Overlay */}
       <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-green-400 font-mono text-xs p-2 rounded z-50 pointer-events-none">
         <div>Video: {videoDimensions ? `${videoDimensions.width}x${videoDimensions.height}` : 'Loading...'}</div>
@@ -230,8 +386,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           top: 0, 
           left: 0, 
           width: '100%', 
-          height: '100%',
-          border: '1px solid rgba(0,255,0,0.5)' // Debug border to confirm canvas position
+          height: '100%'
         }}
       />
       
@@ -289,7 +444,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           {/* Stick Figure Overlay - Direct canvas positioning */}
           {overlaySettings.stickFigure && (
             <StickFigureOverlay
-              key="stick-figure-overlay"
+              key={`stick-figure-overlay-${currentTime}`}
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}
               poses={poses}
               currentTime={currentTime}
@@ -305,7 +460,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           {/* Swing Plane Visualization - Direct canvas positioning */}
           {overlaySettings.swingPlane && (
             <SwingPlaneVisualization
-              key="swing-plane-visualization"
+              key={`swing-plane-visualization-${currentTime}`}
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}
               poses={poses}
               phases={phases}
@@ -320,7 +475,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           {/* Phase Markers - Direct canvas positioning */}
           {overlaySettings.phaseMarkers && phases && phases.length > 0 && (
             <PhaseMarkers
-              key="phase-markers"
+              key={`phase-markers-${currentTime}`}
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}
               phases={phases}
               currentTime={currentTime}

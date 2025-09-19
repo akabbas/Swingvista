@@ -1373,6 +1373,7 @@ export default function UploadPage() {
                           refreshVideoUrl();
                           forceComponentRefresh();
                         }}
+                        file={state.file || undefined}
                         className="w-full"
                       />
                     </div>
