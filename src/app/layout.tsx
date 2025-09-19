@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import FeedbackButton from '@/components/ui/FeedbackButton';
+import VersionInfo from '@/components/ui/VersionInfo';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,6 +53,10 @@ export default function RootLayout({
         {/* Lightweight feedback button */}
         {process.env.NODE_ENV !== 'test' && (
           <FeedbackButton />
+        )}
+        {/* Version info for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <VersionInfo />
         )}
       </body>
     </html>

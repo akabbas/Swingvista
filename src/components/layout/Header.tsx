@@ -8,7 +8,10 @@ export default function Header() {
           <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">SV</span>
           </div>
-          <span className="font-bold text-xl text-gray-800">SwingVista</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-xl text-gray-800">SwingVista</span>
+            <span className="text-xs text-gray-500 font-mono">v2.0.0-dev</span>
+          </div>
         </Link>
         <nav className="flex items-center gap-8 text-sm font-medium">
           <Link 
