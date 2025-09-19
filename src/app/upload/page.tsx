@@ -17,6 +17,7 @@ import SwingComparisonPanel from '@/components/ui/SwingComparisonPanel';
 import SampleVideoSelector from '@/components/ui/SampleVideoSelector';
 import VideoAnalysisDisplay from '@/components/analysis/VideoAnalysisDisplay';
 import SimpleVideoTest from '@/components/analysis/SimpleVideoTest';
+import VideoDebugger from '@/components/analysis/VideoDebugger';
 import ProfessionalGolfStandards from '@/components/analysis/ProfessionalGolfStandards';
 import ProfessionalAIFeedback from '@/components/analysis/ProfessionalAIFeedback';
 import { SwingHistoryManager, SwingHistoryEntry, SwingComparison } from '@/lib/swing-history';
@@ -406,8 +407,8 @@ export default function UploadPage() {
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Video Preview</h3>
               
-              {/* Simple Video Test */}
-              <SimpleVideoTest
+              {/* Video Debugger */}
+              <VideoDebugger
                 videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
                 videoName={state.file.name}
                 isSampleVideo={state.isSampleVideo}
@@ -438,9 +439,9 @@ export default function UploadPage() {
               </div>
             )}
 
-          {/* Simple Video Test */}
+          {/* Video Debugger */}
           {state.file && (
-            <SimpleVideoTest
+            <VideoDebugger
               videoUrl={state.isSampleVideo ? (state.videoUrl || '') : (state.videoUrl || (state.file ? URL.createObjectURL(state.file) : ''))}
               videoName={state.file.name}
               isSampleVideo={state.isSampleVideo}
