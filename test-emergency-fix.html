@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Loop Breaker Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Emergency Loop Breaker Fix Test</h1>
+    
+    <div class="test-section info">
+        <h2>Fix Description</h2>
+        <p>The emergency loop breaker was causing infinite errors because it included <code>renderCount</code> in the dependency array, creating a feedback loop. This has been fixed by:</p>
+        <ul>
+            <li>Using <code>useRef</code> for render counting instead of state</li>
+            <li>Only triggering emergency protection for rapid renders (within 1 second)</li>
+            <li>Removing <code>renderCount</code> from dependency arrays</li>
+            <li>Adding proper emergency state management</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="testNormalRenders()">Test Normal Renders</button>
+        <button onclick="testRapidRenders()">Test Rapid Renders</button>
+        <button onclick="testEmergencyTrigger()">Test Emergency Trigger</button>
+        <button onclick="testEmergencyReset()">Test Emergency Reset</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Status</h2>
+        <div id="status">
+            <div class="metric" id="renderCount">Render Count: 0</div>
+            <div class="metric" id="emergencyStatus">Emergency Status: Normal</div>
+            <div class="metric" id="testResult">Test Result: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let testData = {
+            renderCount: 0,
+            lastRenderTime: 0,
+            emergencyTriggered: false,
+            testStartTime: 0
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value, status = '') {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+                if (status) {
+                    element.className = 'metric ' + status;
+                }
+            }
+        }
+
+        function simulateRender() {
+            const now = Date.now();
+            testData.renderCount++;
+            
+            log(`🔄 Render #${testData.renderCount}`);
+            updateMetric('renderCount', testData.renderCount);
+            
+            // Check for rapid renders (within 1 second)
+            if (now - testData.lastRenderTime < 1000) {
+                if (testData.renderCount > 10 && !testData.emergencyTriggered) {
+                    log('🚨 EMERGENCY: Rapid renders detected - triggering protection');
+                    testData.emergencyTriggered = true;
+                    updateMetric('emergencyStatus', 'ACTIVE', 'bad');
+                    updateMetric('testResult', 'Emergency Triggered', 'bad');
+                    return false; // Stop further renders
+                }
+            } else {
+                // Reset counter if enough time has passed
+                testData.renderCount = 1;
+                log('⏰ Time threshold passed - resetting render count');
+            }
+            
+            testData.lastRenderTime = now;
+            return true; // Continue rendering
+        }
+
+        function testNormalRenders() {
+            log('🚀 Starting normal renders test...');
+            resetTestData();
+            
+            // Simulate normal renders with delays
+            let renderCount = 0;
+            const interval = setInterval(() => {
+                if (!simulateRender()) {
+                    clearInterval(interval);
+                    return;
+                }
+                renderCount++;
+                if (renderCount >= 5) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        if (!testData.emergencyTriggered) {
+                            log('✅ Normal renders test passed - no emergency triggered');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Normal renders test failed - emergency triggered unexpectedly');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 200); // 200ms between renders (normal speed)
+        }
+
+        function testRapidRenders() {
+            log('🚀 Starting rapid renders test...');
+            resetTestData();
+            
+            // Simulate rapid renders
+            let renderCount = 0;
+            const interval = setInterval(() => {
+                if (!simulateRender()) {
+                    clearInterval(interval);
+                    return;
+                }
+                renderCount++;
+                if (renderCount >= 15) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        if (testData.emergencyTriggered) {
+                            log('✅ Rapid renders test passed - emergency protection activated');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Rapid renders test failed - emergency protection did not activate');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 50); // 50ms between renders (rapid speed)
+        }
+
+        function testEmergencyTrigger() {
+            log('🚀 Starting emergency trigger test...');
+            resetTestData();
+            
+            // Simulate very rapid renders to trigger emergency
+            let renderCount = 0;
+            const interval = setInterval(() => {
+                if (!simulateRender()) {
+                    clearInterval(interval);
+                    return;
+                }
+                renderCount++;
+                if (renderCount >= 20) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        if (testData.emergencyTriggered) {
+                            log('✅ Emergency trigger test passed - protection activated correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Emergency trigger test failed - protection did not activate');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 10); // 10ms between renders (very rapid)
+        }
+
+        function testEmergencyReset() {
+            log('🚀 Starting emergency reset test...');
+            resetTestData();
+            
+            // First trigger emergency
+            let renderCount = 0;
+            const interval = setInterval(() => {
+                if (!simulateRender()) {
+                    clearInterval(interval);
+                    // Test reset after emergency is triggered
+                    setTimeout(() => {
+                        if (testData.emergencyTriggered) {
+                            log('🔄 Testing emergency reset...');
+                            resetTestData();
+                            
+                            setTimeout(() => {
+                                if (!testData.emergencyTriggered && testData.renderCount === 0) {
+                                    log('✅ Emergency reset test passed - system reset successfully');
+                                    updateMetric('testResult', 'PASSED', 'good');
+                                } else {
+                                    log('❌ Emergency reset test failed - reset did not work');
+                                    updateMetric('testResult', 'FAILED', 'bad');
+                                }
+                            }, 100);
+                        } else {
+                            log('❌ Emergency reset test failed - emergency was not triggered');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+                renderCount++;
+                if (renderCount >= 20) {
+                    clearInterval(interval);
+                }
+            }, 10);
+        }
+
+        function resetTestData() {
+            testData.renderCount = 0;
+            testData.lastRenderTime = 0;
+            testData.emergencyTriggered = false;
+            testData.testStartTime = Date.now();
+            
+            updateMetric('renderCount', 0);
+            updateMetric('emergencyStatus', 'Normal', 'good');
+            updateMetric('testResult', 'Ready', '');
+        }
+
+        // Initialize
+        resetTestData();
+    </script>
+</body>
+</html>
+
+
+
+

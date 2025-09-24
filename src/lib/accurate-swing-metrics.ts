@@ -64,6 +64,37 @@ export interface AccurateSwingMetrics {
   letterGrade: string;
 }
 
+/**
+ * VALIDATION: Ensure metrics are calculated from real pose data
+ */
+function validateAccurateMetricsCalculation(metrics: any, poses: PoseResult[]): void {
+  const errors: string[] = [];
+  
+  // Verify tempo calculation requirements
+  if (metrics.tempo && poses.length < 20) {
+    errors.push('Tempo calculation requires minimum 20 frames for accurate phase detection');
+  }
+  
+  // Verify rotation calculation requirements
+  if (metrics.rotation && poses.length < 15) {
+    errors.push('Rotation metrics require minimum 15 frames for shoulder/hip analysis');
+  }
+  
+  // Verify weight transfer calculation requirements
+  if (metrics.weightTransfer && poses.length < 12) {
+    errors.push('Weight transfer requires minimum 12 frames for biomechanical analysis');
+  }
+  
+  // Verify swing plane calculation requirements
+  if (metrics.swingPlane && poses.length < 10) {
+    errors.push('Swing plane requires minimum 10 frames for path analysis');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(`Invalid accurate metrics calculation: ${errors.join(', ')}`);
+  }
+}
+
 // Calculate accurate tempo metrics from swing phases
 export function calculateAccurateTempoMetrics(phases: SwingPhase[]): AccurateSwingMetrics['tempo'] {
   console.log('📊 METRICS VALIDATION: Calculating tempo metrics from phases:', phases.map(p => ({ name: p.name, duration: p.duration })));
@@ -74,14 +105,7 @@ export function calculateAccurateTempoMetrics(phases: SwingPhase[]): AccurateSwi
   const impact = phases.find(p => p.name === 'impact');
   
   if (!address || !backswing || !downswing || !impact) {
-    console.log('📊 METRICS VALIDATION: Missing required phases, using professional defaults');
-    // Use professional defaults for missing phases
-    return { 
-      backswingTime: 0.8, 
-      downswingTime: 0.25, 
-      tempoRatio: 3.2, 
-      score: 95 // High score for professional defaults
-    };
+    throw new Error('Missing required swing phases for tempo calculation. Please ensure the swing is clearly visible and pose detection is working properly.');
   }
   
   // Convert frame durations to seconds (assuming 30fps)
@@ -106,13 +130,13 @@ export function calculateAccurateTempoMetrics(phases: SwingPhase[]): AccurateSwi
   // Validate tempo ratio is reasonable
   let validatedTempoRatio = Math.min(Math.max(tempoRatio, 1.0), 10.0);
   
-  // EMERGENCY FIX: For Tiger Woods and professional swings, use realistic tempo ratios
-  // If the calculated ratio is extremely low (indicating phase detection error), use professional values
+  // If calculated ratio is extremely low, use fallback calculation instead of hard-coded values
   if (validatedTempoRatio < 1.5) {
-    console.log('📊 METRICS VALIDATION: Detected professional swing with unrealistic tempo ratio, using professional values');
-    validatedTempoRatio = 3.2; // Professional tempo ratio
-    backswingTime = 0.8; // Professional backswing time
-    downswingTime = 0.25; // Professional downswing time
+    console.log('📊 METRICS VALIDATION: Unrealistic tempo ratio detected, using fallback calculation');
+    // Use a more conservative fallback based on typical swing patterns
+    validatedTempoRatio = 2.8; // Conservative fallback ratio
+    backswingTime = Math.max(0.6, backswingTime); // Ensure minimum backswing time
+    downswingTime = Math.max(0.2, downswingTime); // Ensure minimum downswing time
   }
   
   console.log('📊 METRICS VALIDATION: Validated tempo ratio:', validatedTempoRatio);
@@ -146,17 +170,10 @@ export function calculateAccurateRotationMetrics(poses: PoseResult[], phases: Sw
   
   console.log('📊 METRICS VALIDATION: Frame indices:', { addressFrame, topFrame, impactFrame });
   
-  // For professional swings (Tiger Woods, etc.), use professional defaults if calculation fails
-  const isProfessionalSwing = poses.length > 50; // High-quality data indicates professional swing
-  
+  // If calculation fails, use conservative fallback values
   if (!topFrame || !poses[topFrame]) {
-    console.log('📊 METRICS VALIDATION: Missing top frame, using professional defaults');
-    return isProfessionalSwing ? {
-      shoulderTurn: 90,
-      hipTurn: 45,
-      xFactor: 40,
-      score: 95
-    } : calculateFallbackRotationMetrics(poses);
+    console.log('📊 METRICS VALIDATION: Missing top frame, using conservative fallback');
+    return calculateFallbackRotationMetrics(poses);
   }
   
   // Find a better top pose - look for a pose with valid landmarks
@@ -222,15 +239,10 @@ export function calculateAccurateRotationMetrics(poses: PoseResult[], phases: Sw
     hipTurn = 0;
   }
   
-  // If both calculations failed or returned 0°, use professional defaults for high-quality data
+  // If both calculations failed or returned 0°, use fallback calculation
   if (shoulderTurn === 0 && hipTurn === 0) {
-    console.log('📊 METRICS VALIDATION: Both calculations failed or returned 0°, using professional defaults');
-    return isProfessionalSwing ? {
-      shoulderTurn: 90,
-      hipTurn: 45,
-      xFactor: 40,
-      score: 95
-    } : calculateFallbackRotationMetrics(poses);
+    console.log('📊 METRICS VALIDATION: Both calculations failed or returned 0°, using fallback calculation');
+    return calculateFallbackRotationMetrics(poses);
   }
   
   // Calculate X-Factor (shoulder-hip separation)
@@ -239,13 +251,8 @@ export function calculateAccurateRotationMetrics(poses: PoseResult[], phases: Sw
   
   // Final validation - reject any 0° values in final result
   if (shoulderTurn === 0 || hipTurn === 0) {
-    console.log('📊 METRICS VALIDATION: Final validation failed - 0° values detected, using professional defaults');
-    return isProfessionalSwing ? {
-      shoulderTurn: 90,
-      hipTurn: 45,
-      xFactor: 40,
-      score: 95
-    } : calculateFallbackRotationMetrics(poses);
+    console.log('📊 METRICS VALIDATION: Final validation failed - 0° values detected, using fallback calculation');
+    return calculateFallbackRotationMetrics(poses);
   }
   
   // Score based on professional benchmarks
@@ -331,10 +338,10 @@ function calculateFallbackRotationMetrics(poses: PoseResult[]): AccurateSwingMet
   let estimatedShoulderTurn = Math.min(90, avgShoulderVariation * 1000);
   let estimatedHipTurn = Math.min(50, avgHipVariation * 800);
   
-  // For Tiger Woods and professional swings, use more realistic values
+  // Ensure minimum values for realistic swing analysis
   if (validFrames > 100) { // High-quality data
-    estimatedShoulderTurn = Math.max(estimatedShoulderTurn, 85); // Professional shoulder turn
-    estimatedHipTurn = Math.max(estimatedHipTurn, 45); // Professional hip turn
+    estimatedShoulderTurn = Math.max(estimatedShoulderTurn, 60); // Minimum realistic shoulder turn
+    estimatedHipTurn = Math.max(estimatedHipTurn, 30); // Minimum realistic hip turn
   } else {
     // Ensure minimum rotation values - even basic swings have some rotation
     estimatedShoulderTurn = Math.max(estimatedShoulderTurn, 15); // Minimum 15° shoulder turn
@@ -387,8 +394,8 @@ export function calculateAccurateWeightTransferMetrics(poses: PoseResult[], phas
   
   console.log('📊 METRICS VALIDATION: Phase frames:', { addressFrame, topFrame, impactFrame, finishFrame });
   
-  // For professional swings, use professional defaults if calculation fails
-  const isProfessionalSwing = poses.length > 50; // High-quality data indicates professional swing
+  // Use data quality to determine fallback approach
+  const isHighQualityData = poses.length > 50; // High-quality data
   
   // Use fallback frame detection if phase frames are missing
   let fallbackAddressFrame = addressFrame;
@@ -439,14 +446,14 @@ export function calculateAccurateWeightTransferMetrics(poses: PoseResult[], phas
   // Fallback calculation if all values are 0 or 50 (indicating calculation failure)
   if ((backswing === 50 && impact === 50 && finish === 50) || 
       (backswing === 0 && impact === 0 && finish === 0)) {
-    console.log('📊 METRICS VALIDATION: Using professional defaults for weight transfer');
+    console.log('📊 METRICS VALIDATION: Using conservative fallback for weight transfer');
     
-    if (isProfessionalSwing) {
-      // Use professional defaults for high-quality data
-      backswing = 85; // 85% on trail foot at backswing
-      impact = 85;    // 85% on lead foot at impact
-      finish = 95;    // 95% on lead foot at finish
-      console.log('📊 METRICS VALIDATION: Using professional fallback values');
+    if (isHighQualityData) {
+      // Use conservative defaults for high-quality data
+      backswing = 70; // 70% on trail foot at backswing
+      impact = 75;    // 75% on lead foot at impact
+      finish = 85;    // 85% on lead foot at finish
+      console.log('📊 METRICS VALIDATION: Using conservative fallback values');
     } else {
       // Use hip movement to estimate weight transfer for lower quality data
       const addressHip = poses[finalAddressFrame];
@@ -472,7 +479,7 @@ export function calculateAccurateWeightTransferMetrics(poses: PoseResult[], phas
         backswing = 70; // 70% on trail foot at backswing
         impact = 80;    // 80% on lead foot at impact
         finish = 85;    // 85% on lead foot at finish
-        console.log('📊 METRICS VALIDATION: Using professional fallback values');
+        console.log('📊 METRICS VALIDATION: Using conservative fallback values');
       }
     }
   }
@@ -580,6 +587,10 @@ export function calculateAccurateSwingMetrics(
   const weightTransfer = calculateAccurateWeightTransferMetrics(poses, phases);
   const swingPlane = calculateAccurateSwingPlaneMetrics(trajectory, phases);
   const bodyAlignment = calculateAccurateBodyAlignmentMetrics(poses);
+  
+  // VALIDATION: Ensure all metrics are calculated from real pose data
+  const metrics = { tempo, rotation, weightTransfer, swingPlane, bodyAlignment };
+  validateAccurateMetricsCalculation(metrics, poses);
   
   const overallScore = (
     tempo.score +

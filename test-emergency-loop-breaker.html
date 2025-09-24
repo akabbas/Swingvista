@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Loop Breaker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        .emergency {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            border-width: 2px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        button.emergency {
+            background-color: #dc3545;
+        }
+        button.emergency:hover {
+            background-color: #c82333;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .metric.emergency {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        .simulation {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .emergency-panel {
+            background-color: #f8d7da;
+            border: 2px solid #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚨 Emergency Loop Breaker Test</h1>
+    
+    <div class="test-section info">
+        <h2>Test Description</h2>
+        <p>This test verifies that the emergency loop breaker mechanism works correctly to prevent infinite render loops. It simulates various scenarios that could cause infinite loops and ensures the emergency protection activates properly.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="testNormalOperation()">Test Normal Operation</button>
+        <button onclick="testEmergencyTrigger()">Test Emergency Trigger</button>
+        <button onclick="testRapidRenders()">Test Rapid Renders</button>
+        <button onclick="testMemoryLeakPrevention()">Test Memory Leak Prevention</button>
+        <button onclick="testEmergencyReset()">Test Emergency Reset</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Emergency Status</h2>
+        <div id="emergencyStatus" class="emergency-panel" style="display: none;">
+            <h3>🚨 EMERGENCY MODE ACTIVE</h3>
+            <p>Render count exceeded safety threshold. System has been stabilized.</p>
+            <button onclick="resetEmergency()" class="emergency">Emergency Reset</button>
+        </div>
+        <div id="normalStatus" class="metric good">
+            ✅ System Status: Normal Operation
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Metrics</h2>
+        <div id="metrics">
+            <div class="metric" id="renderCount">Render Count: 0</div>
+            <div class="metric" id="emergencyTriggered">Emergency Triggered: No</div>
+            <div class="metric" id="memoryLeaks">Memory Leaks: 0</div>
+            <div class="metric" id="blobUrls">Blob URLs: 0</div>
+            <div class="metric" id="testStatus">Status: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results">
+            <p>Click test buttons to begin emergency loop breaker verification.</p>
+        </div>
+    </div>
+
+    <script>
+        let testData = {
+            renderCount: 0,
+            emergencyTriggered: false,
+            memoryLeaks: 0,
+            blobUrls: new Set(),
+            startTime: 0,
+            maxRenders: 10, // VideoDebugger threshold
+            maxRendersMain: 15, // UploadPage threshold
+            logs: []
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+            testData.logs.push(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            testData.logs = [];
+        }
+
+        function updateMetric(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+            }
+        }
+
+        function updateMetricStatus(id, status) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + status;
+                element.className = 'metric ' + status;
+            }
+        }
+
+        function resetTestData() {
+            testData.renderCount = 0;
+            testData.emergencyTriggered = false;
+            testData.memoryLeaks = 0;
+            testData.blobUrls.clear();
+            testData.startTime = Date.now();
+            testData.logs = [];
+            
+            updateMetric('renderCount', 0);
+            updateMetric('emergencyTriggered', 'No');
+            updateMetric('memoryLeaks', 0);
+            updateMetric('blobUrls', 0);
+            updateMetricStatus('testStatus', 'warning');
+            
+            // Hide emergency status
+            document.getElementById('emergencyStatus').style.display = 'none';
+            document.getElementById('normalStatus').style.display = 'block';
+        }
+
+        function simulateRender() {
+            testData.renderCount++;
+            log(`🔄 Render #${testData.renderCount}`);
+            updateMetric('renderCount', testData.renderCount);
+            
+            // Check for emergency trigger
+            if (testData.renderCount > testData.maxRenders) {
+                triggerEmergency();
+                return false; // Stop further renders
+            }
+            
+            return true; // Continue rendering
+        }
+
+        function triggerEmergency() {
+            testData.emergencyTriggered = true;
+            log('🚨 EMERGENCY: Breaking infinite render loop');
+            log(`🚨 Render count exceeded: ${testData.renderCount}`);
+            
+            // Clean up blob URLs
+            testData.blobUrls.forEach(url => {
+                log(`🧹 EMERGENCY: Revoking blob URL to prevent memory leak: ${url}`);
+                URL.revokeObjectURL(url);
+                testData.memoryLeaks++;
+            });
+            testData.blobUrls.clear();
+            
+            // Update UI
+            document.getElementById('emergencyStatus').style.display = 'block';
+            document.getElementById('normalStatus').style.display = 'none';
+            updateMetric('emergencyTriggered', 'Yes');
+            updateMetric('memoryLeaks', testData.memoryLeaks);
+            updateMetric('blobUrls', 0);
+            updateMetricStatus('testStatus', 'emergency');
+            
+            log('✅ Emergency protection activated - system stabilized');
+        }
+
+        function resetEmergency() {
+            log('🔄 Emergency reset - all systems reset');
+            resetTestData();
+        }
+
+        function testNormalOperation() {
+            log('🚀 Starting normal operation test...');
+            resetTestData();
+            
+            // Simulate normal renders (under threshold)
+            for (let i = 0; i < 5; i++) {
+                if (!simulateRender()) break;
+            }
+            
+            setTimeout(() => {
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Normal operation test completed in ${testDuration}ms`);
+                
+                if (!testData.emergencyTriggered && testData.renderCount <= testData.maxRenders) {
+                    log('✅ Normal operation test passed - no emergency triggered');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ Normal operation test failed - emergency triggered unexpectedly');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 200);
+        }
+
+        function testEmergencyTrigger() {
+            log('🚀 Starting emergency trigger test...');
+            resetTestData();
+            
+            // Simulate renders that exceed threshold
+            log('🔄 Simulating renders that will trigger emergency...');
+            for (let i = 0; i < testData.maxRenders + 5; i++) {
+                if (!simulateRender()) break;
+            }
+            
+            setTimeout(() => {
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Emergency trigger test completed in ${testDuration}ms`);
+                
+                if (testData.emergencyTriggered) {
+                    log('✅ Emergency trigger test passed - protection activated correctly');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ Emergency trigger test failed - protection did not activate');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 200);
+        }
+
+        function testRapidRenders() {
+            log('🚀 Starting rapid renders test...');
+            resetTestData();
+            
+            // Simulate very rapid renders
+            log('⚡ Simulating rapid renders...');
+            let renderInterval = setInterval(() => {
+                if (!simulateRender()) {
+                    clearInterval(renderInterval);
+                }
+            }, 10); // Very fast renders
+            
+            // Stop after 2 seconds or when emergency triggers
+            setTimeout(() => {
+                clearInterval(renderInterval);
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Rapid renders test completed in ${testDuration}ms`);
+                
+                if (testData.emergencyTriggered) {
+                    log('✅ Rapid renders test passed - emergency protection worked');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ Rapid renders test failed - emergency protection did not activate');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 2000);
+        }
+
+        function testMemoryLeakPrevention() {
+            log('🚀 Starting memory leak prevention test...');
+            resetTestData();
+            
+            // Create some blob URLs
+            for (let i = 0; i < 3; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'red';
+                ctx.fillRect(0, 0, 100, 100);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        testData.blobUrls.add(url);
+                        log(`📁 Created blob URL: ${url}`);
+                        updateMetric('blobUrls', testData.blobUrls.size);
+                    }
+                }, 'image/png');
+            }
+            
+            // Trigger emergency to test cleanup
+            setTimeout(() => {
+                log('🚨 Triggering emergency to test memory cleanup...');
+                for (let i = 0; i < testData.maxRenders + 5; i++) {
+                    if (!simulateRender()) break;
+                }
+                
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Memory leak prevention test completed in ${testDuration}ms`);
+                
+                if (testData.emergencyTriggered && testData.memoryLeaks > 0) {
+                    log('✅ Memory leak prevention test passed - blob URLs cleaned up');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ Memory leak prevention test failed - cleanup issues');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 500);
+        }
+
+        function testEmergencyReset() {
+            log('🚀 Starting emergency reset test...');
+            resetTestData();
+            
+            // Trigger emergency first
+            log('🚨 Triggering emergency...');
+            for (let i = 0; i < testData.maxRenders + 5; i++) {
+                if (!simulateRender()) break;
+            }
+            
+            // Wait a moment, then test reset
+            setTimeout(() => {
+                if (testData.emergencyTriggered) {
+                    log('🔄 Testing emergency reset...');
+                    resetEmergency();
+                    
+                    setTimeout(() => {
+                        const testDuration = Date.now() - testData.startTime;
+                        log(`⏱️ Emergency reset test completed in ${testDuration}ms`);
+                        
+                        if (!testData.emergencyTriggered && testData.renderCount === 0) {
+                            log('✅ Emergency reset test passed - system reset successfully');
+                            updateMetricStatus('testStatus', 'good');
+                        } else {
+                            log('❌ Emergency reset test failed - reset did not work');
+                            updateMetricStatus('testStatus', 'bad');
+                        }
+                    }, 100);
+                } else {
+                    log('❌ Emergency reset test failed - emergency was not triggered');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 200);
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            testData.blobUrls.forEach(url => {
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
+

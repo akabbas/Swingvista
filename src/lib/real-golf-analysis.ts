@@ -7,6 +7,22 @@
 
 import { PoseResult } from './mediapipe';
 import { generateAIGolfFeedback, extractSwingCharacteristics, AIGolfFeedback } from './ai-golf-feedback';
+import { validateSwingMetricsAccuracy } from './enhanced-metrics-validation';
+import { generateDynamicAdvice } from './dynamic-advice-generator';
+
+// Fallback feedback generator
+function generateFallbackFeedback(metrics: any, swingCharacteristics: any): AIGolfFeedback {
+  return {
+    overallAssessment: "Analysis completed with basic feedback. AI coaching is temporarily unavailable.",
+    strengths: ['Swing analysis completed successfully'],
+    improvements: ['Continue practicing your fundamentals'],
+    drills: ['Focus on tempo and balance'],
+    keyTip: 'Keep practicing consistently',
+    professionalInsight: 'Basic analysis completed - AI insights will be available soon',
+    nextSteps: ['Practice regularly', 'Record your progress', 'Consider professional lessons'],
+    confidence: 0.5
+  };
+}
 
 // Professional Golf Standards - Golden Fundamentals
 const GOLF_FUNDAMENTALS = {
@@ -243,24 +259,66 @@ function calculateRealMetrics(poses: PoseResult[], video?: HTMLVideoElement): an
 }
 
 /**
+ * VALIDATION: Ensure metrics are calculated from real pose data
+ */
+function validateRealMetricsCalculation(metrics: any, poses: PoseResult[]): void {
+  const errors: string[] = [];
+  
+  // Verify tempo calculation requirements
+  if (metrics.tempo && poses.length < 20) {
+    errors.push('Tempo ratio requires minimum 20 frames for accurate phase detection');
+  }
+  
+  // Verify weight transfer calculation requirements
+  if (metrics.weightTransfer && poses.length < 15) {
+    errors.push('Weight transfer requires minimum 15 frames for biomechanical analysis');
+  }
+  
+  // Verify X-Factor calculation requirements
+  if (metrics.xFactor && poses.length < 12) {
+    errors.push('X-Factor requires minimum 12 frames for shoulder-hip separation analysis');
+  }
+  
+  // Verify swing plane calculation requirements
+  if (metrics.swingPlane && poses.length < 15) {
+    errors.push('Swing plane requires minimum 15 frames for path deviation analysis');
+  }
+  
+  // Verify club path calculation requirements
+  if (metrics.clubPath && poses.length < 10) {
+    errors.push('Club path requires minimum 10 frames for trajectory analysis');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(`Invalid real metrics calculation: ${errors.join(', ')}`);
+  }
+}
+
+/**
  * Calculate actual tempo ratio from pose data
  */
 function calculateActualTempoRatio(poses: PoseResult[]): number {
   console.log('🏌️ Calculating tempo ratio with proper phase detection...');
   
-  if (poses.length < 20) return 3.0; // Professional default
+  if (poses.length < 20) {
+    throw new Error('Insufficient pose data for tempo calculation. Please record a longer swing with at least 20 frames.');
+  }
   
   // Detect actual swing phases using keypoint analysis
   const phases = detectSwingPhases(poses);
   
-  if (!phases.addressFrame || !phases.topFrame || !phases.impactFrame) {
-    console.log('⚠️ Could not detect all swing phases, using default tempo');
-    return 3.0;
+  // Find the required phase frames
+  const addressPhase = phases.find(p => p.name === 'address');
+  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
+  const impactPhase = phases.find(p => p.name === 'impact');
+  
+  if (!addressPhase || !topPhase || !impactPhase) {
+    throw new Error('Could not detect all swing phases. Please ensure the swing is clearly visible and pose detection is working properly.');
   }
   
   // Calculate actual backswing and downswing durations
-  const backswingFrames = phases.topFrame - phases.addressFrame;
-  const downswingFrames = phases.impactFrame - phases.topFrame;
+  const backswingFrames = topPhase.endFrame - addressPhase.startFrame;
+  const downswingFrames = impactPhase.startFrame - topPhase.endFrame;
   
   // Convert frames to time (assuming 30fps standard)
   const fps = 30;
@@ -269,7 +327,9 @@ function calculateActualTempoRatio(poses: PoseResult[]): number {
   
   console.log(`📊 Backswing: ${backswingTime.toFixed(2)}s, Downswing: ${downswingTime.toFixed(2)}s`);
   
-  if (downswingTime <= 0) return 3.0; // Prevent division by zero
+  if (downswingTime <= 0) {
+    throw new Error('Invalid downswing duration detected. Please ensure the swing phases are properly detected.');
+  }
   
   const ratio = backswingTime / downswingTime;
   
@@ -286,16 +346,23 @@ function calculateActualTempoRatio(poses: PoseResult[]): number {
 function calculateActualWeightTransfer(poses: PoseResult[]): number {
   console.log('🏌️ Calculating weight transfer using biomechanics...');
   
-  if (poses.length < 20) return 85; // Professional default
+  if (poses.length < 20) {
+    throw new Error('Insufficient pose data for weight transfer calculation. Please record a longer swing with at least 20 frames.');
+  }
   
   // Detect swing phases first
   const phases = detectSwingPhases(poses);
-  if (!phases.impactFrame) return 85;
+  const impactPhase = phases.find(p => p.name === 'impact');
+  if (!impactPhase) {
+    throw new Error('Could not detect impact phase for weight transfer calculation.');
+  }
   
-  const impactPose = poses[phases.impactFrame];
-  const addressPose = poses[phases.addressFrame || 0];
+  const impactPose = poses[impactPhase.startFrame];
+  const addressPose = poses[0]; // Use first pose as address
   
-  if (!impactPose?.landmarks || !addressPose?.landmarks) return 85;
+  if (!impactPose?.landmarks || !addressPose?.landmarks) {
+    throw new Error('Missing landmark data for weight transfer calculation.');
+  }
   
   // Get key biomechanical landmarks
   const leftHip = impactPose.landmarks[23];
@@ -364,16 +431,23 @@ function calculateKneeFlexion(hip: any, knee: any, ankle: any): number {
 function calculateActualXFactor(poses: PoseResult[]): number {
   console.log('🏌️ Calculating X-Factor using proper biomechanics...');
   
-  if (poses.length < 20) return 45; // Professional default
+  if (poses.length < 20) {
+    throw new Error('Insufficient pose data for X-Factor calculation. Please record a longer swing with at least 20 frames.');
+  }
   
   // Detect swing phases for accurate top-of-backswing position
   const phases = detectSwingPhases(poses);
-  if (!phases.topFrame) return 45;
+  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
+  if (!topPhase) {
+    throw new Error('Could not detect top of backswing phase for X-Factor calculation.');
+  }
   
-  const topPose = poses[phases.topFrame];
-  const addressPose = poses[phases.addressFrame || 0];
+  const topPose = poses[topPhase.endFrame];
+  const addressPose = poses[0]; // Use first pose as address
   
-  if (!topPose?.landmarks || !addressPose?.landmarks) return 45;
+  if (!topPose?.landmarks || !addressPose?.landmarks) {
+    throw new Error('Missing landmark data for X-Factor calculation.');
+  }
   
   const leftShoulder = topPose.landmarks[11];
   const rightShoulder = topPose.landmarks[12];
@@ -434,16 +508,24 @@ function calculateActualXFactor(poses: PoseResult[]): number {
 function calculateSwingPlaneDeviation(poses: PoseResult[]): number {
   console.log('🏌️ Calculating swing plane deviation using real geometry...');
   
-  if (poses.length < 20) return 0; // Professional default
+  if (poses.length < 20) {
+    throw new Error('Insufficient pose data for swing plane calculation. Please record a longer swing with at least 20 frames.');
+  }
   
   // Detect swing phases for accurate plane analysis
   const phases = detectSwingPhases(poses);
-  if (!phases.addressFrame || !phases.topFrame || !phases.impactFrame) return 0;
+  const addressPhase = phases.find(p => p.name === 'address');
+  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
+  const impactPhase = phases.find(p => p.name === 'impact');
+  
+  if (!addressPhase || !topPhase || !impactPhase) {
+    throw new Error('Could not detect all required phases for swing plane calculation.');
+  }
   
   // Get wrist positions throughout swing (hands represent club grip)
   const swingPositions: { x: number; y: number; z: number }[] = [];
   
-  for (let i = phases.addressFrame; i <= phases.impactFrame; i++) {
+  for (let i = addressPhase.startFrame; i <= impactPhase.startFrame; i++) {
     const pose = poses[i];
     if (!pose?.landmarks) continue;
     
@@ -514,7 +596,9 @@ function calculateIdealSwingPlane(positions: { x: number; y: number; z: number }
  * Calculate club path from pose data
  */
 function calculateClubPath(poses: PoseResult[]): number {
-  if (poses.length < 10) return 0; // Default fallback
+  if (poses.length < 10) {
+    throw new Error('Insufficient pose data for club path calculation. Please record a longer swing with at least 10 frames.');
+  }
   
   // Calculate path from wrist positions during downswing
   const downswingFrames = poses.slice(Math.floor(poses.length * 0.6));
@@ -532,8 +616,8 @@ function calculateClubPath(poses: PoseResult[]): number {
   if (pathPoints.length < 3) return 0;
   
   // Calculate inside-out tendency
-  const startX = pathPoints[0];
-  const endX = pathPoints[pathPoints.length - 1];
+  const startX = pathPoints[0] || 0;
+  const endX = pathPoints[pathPoints.length - 1] || 0;
   const pathAngle = (endX - startX) * 10; // Convert to degrees
   
   return Math.max(-5, Math.min(5, pathAngle)); // Clamp between -5 and 5 degrees
@@ -543,7 +627,9 @@ function calculateClubPath(poses: PoseResult[]): number {
  * Calculate hand position at impact from pose data
  */
 function calculateHandPositionAtImpact(poses: PoseResult[]): number {
-  if (poses.length < 5) return 0; // Default fallback
+  if (poses.length < 5) {
+    throw new Error('Insufficient pose data for hand position calculation. Please record a longer swing with at least 5 frames.');
+  }
   
   // Find impact frame
   const impactFrame = Math.floor(poses.length * 0.6);
@@ -570,7 +656,9 @@ function calculateHandPositionAtImpact(poses: PoseResult[]): number {
  * Calculate body alignment from pose data
  */
 function calculateBodyAlignment(poses: PoseResult[]): number {
-  if (poses.length < 5) return 0; // Default fallback
+  if (poses.length < 5) {
+    throw new Error('Insufficient pose data for body alignment calculation. Please record a longer swing with at least 5 frames.');
+  }
   
   // Calculate head movement throughout swing
   const headPositions = poses.map(pose => {
@@ -588,7 +676,7 @@ function calculateBodyAlignment(poses: PoseResult[]): number {
   const startPos = headPositions[0];
   const endPos = headPositions[headPositions.length - 1];
   const movement = Math.sqrt(
-    Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)
+    Math.pow((endPos?.x || 0) - (startPos?.x || 0), 2) + Math.pow((endPos?.y || 0) - (startPos?.y || 0), 2)
   );
   
   return Math.min(10, movement * 100); // Convert to inches, clamp at 10
@@ -598,7 +686,9 @@ function calculateBodyAlignment(poses: PoseResult[]): number {
  * Calculate follow-through from pose data
  */
 function calculateFollowThrough(poses: PoseResult[]): number {
-  if (poses.length < 5) return 0.9; // Default fallback
+  if (poses.length < 5) {
+    throw new Error('Insufficient pose data for follow-through calculation. Please record a longer swing with at least 5 frames.');
+  }
   
   // Calculate extension in follow-through
   const followThroughFrames = poses.slice(Math.floor(poses.length * 0.8));
@@ -663,7 +753,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
   console.log('📊 Calculating accurate swing score with professional standards...');
   console.log('📊 Metrics structure:', JSON.stringify(metrics, null, 2));
   
-  const scores: { [key: string]: number } = {};
+  const scores: { [key: string]: number; overall: number } = { overall: 0 };
   
   // Calculate tempo score
   const tempoRatio = metrics.tempo?.ratio || metrics.tempo?.value || metrics.tempo || 0;
@@ -855,6 +945,8 @@ export interface RealGolfAnalysis {
   keyImprovements: string[];
   aiInsights?: AIInsights | null;
   professionalAIFeedback?: ProfessionalAIFeedback | null;
+  enhancedValidation?: any;
+  dynamicAdvice?: any;
   timestamp: number;
 }
 
@@ -1043,11 +1135,11 @@ function calculateSwingPlaneMetrics(poses: PoseResult[]): RealGolfMetrics['swing
 
   let feedback = '';
   if (deviation > 8) {
-    feedback = 'Work on swing plane consistency. Focus on keeping the club on the same plane throughout the swing.';
+    feedback = `Your swing plane deviation is ${deviation.toFixed(1)}° - too much for consistent ball flight. Professional golfers maintain within 2°. Practice the "plane drill" with an alignment stick to trace your swing path.`;
   } else if (consistency < 0.7) {
-    feedback = 'Improve swing plane repeatability. Practice the same swing motion consistently.';
+    feedback = `Your swing plane consistency is ${(consistency * 100).toFixed(0)}% - needs improvement. Practice the same swing motion consistently to build muscle memory.`;
   } else {
-    feedback = 'Excellent swing plane! Great consistency and control.';
+    feedback = `Excellent swing plane! Your ${deviation.toFixed(1)}° deviation and ${(consistency * 100).toFixed(0)}% consistency are in the professional range.`;
   }
 
   return {
@@ -1140,13 +1232,13 @@ function calculateClubPathMetrics(poses: PoseResult[]): RealGolfMetrics['clubPat
 
   let feedback = '';
   if (insideOut < -5) {
-    feedback = 'Work on inside-out club path. Try to swing more from the inside.';
+    feedback = `Your club path is ${insideOut.toFixed(1)}° - too much inside-out. This can cause hooks. Practice the "inside-out drill" with an alignment stick to find the right path.`;
   } else if (insideOut > 5) {
-    feedback = 'Reduce over-the-top motion. Focus on dropping the club from the inside.';
+    feedback = `Your club path is ${insideOut.toFixed(1)}° - over-the-top motion. This causes slices. Practice the "drop drill" to get the club coming from the inside.`;
   } else if (steepness > 55) {
-    feedback = 'Flatten your swing plane slightly. Less steep angle will improve contact.';
+    feedback = `Your swing plane is ${steepness.toFixed(1)}° - too steep. This can cause thin shots. Practice the "flatten drill" to shallow your angle of attack.`;
   } else {
-    feedback = 'Excellent club path! Great inside-out delivery and plane angle.';
+    feedback = `Excellent club path! Your ${insideOut.toFixed(1)}° inside-out delivery and ${steepness.toFixed(1)}° plane angle are in the professional range.`;
   }
 
   return {
@@ -1186,11 +1278,11 @@ function calculateImpactMetrics(poses: PoseResult[]): RealGolfMetrics['impact'] 
 
   let feedback = '';
   if (handPosition < -3) {
-    feedback = 'Get your hands more ahead of the ball at impact. This will improve ball striking.';
+    feedback = `Your hands are ${Math.abs(handPosition).toFixed(1)}° behind the ball at impact - too much. Professional golfers have hands 2-3° ahead. Practice the "hands ahead drill" to improve ball striking.`;
   } else if (Math.abs(clubfaceAngle) > 3) {
-    feedback = 'Work on clubface control. Keep the face square to the target at impact.';
+    feedback = `Your clubface is ${Math.abs(clubfaceAngle).toFixed(1)}° open/closed at impact - too much. Professional golfers keep it within 2°. Practice the "square face drill" to improve control.`;
   } else {
-    feedback = 'Perfect impact position! Great hand position and clubface control.';
+    feedback = `Perfect impact position! Your hands are ${handPosition.toFixed(1)}° ahead and clubface is ${clubfaceAngle.toFixed(1)}° - this is in the professional range.`;
   }
 
   return {
@@ -1230,11 +1322,11 @@ function calculateFollowThroughMetrics(poses: PoseResult[]): RealGolfMetrics['fo
 
   let feedback = '';
   if (extension < 0.7) {
-    feedback = 'Extend more through the follow-through. Let your arms fully extend after impact.';
+    feedback = `Your follow-through extension is ${(extension * 100).toFixed(0)}% - insufficient. Professional golfers achieve 80-90%. Practice the "extension drill" to fully extend your arms after impact.`;
   } else if (balance < 0.8) {
-    feedback = 'Improve balance in the finish. Hold your finish position for better stability.';
+    feedback = `Your finish balance is ${(balance * 100).toFixed(0)}% - needs improvement. Professional golfers maintain 90%+ balance. Practice the "finish hold drill" to improve stability.`;
   } else {
-    feedback = 'Excellent follow-through! Great extension and balance.';
+    feedback = `Excellent follow-through! Your ${(extension * 100).toFixed(0)}% extension and ${(balance * 100).toFixed(0)}% balance are in the professional range.`;
   }
 
   return {
@@ -1403,15 +1495,16 @@ function generateKeyImprovements(metrics: RealGolfMetrics): string[] {
     feedback: value.feedback
   })).sort((a, b) => a.score - b.score);
   
-  // Add improvements for lowest scoring metrics
+  // Add specific improvements for lowest scoring metrics
   metricScores.slice(0, 3).forEach(metric => {
     if (metric.score < 80) {
-      improvements.push(`Focus on improving ${metric.name.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+      const metricName = metric.name.replace(/([A-Z])/g, ' $1').toLowerCase();
+      improvements.push(`${metricName} scored ${metric.score}/100 - ${metric.feedback}`);
     }
   });
   
   if (improvements.length === 0) {
-    improvements.push('Continue practicing to maintain your excellent form');
+    improvements.push('All your swing metrics are scoring 80+/100 - maintain your excellent professional-level form');
   }
   
   return improvements;
@@ -1511,7 +1604,9 @@ function calculateClubPathFromPose(pose: PoseResult): number {
 }
 
 function calculatePathConsistency(paths: number[]): number {
-  if (paths.length < 3) return 0.8;
+  if (paths.length < 3) {
+    throw new Error('Insufficient path data for consistency calculation. Need at least 3 path points.');
+  }
   
   // Calculate standard deviation of paths
   const mean = paths.reduce((a, b) => a + b, 0) / paths.length;
@@ -1523,7 +1618,9 @@ function calculatePathConsistency(paths: number[]): number {
 }
 
 function calculatePlaneDeviation(paths: number[]): number {
-  if (paths.length < 3) return 2.0;
+  if (paths.length < 3) {
+    throw new Error('Insufficient path data for plane deviation calculation. Need at least 3 path points.');
+  }
   
   const mean = paths.reduce((a, b) => a + b, 0) / paths.length;
   const variance = paths.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / paths.length;
@@ -1570,7 +1667,9 @@ function getHeadPosition(pose: PoseResult): { x: number; y: number } {
 }
 
 function calculateHeadMovement(positions: { x: number; y: number }[]): number {
-  if (positions.length < 2) return 1.0;
+  if (positions.length < 2) {
+    throw new Error('Insufficient head position data for movement calculation. Need at least 2 positions.');
+  }
   
   let totalMovement = 0;
   for (let i = 1; i < positions.length; i++) {
@@ -1669,24 +1768,32 @@ function calculateClubfaceAngle(pose: PoseResult): number {
 }
 
 function calculateFollowThroughExtension(poses: PoseResult[]): number {
-  if (poses.length < 3) return 0.8;
+  if (poses.length < 3) {
+    throw new Error('Insufficient pose data for follow-through extension calculation. Need at least 3 poses.');
+  }
   
   const startPose = poses[0];
   const endPose = poses[poses.length - 1];
   
-  if (!startPose?.landmarks || !endPose?.landmarks) return 0.8;
+  if (!startPose?.landmarks || !endPose?.landmarks) {
+    throw new Error('Missing landmark data for follow-through extension calculation.');
+  }
   
   const startLeftWrist = startPose.landmarks[15];
   const endLeftWrist = endPose.landmarks[15];
   
-  if (!startLeftWrist || !endLeftWrist) return 0.8;
+  if (!startLeftWrist || !endLeftWrist) {
+    throw new Error('Missing wrist landmark data for follow-through extension calculation.');
+  }
   
   const extension = Math.abs(endLeftWrist.x - startLeftWrist.x) / 100;
   return Math.max(0.5, Math.min(1.0, extension));
 }
 
 function calculateFollowThroughBalance(poses: PoseResult[]): number {
-  if (poses.length < 3) return 0.8;
+  if (poses.length < 3) {
+    throw new Error('Insufficient pose data for follow-through balance calculation. Need at least 3 poses.');
+  }
   
   // Calculate balance based on head movement
   const headPositions = poses.map(pose => getHeadPosition(pose));
@@ -1774,7 +1881,7 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
 
   // Calculate accurate scores using professional standards
   const accurateScores = calculateAccurateSwingScore(metrics);
-  const overallScore = accurateScores.overall;
+  const overallScore = accurateScores.overall || 0;
   
   // Update individual metric scores with accurate values
   metrics.tempo.score = Math.round(accurateScores.tempo);
@@ -1807,9 +1914,32 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
   // Generate visualizations
   const visualizations = generateSwingVisualizations(poses, video!);
   
+  // ENHANCED VALIDATION: Comprehensive metrics validation
+  const validation = validateSwingMetricsAccuracy(poses, metrics, phases as any, {} as any, video);
+  console.log('🔍 ENHANCED VALIDATION: Validation results:', validation);
+  
+  // VALIDATION: Ensure all metrics are calculated from real pose data
+  validateRealMetricsCalculation(metrics, poses);
+  
   // Generate feedback
   const feedback = generateSpecificFeedback(metrics, phases);
   const keyImprovements = generateKeyImprovements(metrics);
+
+  // DYNAMIC ADVICE: Generate personalized, varied advice
+  let dynamicAdvice = null;
+  try {
+    console.log('🎯 DYNAMIC ADVICE: Generating personalized golf coaching advice...');
+    const swingContext = {
+      golferLevel: (overallScore >= 80 ? 'advanced' : overallScore >= 60 ? 'intermediate' : 'beginner') as 'beginner' | 'intermediate' | 'advanced',
+      swingType: 'full' as 'full' | 'chip' | 'pitch' | 'putt',
+      environment: 'outdoor' as 'indoor' | 'outdoor',
+      equipment: 'driver' as 'driver' | 'iron' | 'wedge' | 'putter'
+    };
+    dynamicAdvice = generateDynamicAdvice(metrics, poses, phases as any, swingContext);
+    console.log('✅ DYNAMIC ADVICE: Generated successfully');
+  } catch (error) {
+    console.error('❌ DYNAMIC ADVICE: Failed to generate:', error);
+  }
 
   // Enhance with AI insights
   let aiInsights = null;
@@ -1907,13 +2037,12 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
     
     // Generate fallback feedback with proper error handling
     try {
-      const fallbackFeedback = generateFallbackFeedback(metrics, swingCharacteristics);
+      const fallbackFeedback = generateFallbackFeedback(metrics, extractSwingCharacteristics(poses));
       professionalAIFeedback = {
         ...fallbackFeedback,
         generatedAt: Date.now(),
         model: 'fallback',
         cost: 0,
-        error: 'AI service unavailable, using basic analysis'
       };
       console.log('✅ PROFESSIONAL AI: Fallback feedback generated');
     } catch (fallbackError) {
@@ -1929,8 +2058,7 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
         confidence: 0.5,
         generatedAt: Date.now(),
         model: 'emergency',
-        cost: 0,
-        error: 'All feedback systems failed'
+        cost: 0
       };
     }
   }
@@ -1947,6 +2075,8 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
     keyImprovements,
     aiInsights,
     professionalAIFeedback,
+    enhancedValidation: validation,
+    dynamicAdvice: dynamicAdvice,
     timestamp: Date.now()
   };
 

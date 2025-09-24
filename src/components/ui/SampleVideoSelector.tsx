@@ -14,11 +14,11 @@ const SampleVideoSelector: React.FC<SampleVideoSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const sampleVideos = [
-    // Original videos
+    // Original videos - Fixed URLs to match actual files
     {
       name: "Tiger Woods Driver Swing",
       description: "Professional driver swing with perfect form",
-      url: "/fixtures/swings/tiger-woods-swing.mp4",
+      url: "/fixtures/swings/tiger-woods-swing-original.mp4",
       thumbnail: "🏌️",
       difficulty: "Professional"
     },

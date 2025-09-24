@@ -150,33 +150,33 @@ function generateFallbackFeedback(metrics: any, characteristics: SwingCharacteri
     strengths.push("Excellent tempo ratio - your timing is on point");
   }
   if (weightTransfer >= 80) {
-    strengths.push("Good weight transfer - you're getting to your front foot");
+    strengths.push(`Excellent weight transfer at ${weightTransfer}% - you're getting to your front foot like a professional`);
   }
   if (xFactor >= 40) {
-    strengths.push("Solid shoulder-hip separation - great for power generation");
+    strengths.push(`Outstanding X-Factor of ${xFactor}° - your shoulder-hip separation is in the professional range`);
   }
   
   // Analyze improvements
   if (tempo < 2.5) {
-    improvements.push("Tempo is too quick - slow down your backswing");
+    improvements.push(`Your tempo ratio is ${tempo.toFixed(1)}:1 - too quick. Professional golfers achieve 3:1. Practice counting "1-2-3" on backswing, "1" on downswing`);
     drills.push("Practice with a metronome: 3 beats back, 1 beat down");
   }
   if (weightTransfer < 75) {
-    improvements.push("Need more weight transfer to front foot at impact");
+    improvements.push(`Your weight transfer is ${weightTransfer}% - insufficient. Professional golfers transfer 80-90%. Practice the step-through drill to reach 90%`);
     drills.push("Try the 'step-through' drill to feel proper weight shift");
   }
   if (xFactor < 35) {
-    improvements.push("Increase shoulder-hip separation for more power");
+    improvements.push(`Your X-Factor is ${xFactor}° - insufficient separation. Professional golfers achieve 40-45°. Practice turning shoulders 90° while keeping hips at 45°`);
     drills.push("Focus on turning shoulders more while keeping hips stable");
   }
   
   // Default feedback if no specific issues
   if (strengths.length === 0) {
-    strengths.push("Good athletic ability and swing foundation");
+    strengths.push("Your swing shows good athletic ability and solid foundation");
   }
   if (improvements.length === 0) {
-    improvements.push("Continue practicing to maintain consistency");
-    drills.push("Focus on tempo and rhythm in your practice sessions");
+    improvements.push("Your swing metrics are in the professional range - maintain your excellent form");
+    drills.push("Continue practicing to maintain consistency in your professional-level fundamentals");
   }
   
   return {
@@ -184,7 +184,7 @@ function generateFallbackFeedback(metrics: any, characteristics: SwingCharacteri
     strengths,
     improvements,
     drills,
-    keyTip: "Focus on tempo - a 3:1 backswing to downswing ratio is the foundation of a great swing",
+    keyTip: `Focus on tempo - your current ${tempo.toFixed(1)}:1 ratio should be 3:1. Professional golfers use "1-2-3" backswing, "1" downswing counting`,
     professionalInsight: "Consistency comes from proper tempo and weight transfer. These are the building blocks of a repeatable swing.",
     nextSteps: [
       "Practice the recommended drills daily",

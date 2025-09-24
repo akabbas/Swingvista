@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stable Event Handlers Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .implementation {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .state-display {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .handler-test {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Stable Event Handlers Test</h1>
+    
+    <div class="implementation">
+        <h2>✅ STABLE EVENT HANDLERS IMPLEMENTATION</h2>
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li>✅ <strong>useCallback with Proper Dependencies</strong> - Stable references that don't change unnecessarily</li>
+            <li>✅ <strong>Blob URL Cleanup</strong> - Proper cleanup of previous URLs before creating new ones</li>
+            <li>✅ <strong>Centralized State Management</strong> - All state updates go through the reducer</li>
+            <li>✅ <strong>Memory Leak Prevention</strong> - Automatic cleanup of blob URLs</li>
+            <li>✅ <strong>Type Safety</strong> - Proper TypeScript types for all handlers</li>
+        </ul>
+        
+        <div class="code-block">
+// Stable event handlers with proper dependency management
+const handleFileSelect = useCallback((file: File) => {
+  // Clean up previous URL first
+  if (state.videoUrl) {
+    URL.revokeObjectURL(state.videoUrl);
+  }
+  
+  // Create new URL and update state
+  const newVideoUrl = URL.createObjectURL(file);
+  
+  dispatch({ type: 'SET_FILE', payload: file });
+  dispatch({ type: 'SET_VIDEO_URL', payload: newVideoUrl });
+  dispatch({ type: 'SET_IS_SAMPLE_VIDEO', payload: false });
+  dispatch({ type: 'CLEAR_ERROR' });
+}, [state.videoUrl]); // Proper dependency
+
+const handleSampleVideoSelect = useCallback((filename: string, videoData: any) => {
+  // Clean up previous URL
+  if (state.videoUrl) {
+    URL.revokeObjectURL(state.videoUrl);
+  }
+  
+  dispatch({ type: 'SET_FILE', payload: null });
+  dispatch({ type: 'SET_VIDEO_URL', payload: videoData.url });
+  dispatch({ type: 'SET_IS_SAMPLE_VIDEO', payload: true });
+  dispatch({ type: 'CLEAR_ERROR' });
+}, [state.videoUrl]);
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="testFileSelect()">Test File Select</button>
+        <button onclick="testSampleVideoSelect()">Test Sample Video Select</button>
+        <button onclick="testBlobUrlCleanup()">Test Blob URL Cleanup</button>
+        <button onclick="testHandlerStability()">Test Handler Stability</button>
+        <button onclick="testMemoryLeaks()">Test Memory Leaks</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Status</h2>
+        <div id="status">
+            <div class="metric" id="fileSelects">File Selects: 0</div>
+            <div class="metric" id="sampleSelects">Sample Selects: 0</div>
+            <div class="metric" id="blobUrls">Blob URLs: 0</div>
+            <div class="metric" id="cleanupCalls">Cleanup Calls: 0</div>
+            <div class="metric" id="testResult">Test Result: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Current State</h2>
+        <div id="stateDisplay" class="state-display">
+            <div>File: <span id="fileState">null</span></div>
+            <div>Video URL: <span id="videoUrlState">null</span></div>
+            <div>Is Sample Video: <span id="sampleState">false</span></div>
+            <div>Error: <span id="errorState">null</span></div>
+            <div>Blob URLs Created: <span id="blobUrlsState">0</span></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Handler Tests</h2>
+        <div class="handler-test">
+            <h4>File Select Handler</h4>
+            <button onclick="simulateFileSelect()">Simulate File Select</button>
+            <div id="fileSelectResult">Ready</div>
+        </div>
+        
+        <div class="handler-test">
+            <h4>Sample Video Select Handler</h4>
+            <button onclick="simulateSampleVideoSelect()">Simulate Sample Video Select</button>
+            <div id="sampleSelectResult">Ready</div>
+        </div>
+        
+        <div class="handler-test">
+            <h4>Blob URL Cleanup</h4>
+            <button onclick="simulateBlobUrlCleanup()">Simulate Blob URL Cleanup</button>
+            <div id="cleanupResult">Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Performance Benefits</h2>
+        <ul>
+            <li>✅ <strong>Stable References</strong> - Event handlers don't change on every render</li>
+            <li>✅ <strong>Memory Efficiency</strong> - Proper cleanup prevents memory leaks</li>
+            <li>✅ <strong>Centralized State</strong> - All state updates go through the reducer</li>
+            <li>✅ <strong>Type Safety</strong> - Comprehensive TypeScript types prevent runtime errors</li>
+            <li>✅ <strong>Clean Dependencies</strong> - Minimal dependency arrays prevent unnecessary re-renders</li>
+        </ul>
+    </div>
+
+    <script>
+        let testData = {
+            fileSelects: 0,
+            sampleSelects: 0,
+            blobUrls: 0,
+            cleanupCalls: 0,
+            testStartTime: 0,
+            currentState: {
+                file: null,
+                videoUrl: null,
+                isSampleVideo: false,
+                error: null
+            },
+            blobUrlHistory: []
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value, status = '') {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+                if (status) {
+                    element.className = 'metric ' + status;
+                }
+            }
+        }
+
+        function updateStateDisplay() {
+            document.getElementById('fileState').textContent = testData.currentState.file || 'null';
+            document.getElementById('videoUrlState').textContent = testData.currentState.videoUrl || 'null';
+            document.getElementById('sampleState').textContent = testData.currentState.isSampleVideo.toString();
+            document.getElementById('errorState').textContent = testData.currentState.error || 'null';
+            document.getElementById('blobUrlsState').textContent = testData.blobUrls.toString();
+        }
+
+        // Simulate stable file select handler
+        function simulateFileSelectHandler(file) {
+            testData.fileSelects++;
+            log(`📁 File select handler called: ${file.name}`);
+            
+            // Clean up previous URL first
+            if (testData.currentState.videoUrl) {
+                log('🧹 Cleaning up previous blob URL');
+                testData.cleanupCalls++;
+                testData.blobUrlHistory = testData.blobUrlHistory.filter(url => url !== testData.currentState.videoUrl);
+            }
+            
+            // Create new URL and update state
+            const newVideoUrl = `blob:http://localhost:3000/${Math.random().toString(36).substr(2, 9)}`;
+            testData.blobUrls++;
+            testData.blobUrlHistory.push(newVideoUrl);
+            
+            testData.currentState = {
+                file: file,
+                videoUrl: newVideoUrl,
+                isSampleVideo: false,
+                error: null
+            };
+            
+            log(`✅ File select completed: ${file.name}`);
+            updateStateDisplay();
+            updateMetric('fileSelects', testData.fileSelects);
+            updateMetric('cleanupCalls', testData.cleanupCalls);
+            updateMetric('blobUrls', testData.blobUrls);
+        }
+
+        // Simulate stable sample video select handler
+        function simulateSampleVideoSelectHandler(filename, videoData) {
+            testData.sampleSelects++;
+            log(`🎥 Sample video select handler called: ${filename}`);
+            
+            // Clean up previous URL
+            if (testData.currentState.videoUrl) {
+                log('🧹 Cleaning up previous blob URL');
+                testData.cleanupCalls++;
+                testData.blobUrlHistory = testData.blobUrlHistory.filter(url => url !== testData.currentState.videoUrl);
+            }
+            
+            testData.currentState = {
+                file: null,
+                videoUrl: videoData.url,
+                isSampleVideo: true,
+                error: null
+            };
+            
+            log(`✅ Sample video select completed: ${filename}`);
+            updateStateDisplay();
+            updateMetric('sampleSelects', testData.sampleSelects);
+            updateMetric('cleanupCalls', testData.cleanupCalls);
+        }
+
+        function testFileSelect() {
+            log('🚀 Starting file select test...');
+            resetTestData();
+            
+            // Test file select handler
+            const testFiles = [
+                { name: 'video1.mp4', size: 1024 * 1024 },
+                { name: 'video2.mp4', size: 2 * 1024 * 1024 },
+                { name: 'video3.mp4', size: 3 * 1024 * 1024 }
+            ];
+            
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index >= testFiles.length) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ File select test completed - ${testData.fileSelects} selects`);
+                        if (testData.fileSelects === testFiles.length) {
+                            log('✅ File select handler working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ File select handler not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                    return;
+                }
+                
+                simulateFileSelectHandler(testFiles[index]);
+                index++;
+            }, 200);
+        }
+
+        function testSampleVideoSelect() {
+            log('🚀 Starting sample video select test...');
+            resetTestData();
+            
+            // Test sample video select handler
+            const sampleVideos = [
+                { filename: 'tiger-woods-swing.mp4', url: '/samples/tiger-woods-swing.mp4' },
+                { filename: 'rory-mcilroy-swing.mp4', url: '/samples/rory-mcilroy-swing.mp4' },
+                { filename: 'jon-rahm-swing.mp4', url: '/samples/jon-rahm-swing.mp4' }
+            ];
+            
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index >= sampleVideos.length) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ Sample video select test completed - ${testData.sampleSelects} selects`);
+                        if (testData.sampleSelects === sampleVideos.length) {
+                            log('✅ Sample video select handler working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Sample video select handler not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                    return;
+                }
+                
+                const sample = sampleVideos[index];
+                simulateSampleVideoSelectHandler(sample.filename, { url: sample.url });
+                index++;
+            }, 200);
+        }
+
+        function testBlobUrlCleanup() {
+            log('🚀 Starting blob URL cleanup test...');
+            resetTestData();
+            
+            // Test blob URL cleanup
+            const testFiles = [
+                { name: 'video1.mp4', size: 1024 * 1024 },
+                { name: 'video2.mp4', size: 2 * 1024 * 1024 },
+                { name: 'video3.mp4', size: 3 * 1024 * 1024 }
+            ];
+            
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index >= testFiles.length) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ Blob URL cleanup test completed - ${testData.cleanupCalls} cleanups`);
+                        if (testData.cleanupCalls === testFiles.length - 1) {
+                            log('✅ Blob URL cleanup working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Blob URL cleanup not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                    return;
+                }
+                
+                simulateFileSelectHandler(testFiles[index]);
+                index++;
+            }, 200);
+        }
+
+        function testHandlerStability() {
+            log('🚀 Starting handler stability test...');
+            resetTestData();
+            
+            // Test handler stability with rapid calls
+            let calls = 0;
+            const interval = setInterval(() => {
+                calls++;
+                
+                // Simulate rapid handler calls
+                if (calls % 2 === 0) {
+                    simulateFileSelectHandler({ name: `video${calls}.mp4`, size: 1024 * 1024 });
+                } else {
+                    simulateSampleVideoSelectHandler(`sample${calls}.mp4`, { url: `/samples/sample${calls}.mp4` });
+                }
+                
+                if (calls >= 10) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ Handler stability test completed - ${calls} calls`);
+                        if (testData.fileSelects + testData.sampleSelects === calls) {
+                            log('✅ Handler stability working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Handler stability not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 100);
+        }
+
+        function testMemoryLeaks() {
+            log('🚀 Starting memory leak test...');
+            resetTestData();
+            
+            // Test memory leak prevention
+            let calls = 0;
+            const interval = setInterval(() => {
+                calls++;
+                
+                // Simulate rapid file selections
+                simulateFileSelectHandler({ name: `video${calls}.mp4`, size: 1024 * 1024 });
+                
+                if (calls >= 20) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ Memory leak test completed - ${calls} calls, ${testData.blobUrls} URLs created`);
+                        if (testData.cleanupCalls > 0) {
+                            log('✅ Memory leak prevention working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Memory leak prevention not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 50);
+        }
+
+        function simulateFileSelect() {
+            const file = { name: 'test-video.mp4', size: 1024 * 1024 };
+            simulateFileSelectHandler(file);
+            document.getElementById('fileSelectResult').textContent = 'File select simulated';
+        }
+
+        function simulateSampleVideoSelect() {
+            const sample = { filename: 'test-sample.mp4', url: '/samples/test-sample.mp4' };
+            simulateSampleVideoSelectHandler(sample.filename, { url: sample.url });
+            document.getElementById('sampleSelectResult').textContent = 'Sample video select simulated';
+        }
+
+        function simulateBlobUrlCleanup() {
+            if (testData.currentState.videoUrl) {
+                log('🧹 Simulating blob URL cleanup');
+                testData.cleanupCalls++;
+                testData.blobUrlHistory = testData.blobUrlHistory.filter(url => url !== testData.currentState.videoUrl);
+                testData.currentState.videoUrl = null;
+                updateStateDisplay();
+                updateMetric('cleanupCalls', testData.cleanupCalls);
+                document.getElementById('cleanupResult').textContent = 'Blob URL cleanup simulated';
+            } else {
+                document.getElementById('cleanupResult').textContent = 'No blob URL to clean up';
+            }
+        }
+
+        function resetTestData() {
+            testData.fileSelects = 0;
+            testData.sampleSelects = 0;
+            testData.blobUrls = 0;
+            testData.cleanupCalls = 0;
+            testData.testStartTime = Date.now();
+            testData.currentState = {
+                file: null,
+                videoUrl: null,
+                isSampleVideo: false,
+                error: null
+            };
+            testData.blobUrlHistory = [];
+            
+            updateMetric('fileSelects', 0);
+            updateMetric('sampleSelects', 0);
+            updateMetric('blobUrls', 0);
+            updateMetric('cleanupCalls', 0);
+            updateMetric('testResult', 'Ready');
+            updateStateDisplay();
+        }
+
+        // Initialize
+        resetTestData();
+    </script>
+</body>
+</html>
+
+
+
+

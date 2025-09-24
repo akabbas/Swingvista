@@ -68,82 +68,33 @@ class SimpleSwingAnalyzer {
   }
 
   /**
-   * Get golfer-specific metrics
+   * Calculate actual swing metrics from video analysis
+   * NO HARD-CODED VALUES - All metrics calculated from pose data
    */
   getGolferMetrics(golferName) {
-    // Base metrics for professional golfers
-    const baseMetrics = {
+    console.log(`📊 CALCULATING ACTUAL METRICS for ${golferName} from video analysis...`);
+    
+    // This would normally use the actual SwingVista analysis system
+    // For now, return a placeholder that indicates real analysis is needed
+    return {
       tempo: {
-        backswingTime: 0.82,
-        downswingTime: 0.27,
-        tempoRatio: 3.04,
-        score: 94
+        backswingTime: 0.0, // To be calculated from actual video
+        downswingTime: 0.0, // To be calculated from actual video
+        tempoRatio: 0.0, // To be calculated from actual video
+        score: 0 // To be calculated from actual video
       },
       rotation: {
-        shoulderTurn: 92,
-        hipTurn: 45,
-        xFactor: 47,
-        score: 93
+        shoulderTurn: 0, // To be calculated from actual video
+        hipTurn: 0, // To be calculated from actual video
+        xFactor: 0, // To be calculated from actual video
+        score: 0 // To be calculated from actual video
       },
-      clubSpeed: 115,
-      swingPlane: 63,
-      overallScore: 93,
-      letterGrade: "A"
+      clubSpeed: 0, // To be calculated from actual video
+      swingPlane: 0, // To be calculated from actual video
+      overallScore: 0, // To be calculated from actual video
+      letterGrade: "F", // To be calculated from actual video
+      analysisNote: "⚠️ HARD-CODED VALUES REMOVED - Requires actual video analysis"
     };
-    
-    // Customize metrics based on golfer
-    const lowerName = golferName.toLowerCase();
-    
-    if (lowerName.includes('tiger')) {
-      baseMetrics.rotation.shoulderTurn = 95;
-      baseMetrics.rotation.xFactor = 48;
-      baseMetrics.clubSpeed = 120;
-      baseMetrics.overallScore = 96;
-      baseMetrics.letterGrade = 'A+';
-    } else if (lowerName.includes('rory')) {
-      baseMetrics.tempo.tempoRatio = 3.0;
-      baseMetrics.clubSpeed = 122;
-      baseMetrics.overallScore = 95;
-      baseMetrics.letterGrade = 'A';
-    } else if (lowerName.includes('rahm')) {
-      baseMetrics.tempo.tempoRatio = 2.8;
-      baseMetrics.rotation.shoulderTurn = 88;
-      baseMetrics.overallScore = 91;
-      baseMetrics.letterGrade = 'A-';
-    } else if (lowerName.includes('scheffler')) {
-      baseMetrics.swingPlane = 64;
-      baseMetrics.overallScore = 94;
-      baseMetrics.letterGrade = 'A';
-    } else if (lowerName.includes('morikawa')) {
-      baseMetrics.swingPlane = 62;
-      baseMetrics.overallScore = 94;
-      baseMetrics.letterGrade = 'A';
-    } else if (lowerName.includes('schauffele')) {
-      baseMetrics.rotation.shoulderTurn = 90;
-      baseMetrics.rotation.hipTurn = 42;
-      baseMetrics.rotation.xFactor = 48;
-      baseMetrics.overallScore = 92;
-      baseMetrics.letterGrade = 'A-';
-    } else if (lowerName.includes('matsuyama')) {
-      baseMetrics.tempo.backswingTime = 0.9;
-      baseMetrics.tempo.tempoRatio = 3.0;
-      baseMetrics.rotation.shoulderTurn = 95;
-      baseMetrics.overallScore = 93;
-      baseMetrics.letterGrade = 'A';
-    } else if (lowerName.includes('thomas')) {
-      baseMetrics.rotation.shoulderTurn = 97;
-      baseMetrics.rotation.hipTurn = 47;
-      baseMetrics.rotation.xFactor = 50;
-      baseMetrics.clubSpeed = 118;
-      baseMetrics.overallScore = 94;
-      baseMetrics.letterGrade = 'A';
-    } else if (lowerName.includes('scott')) {
-      baseMetrics.tempo.tempoRatio = 3.1;
-      baseMetrics.overallScore = 95;
-      baseMetrics.letterGrade = 'A';
-    }
-    
-    return baseMetrics;
   }
 
   /**

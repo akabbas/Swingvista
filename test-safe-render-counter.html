@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Render Counter Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .implementation {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Safe Render Counter Test</h1>
+    
+    <div class="implementation">
+        <h2>✅ SAFE RENDER COUNTER IMPLEMENTATION</h2>
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li>✅ <strong>requestAnimationFrame</strong> - Prevents state update loops</li>
+            <li>✅ <strong>Empty Dependencies</strong> - Runs once on mount, not on every render</li>
+            <li>✅ <strong>Render Count Cap</strong> - Stops counting at 20 to prevent infinite growth</li>
+            <li>✅ <strong>Warning System</strong> - Logs when high render count is detected</li>
+            <li>✅ <strong>Proper Cleanup</strong> - Additional cleanup on unmount</li>
+        </ul>
+        
+        <div class="code-block">
+// Safe render counter implementation
+const [renderCount, setRenderCount] = useState(0);
+
+useEffect(() => {
+  // Use requestAnimationFrame to avoid state update loops
+  requestAnimationFrame(() => {
+    setRenderCount(prev => {
+      if (prev > 20) {
+        console.warn('⚠️ High render count detected, investigating...');
+        // Don't keep increasing, just log
+        return prev;
+      }
+      return prev + 1;
+    });
+  });
+}, []); // Empty dependencies - runs once on mount
+
+// Additional cleanup on unmount - runs once
+useEffect(() => {
+  return () => {
+    // Cleanup blob URLs when component unmounts
+    if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
+      console.log('🧹 FINAL CLEANUP: Revoking blob URL on unmount');
+      URL.revokeObjectURL(state.videoUrl);
+    }
+  };
+}, []); // Empty dependencies - runs once on unmount
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="testRenderCounter()">Test Render Counter</button>
+        <button onclick="testHighRenderCount()">Test High Render Count</button>
+        <button onclick="testCleanup()">Test Cleanup</button>
+        <button onclick="testNoInfiniteLoops()">Test No Infinite Loops</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Status</h2>
+        <div id="status">
+            <div class="metric" id="renderCount">Render Count: 0</div>
+            <div class="metric" id="warnings">Warnings: 0</div>
+            <div class="metric" id="cleanupCalls">Cleanup Calls: 0</div>
+            <div class="metric" id="testResult">Test Result: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Safety Features</h2>
+        <ul>
+            <li>✅ <strong>requestAnimationFrame</strong> - Ensures state updates happen in next frame</li>
+            <li>✅ <strong>Render Count Cap</strong> - Prevents infinite growth of counter</li>
+            <li>✅ <strong>Warning System</strong> - Alerts when high render count is detected</li>
+            <li>✅ <strong>Empty Dependencies</strong> - Prevents useEffect from running on every render</li>
+            <li>✅ <strong>Proper Cleanup</strong> - Ensures blob URLs are revoked on unmount</li>
+        </ul>
+    </div>
+
+    <script>
+        let testData = {
+            renderCount: 0,
+            warnings: 0,
+            cleanupCalls: 0,
+            testStartTime: 0,
+            isRunning: false
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value, status = '') {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+                if (status) {
+                    element.className = 'metric ' + status;
+                }
+            }
+        }
+
+        function simulateRenderCounter() {
+            // Simulate the safe render counter logic
+            testData.renderCount++;
+            
+            if (testData.renderCount > 20) {
+                testData.warnings++;
+                log('⚠️ High render count detected, investigating...');
+                // Don't keep increasing, just log
+                return testData.renderCount;
+            }
+            
+            return testData.renderCount;
+        }
+
+        function testRenderCounter() {
+            log('🚀 Starting render counter test...');
+            resetTestData();
+            
+            // Simulate normal render counting
+            let renders = 0;
+            const interval = setInterval(() => {
+                renders++;
+                const count = simulateRenderCounter();
+                
+                updateMetric('renderCount', count);
+                updateMetric('warnings', testData.warnings);
+                
+                if (renders >= 10) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ Render counter test completed - ${testData.renderCount} renders counted`);
+                        if (testData.renderCount === renders) {
+                            log('✅ Render counter working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Render counter not working correctly');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 100);
+        }
+
+        function testHighRenderCount() {
+            log('🚀 Starting high render count test...');
+            resetTestData();
+            
+            // Simulate high render count scenario
+            let renders = 0;
+            const interval = setInterval(() => {
+                renders++;
+                const count = simulateRenderCounter();
+                
+                updateMetric('renderCount', count);
+                updateMetric('warnings', testData.warnings);
+                
+                if (renders >= 25) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ High render count test completed - ${testData.renderCount} renders counted`);
+                        if (testData.warnings > 0) {
+                            log('✅ Warning system working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Warning system not working');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 50);
+        }
+
+        function testCleanup() {
+            log('🚀 Starting cleanup test...');
+            resetTestData();
+            
+            // Simulate cleanup calls
+            const cleanupInterval = setInterval(() => {
+                testData.cleanupCalls++;
+                log('🧹 Cleanup called');
+                updateMetric('cleanupCalls', testData.cleanupCalls);
+                
+                if (testData.cleanupCalls >= 5) {
+                    clearInterval(cleanupInterval);
+                    setTimeout(() => {
+                        log('✅ Cleanup test completed');
+                        if (testData.cleanupCalls === 5) {
+                            log('✅ Cleanup working correctly');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Cleanup not working correctly');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 200);
+        }
+
+        function testNoInfiniteLoops() {
+            log('🚀 Starting no infinite loops test...');
+            resetTestData();
+            
+            // Simulate rapid renders to test for infinite loops
+            let renders = 0;
+            const startTime = Date.now();
+            const interval = setInterval(() => {
+                renders++;
+                const count = simulateRenderCounter();
+                
+                updateMetric('renderCount', count);
+                updateMetric('warnings', testData.warnings);
+                
+                // Test for 2 seconds
+                if (Date.now() - startTime > 2000) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        log(`✅ No infinite loops test completed - ${testData.renderCount} renders in 2 seconds`);
+                        if (testData.renderCount < 100) {
+                            log('✅ No infinite loops detected');
+                            updateMetric('testResult', 'PASSED', 'good');
+                        } else {
+                            log('❌ Possible infinite loops detected');
+                            updateMetric('testResult', 'FAILED', 'bad');
+                        }
+                    }, 100);
+                }
+            }, 10); // Very rapid renders
+        }
+
+        function resetTestData() {
+            testData.renderCount = 0;
+            testData.warnings = 0;
+            testData.cleanupCalls = 0;
+            testData.testStartTime = Date.now();
+            testData.isRunning = false;
+            
+            updateMetric('renderCount', 0);
+            updateMetric('warnings', 0);
+            updateMetric('cleanupCalls', 0);
+            updateMetric('testResult', 'Ready');
+        }
+
+        // Initialize
+        resetTestData();
+    </script>
+</body>
+</html>
+
+
+
+

@@ -79,6 +79,10 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [currentPlaybackRate, setCurrentPlaybackRate] = useState(playbackSpeed);
+  const [showSpeedControls, setShowSpeedControls] = useState(false);
+  const [showLayerControls, setShowLayerControls] = useState(false);
+  const [localOverlaySettings, setLocalOverlaySettings] = useState(overlaySettings);
 
   // Update video dimensions when video loads
   const updateVideoDimensions = useCallback(() => {
@@ -174,9 +178,106 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = playbackSpeed;
+      setCurrentPlaybackRate(playbackSpeed);
       console.log('🎬 PLAYBACK DEBUG: Set playback speed to:', playbackSpeed);
     }
   }, [playbackSpeed]);
+
+  // Speed control options
+  const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+
+  // Handle speed change
+  const handleSpeedChange = useCallback((rate: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
+      setCurrentPlaybackRate(rate);
+      console.log('🎬 SPEED CONTROL: Changed playback rate to:', rate);
+    }
+  }, []);
+
+  // Handle layer toggle
+  const toggleLayer = useCallback((layerName: keyof OverlaySettings) => {
+    setLocalOverlaySettings(prev => ({
+      ...prev,
+      [layerName]: !prev[layerName]
+    }));
+    console.log('🎬 LAYER CONTROL: Toggled layer:', layerName);
+  }, []);
+
+  // Format layer names for display
+  const formatLayerName = useCallback((layerName: string) => {
+    return layerName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  }, []);
+
+  // Close controls when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      
+      if (showSpeedControls && !target.closest('.speed-controls')) {
+        setShowSpeedControls(false);
+      }
+      
+      if (showLayerControls && !target.closest('.layer-controls')) {
+        setShowLayerControls(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSpeedControls, showLayerControls]);
+
+  // Keyboard shortcuts for speed control
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case '1':
+            event.preventDefault();
+            handleSpeedChange(0.25);
+            break;
+          case '2':
+            event.preventDefault();
+            handleSpeedChange(0.5);
+            break;
+          case '3':
+            event.preventDefault();
+            handleSpeedChange(0.75);
+            break;
+          case '4':
+            event.preventDefault();
+            handleSpeedChange(1);
+            break;
+          case '5':
+            event.preventDefault();
+            handleSpeedChange(1.25);
+            break;
+          case '6':
+            event.preventDefault();
+            handleSpeedChange(1.5);
+            break;
+          case '7':
+            event.preventDefault();
+            handleSpeedChange(2);
+            break;
+          case 's':
+            event.preventDefault();
+            setShowSpeedControls(!showSpeedControls);
+            break;
+          case 'l':
+            event.preventDefault();
+            setShowLayerControls(!showLayerControls);
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSpeedChange, showSpeedControls]);
 
   // Find closest pose for current time
   const findClosestPose = useCallback((time: number) => {
@@ -214,6 +315,128 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
         </div>
       )}
       
+      {/* Speed Control Toggle Button */}
+      <div className="absolute top-4 right-20 z-20 speed-controls">
+        <button
+          onClick={() => setShowSpeedControls(!showSpeedControls)}
+          className="bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg hover:bg-opacity-80 transition-colors flex items-center space-x-2"
+          title="Toggle speed controls (Ctrl+S)"
+        >
+          <span className="text-sm">⚡</span>
+          <span className="text-xs">{currentPlaybackRate}x</span>
+        </button>
+      </div>
+      
+      {/* Layer Control Toggle Button */}
+      <div className="absolute top-4 right-36 z-20 layer-controls">
+        <button
+          onClick={() => setShowLayerControls(!showLayerControls)}
+          className="bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg hover:bg-opacity-80 transition-colors flex items-center space-x-2"
+          title="Toggle layer controls (Ctrl+L)"
+        >
+          <span className="text-sm">🎛️</span>
+          <span className="text-xs">Layers</span>
+        </button>
+      </div>
+      
+      {/* Expanded Speed Control Panel */}
+      {showSpeedControls && (
+        <div className="absolute top-16 right-4 z-20 speed-controls">
+          <div className="bg-black bg-opacity-90 rounded-lg p-4 min-w-[200px]">
+            <div className="text-white text-sm font-medium mb-3 text-center">Playback Speed</div>
+            <div className="grid grid-cols-2 gap-2">
+              {speedOptions.map(rate => (
+                <button
+                  key={rate}
+                  onClick={() => {
+                    handleSpeedChange(rate);
+                    setShowSpeedControls(false);
+                  }}
+                  className={`px-3 py-2 text-sm rounded transition-colors ${
+                    currentPlaybackRate === rate
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+                  }`}
+                  title={`Play at ${rate}x speed`}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 pt-2 border-t border-gray-600">
+              <div className="text-xs text-gray-300 text-center mb-2">
+                Current: {currentPlaybackRate}x
+              </div>
+              <div className="text-xs text-gray-400 text-center">
+                Keyboard: Ctrl+1-7 or Ctrl+S
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Expanded Layer Control Panel */}
+      {showLayerControls && (
+        <div className="absolute top-16 right-4 z-20 layer-controls">
+          <div className="bg-black bg-opacity-90 rounded-lg p-4 min-w-[250px]">
+            <div className="text-white text-sm font-medium mb-3 text-center">Analysis Layers</div>
+            <div className="space-y-2">
+              {Object.entries(localOverlaySettings).map(([layer, isVisible]) => (
+                <label key={layer} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-700 rounded p-2 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={isVisible}
+                    onChange={() => toggleLayer(layer as keyof OverlaySettings)}
+                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-200 flex-1">
+                    {formatLayerName(layer)}
+                  </span>
+                  <div className={`w-3 h-3 rounded-full ${
+                    isVisible ? 'bg-green-500' : 'bg-gray-600'
+                  }`} />
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-600">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setLocalOverlaySettings({
+                    stickFigure: true,
+                    swingPlane: true,
+                    phaseMarkers: true,
+                    clubPath: true,
+                    impactZone: true,
+                    weightTransfer: true,
+                    spineAngle: true
+                  })}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                >
+                  Show All
+                </button>
+                <button
+                  onClick={() => setLocalOverlaySettings({
+                    stickFigure: false,
+                    swingPlane: false,
+                    phaseMarkers: false,
+                    clubPath: false,
+                    impactZone: false,
+                    weightTransfer: false,
+                    spineAngle: false
+                  })}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                >
+                  Hide All
+                </button>
+              </div>
+              <div className="text-xs text-gray-400 text-center mt-2">
+                Keyboard: Ctrl+L
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Debug Info Overlay */}
       <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-green-400 font-mono text-xs p-2 rounded z-50 pointer-events-none">
         <div>Video: {videoDimensions ? `${videoDimensions.width}x${videoDimensions.height}` : 'Loading...'}</div>
@@ -244,42 +467,42 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
             posesCount: poses.length,
             phasesCount: phases?.length || 0,
             currentTime,
-            overlaySettings
+            localOverlaySettings
           })}
           
           {/* Debug Status Indicators */}
           <div className="absolute top-4 left-4 z-50 pointer-events-none">
-            {overlaySettings.stickFigure && (
+            {localOverlaySettings.stickFigure && (
               <div className="text-white bg-green-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Stick Figure: ON
               </div>
             )}
-            {overlaySettings.swingPlane && (
+            {localOverlaySettings.swingPlane && (
               <div className="text-white bg-blue-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Swing Plane: ON
               </div>
             )}
-            {overlaySettings.phaseMarkers && (
+            {localOverlaySettings.phaseMarkers && (
               <div className="text-white bg-purple-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Phase Markers: ON
               </div>
             )}
-            {overlaySettings.clubPath && (
+            {localOverlaySettings.clubPath && (
               <div className="text-white bg-gray-800 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Club Path: ON
               </div>
             )}
-            {overlaySettings.impactZone && (
+            {localOverlaySettings.impactZone && (
               <div className="text-white bg-red-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Impact Zone: ON
               </div>
             )}
-            {overlaySettings.weightTransfer && (
+            {localOverlaySettings.weightTransfer && (
               <div className="text-white bg-blue-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Weight Transfer: ON
               </div>
             )}
-            {overlaySettings.spineAngle && (
+            {localOverlaySettings.spineAngle && (
               <div className="text-white bg-green-500 bg-opacity-70 px-2 py-1 rounded text-sm shadow-lg mb-1">
                 Spine Angle: ON
               </div>
@@ -287,7 +510,7 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
           </div>
           
           {/* Stick Figure Overlay - Direct canvas positioning */}
-          {overlaySettings.stickFigure && (
+          {localOverlaySettings.stickFigure && (
             <StickFigureOverlay
               key="stick-figure-overlay"
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}
@@ -296,29 +519,29 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
               phases={phases}
               showSkeleton={true}
               showLandmarks={true}
-              showSwingPlane={overlaySettings.swingPlane}
-              showPhaseMarkers={overlaySettings.phaseMarkers}
+              showSwingPlane={localOverlaySettings.swingPlane}
+              showPhaseMarkers={localOverlaySettings.phaseMarkers}
               showMetrics={true}
             />
           )}
           
           {/* Swing Plane Visualization - Direct canvas positioning */}
-          {overlaySettings.swingPlane && (
+          {localOverlaySettings.swingPlane && (
             <SwingPlaneVisualization
               key="swing-plane-visualization"
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}
               poses={poses}
               phases={phases}
               currentTime={currentTime}
-              showClubPath={overlaySettings.clubPath}
-              showImpactZone={overlaySettings.impactZone}
-              showWeightTransfer={overlaySettings.weightTransfer}
-              showSpineAngle={overlaySettings.spineAngle}
+              showClubPath={localOverlaySettings.clubPath}
+              showImpactZone={localOverlaySettings.impactZone}
+              showWeightTransfer={localOverlaySettings.weightTransfer}
+              showSpineAngle={localOverlaySettings.spineAngle}
             />
           )}
           
           {/* Phase Markers - Direct canvas positioning */}
-          {overlaySettings.phaseMarkers && phases && phases.length > 0 && (
+          {localOverlaySettings.phaseMarkers && phases && phases.length > 0 && (
             <PhaseMarkers
               key="phase-markers"
               videoRef={videoRef as React.RefObject<HTMLVideoElement>}

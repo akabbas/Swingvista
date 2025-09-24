@@ -1,5 +1,6 @@
 import React from 'react';
 import { SwingMetrics } from '@/lib/golf-metrics';
+import SwingMetricsGraphs from './SwingMetricsGraphs';
 
 interface MetricsVisualizerProps {
   metrics: SwingMetrics;
@@ -87,6 +88,9 @@ export default function MetricsVisualizer({ metrics, className = '' }: MetricsVi
           />
         </div>
       </div>
+
+      {/* Swing Metrics Graphs */}
+      <SwingMetricsGraphs metrics={metrics} />
     </div>
   );
 }

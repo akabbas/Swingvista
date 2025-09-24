@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blob URL Lifecycle Management Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .file-input {
+            margin: 10px 0;
+        }
+        .video-preview {
+            max-width: 300px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Blob URL Lifecycle Management Test</h1>
+    
+    <div class="test-section info">
+        <h2>Test Description</h2>
+        <p>This test verifies the proper blob URL lifecycle management implementation. It simulates the createVideoUrl function behavior and tests proper cleanup, creation, and memory management.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <div class="file-input">
+            <input type="file" id="fileInput" accept="video/*" multiple>
+            <button onclick="testFileSelection()">Test File Selection</button>
+        </div>
+        <button onclick="testMultipleFiles()">Test Multiple Files</button>
+        <button onclick="testRapidFileChanges()">Test Rapid File Changes</button>
+        <button onclick="testMemoryCleanup()">Test Memory Cleanup</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Metrics</h2>
+        <div id="metrics">
+            <div class="metric" id="blobUrlsCreated">Blob URLs Created: 0</div>
+            <div class="metric" id="blobUrlsRevoked">Blob URLs Revoked: 0</div>
+            <div class="metric" id="activeBlobUrls">Active Blob URLs: 0</div>
+            <div class="metric" id="memoryLeaks">Memory Leaks: 0</div>
+            <div class="metric" id="testStatus">Status: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Video Preview</h2>
+        <video id="videoPreview" class="video-preview" controls style="display: none;">
+            Your browser does not support the video tag.
+        </video>
+        <div id="videoInfo"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results">
+            <p>Select files or click test buttons to begin testing blob URL lifecycle management.</p>
+        </div>
+    </div>
+
+    <script>
+        let testData = {
+            blobUrlsCreated: 0,
+            blobUrlsRevoked: 0,
+            activeBlobUrls: new Set(),
+            currentVideoUrl: null,
+            startTime: 0
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+            }
+        }
+
+        function updateMetricStatus(id, status) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + status;
+                element.className = 'metric ' + status;
+            }
+        }
+
+        function resetTestData() {
+            testData.blobUrlsCreated = 0;
+            testData.blobUrlsRevoked = 0;
+            testData.activeBlobUrls.clear();
+            testData.currentVideoUrl = null;
+            testData.startTime = Date.now();
+            
+            updateMetric('blobUrlsCreated', 0);
+            updateMetric('blobUrlsRevoked', 0);
+            updateMetric('activeBlobUrls', 0);
+            updateMetric('memoryLeaks', 0);
+            updateMetricStatus('testStatus', 'warning');
+        }
+
+        // Simulate the createVideoUrl function
+        function createVideoUrl(file) {
+            log(`🎥 Creating blob URL for file: ${file.name}`);
+            
+            // Revoke previous URL first (simulating the actual implementation)
+            if (testData.currentVideoUrl && testData.currentVideoUrl.startsWith('blob:')) {
+                log(`🧹 CLEANUP: Revoking previous blob URL: ${testData.currentVideoUrl}`);
+                URL.revokeObjectURL(testData.currentVideoUrl);
+                testData.activeBlobUrls.delete(testData.currentVideoUrl);
+                testData.blobUrlsRevoked++;
+                updateMetric('blobUrlsRevoked', testData.blobUrlsRevoked);
+            }
+            
+            // Create new URL
+            const newUrl = URL.createObjectURL(file);
+            testData.activeBlobUrls.add(newUrl);
+            testData.currentVideoUrl = newUrl;
+            testData.blobUrlsCreated++;
+            
+            log(`✅ VIDEO URL CREATED: ${newUrl}`);
+            updateMetric('blobUrlsCreated', testData.blobUrlsCreated);
+            updateMetric('activeBlobUrls', testData.activeBlobUrls.size);
+            
+            return newUrl;
+        }
+
+        function displayVideo(url) {
+            const video = document.getElementById('videoPreview');
+            const videoInfo = document.getElementById('videoInfo');
+            
+            video.src = url;
+            video.style.display = 'block';
+            videoInfo.innerHTML = `
+                <p><strong>Current Video URL:</strong> ${url}</p>
+                <p><strong>File Type:</strong> ${url.startsWith('blob:') ? 'Blob URL' : 'File URL'}</p>
+            `;
+        }
+
+        function testFileSelection() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                log('❌ No files selected');
+                return;
+            }
+            
+            log('🚀 Starting file selection test...');
+            resetTestData();
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                log(`📁 Processing file ${i + 1}: ${file.name}`);
+                
+                const videoUrl = createVideoUrl(file);
+                displayVideo(videoUrl);
+                
+                // Small delay to simulate real usage
+                setTimeout(() => {
+                    if (i === files.length - 1) {
+                        const testDuration = Date.now() - testData.startTime;
+                        log(`⏱️ File selection test completed in ${testDuration}ms`);
+                        
+                        if (testData.activeBlobUrls.size > 1) {
+                            log('⚠️ WARNING: Multiple active blob URLs detected');
+                            updateMetricStatus('testStatus', 'warning');
+                        } else {
+                            log('✅ File selection test passed');
+                            updateMetricStatus('testStatus', 'good');
+                        }
+                    }
+                }, 100);
+            }
+        }
+
+        function testMultipleFiles() {
+            log('🚀 Starting multiple files test...');
+            resetTestData();
+            
+            // Create test files
+            const testFiles = [];
+            for (let i = 0; i < 3; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = `hsl(${i * 120}, 50%, 50%)`;
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(`Test ${i + 1}`, 30, 50);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const file = new File([blob], `test${i + 1}.png`, { type: 'image/png' });
+                        testFiles.push(file);
+                        
+                        if (testFiles.length === 3) {
+                            // Process all files
+                            testFiles.forEach((file, index) => {
+                                setTimeout(() => {
+                                    log(`📁 Processing test file ${index + 1}: ${file.name}`);
+                                    createVideoUrl(file);
+                                    
+                                    if (index === testFiles.length - 1) {
+                                        const testDuration = Date.now() - testData.startTime;
+                                        log(`⏱️ Multiple files test completed in ${testDuration}ms`);
+                                        
+                                        if (testData.activeBlobUrls.size === 1) {
+                                            log('✅ Multiple files test passed - proper cleanup detected');
+                                            updateMetricStatus('testStatus', 'good');
+                                        } else {
+                                            log('❌ Multiple files test failed - memory leak detected');
+                                            updateMetricStatus('testStatus', 'bad');
+                                        }
+                                    }
+                                }, index * 200);
+                            });
+                        }
+                    }
+                }, 'image/png');
+            }
+        }
+
+        function testRapidFileChanges() {
+            log('🚀 Starting rapid file changes test...');
+            resetTestData();
+            
+            // Create multiple test files
+            const testFiles = [];
+            for (let i = 0; i < 5; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = `hsl(${i * 72}, 50%, 50%)`;
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(`Rapid ${i + 1}`, 20, 50);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const file = new File([blob], `rapid${i + 1}.png`, { type: 'image/png' });
+                        testFiles.push(file);
+                        
+                        if (testFiles.length === 5) {
+                            // Process files rapidly
+                            testFiles.forEach((file, index) => {
+                                setTimeout(() => {
+                                    log(`⚡ Rapid change ${index + 1}: ${file.name}`);
+                                    createVideoUrl(file);
+                                    
+                                    if (index === testFiles.length - 1) {
+                                        const testDuration = Date.now() - testData.startTime;
+                                        log(`⏱️ Rapid file changes test completed in ${testDuration}ms`);
+                                        
+                                        if (testData.activeBlobUrls.size === 1) {
+                                            log('✅ Rapid file changes test passed - proper cleanup');
+                                            updateMetricStatus('testStatus', 'good');
+                                        } else {
+                                            log('❌ Rapid file changes test failed - cleanup issues');
+                                            updateMetricStatus('testStatus', 'bad');
+                                        }
+                                    }
+                                }, index * 50); // Very fast changes
+                            });
+                        }
+                    }
+                }, 'image/png');
+            }
+        }
+
+        function testMemoryCleanup() {
+            log('🚀 Starting memory cleanup test...');
+            resetTestData();
+            
+            // Create and destroy multiple URLs
+            const urls = [];
+            for (let i = 0; i < 10; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 50;
+                canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = `hsl(${i * 36}, 50%, 50%)`;
+                ctx.fillRect(0, 0, 50, 50);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const file = new File([blob], `memory${i + 1}.png`, { type: 'image/png' });
+                        const url = createVideoUrl(file);
+                        urls.push(url);
+                        
+                        if (urls.length === 10) {
+                            // Test cleanup
+                            setTimeout(() => {
+                                log('🧹 Testing cleanup of all URLs...');
+                                
+                                urls.forEach((url, index) => {
+                                    setTimeout(() => {
+                                        log(`🧹 Revoking URL ${index + 1}: ${url}`);
+                                        URL.revokeObjectURL(url);
+                                        testData.activeBlobUrls.delete(url);
+                                        testData.blobUrlsRevoked++;
+                                        updateMetric('blobUrlsRevoked', testData.blobUrlsRevoked);
+                                        updateMetric('activeBlobUrls', testData.activeBlobUrls.size);
+                                        
+                                        if (index === urls.length - 1) {
+                                            const testDuration = Date.now() - testData.startTime;
+                                            log(`⏱️ Memory cleanup test completed in ${testDuration}ms`);
+                                            
+                                            if (testData.activeBlobUrls.size === 0) {
+                                                log('✅ Memory cleanup test passed - all URLs cleaned up');
+                                                updateMetricStatus('testStatus', 'good');
+                                            } else {
+                                                log('❌ Memory cleanup test failed - URLs not cleaned up');
+                                                updateMetricStatus('testStatus', 'bad');
+                                            }
+                                        }
+                                    }, index * 100);
+                                });
+                            }, 500);
+                        }
+                    }
+                }, 'image/png');
+            }
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            testData.activeBlobUrls.forEach(url => {
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
+

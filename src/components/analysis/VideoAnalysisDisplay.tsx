@@ -7,6 +7,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { RealGolfAnalysis, SwingVisualization } from '@/lib/real-golf-analysis';
+import { loadVideoWithFallbacks, diagnoseVideoLoading } from '@/lib/video-loading-fixes';
 
 interface VideoAnalysisDisplayProps {
   videoFile: File;
@@ -28,6 +29,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoLoadingStatus, setVideoLoadingStatus] = useState<string>('Ready to load');
   const [showOverlays, setShowOverlays] = useState({
     stickFigure: true,
     swingPlane: true,
@@ -58,6 +60,42 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       // The browser will clean up blob URLs when the page is unloaded
     };
   }, []);
+
+  // Enhanced video loading with fallback handling for sample videos
+  useEffect(() => {
+    if (videoUrl && isSampleVideo && videoRef.current) {
+      console.log('🎥 ENHANCED LOADING: Loading sample video with fallbacks:', videoUrl);
+      setVideoError(null);
+      setVideoLoaded(false);
+      setVideoLoadingStatus('Loading video...');
+      
+      // Use enhanced video loading with fallbacks
+      loadVideoWithFallbacks(videoRef.current, videoUrl, {
+        retryAttempts: 3,
+        retryDelay: 1000,
+        timeout: 10000
+      }).then((status) => {
+        if (status.isLoaded) {
+          setVideoLoaded(true);
+          setVideoError(null);
+          setVideoLoadingStatus('Video loaded successfully');
+          console.log('✅ ENHANCED LOADING: Sample video loaded successfully');
+        } else if (status.hasError) {
+          setVideoError(status.errorMessage || 'Failed to load video');
+          setVideoLoadingStatus('Video loading failed');
+          console.error('❌ ENHANCED LOADING: Sample video loading failed:', status.errorMessage);
+          
+          // Diagnose the issue
+          const diagnosis = diagnoseVideoLoading(videoRef.current!);
+          console.log('🔍 ENHANCED LOADING: Video loading diagnosis:', diagnosis);
+        }
+      }).catch((error) => {
+        setVideoError(error.message);
+        setVideoLoadingStatus('Video loading error');
+        console.error('❌ ENHANCED LOADING: Video loading error:', error);
+      });
+    }
+  }, [videoUrl, isSampleVideo]);
 
   // Calculate current frame from video time
   const calculateFrame = useCallback((video: HTMLVideoElement) => {
@@ -614,12 +652,30 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
           }}
         />
         
+        {/* Video Loading Status */}
+        {!videoLoaded && !videoError && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              <p className="text-blue-700">{videoLoadingStatus}</p>
+            </div>
+          </div>
+        )}
+
         {/* Video Error Display */}
         {videoError && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center">
               <span className="text-red-500 mr-2">❌</span>
               <p className="text-red-700">{videoError}</p>
+            </div>
+            <div className="mt-2 text-sm text-red-600">
+              <p>If this is a sample video, try:</p>
+              <ul className="list-disc list-inside ml-4">
+                <li>Refreshing the page</li>
+                <li>Checking your internet connection</li>
+                <li>Using a different browser</li>
+              </ul>
             </div>
           </div>
         )}

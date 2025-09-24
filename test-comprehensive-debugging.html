@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Debugging Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .debug-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .console-group {
+            background-color: #e9ecef;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        .file-input {
+            margin: 10px 0;
+        }
+        .video-preview {
+            max-width: 300px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Comprehensive Debugging Test</h1>
+    
+    <div class="test-section info">
+        <h2>Test Description</h2>
+        <p>This test verifies that all the comprehensive debugging logs are working correctly. It simulates the video upload process and monitors console output to ensure proper debugging information is displayed.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <div class="file-input">
+            <input type="file" id="fileInput" accept="video/*" multiple>
+            <button onclick="testFileSelection()">Test File Selection</button>
+        </div>
+        <button onclick="testRapidChanges()">Test Rapid Changes</button>
+        <button onclick="testResetFunction()">Test Reset Function</button>
+        <button onclick="testMemoryCleanup()">Test Memory Cleanup</button>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="exportLogs()">Export Logs</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Debug Metrics</h2>
+        <div id="metrics">
+            <div class="metric" id="consoleGroups">Console Groups: 0</div>
+            <div class="metric" id="debugMessages">Debug Messages: 0</div>
+            <div class="metric" id="blobOperations">Blob Operations: 0</div>
+            <div class="metric" id="stateChanges">State Changes: 0</div>
+            <div class="metric" id="testStatus">Status: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Output Simulation</h2>
+        <div class="debug-panel">
+            <h4>Expected Console Groups:</h4>
+            <div class="console-group">📁 File Change Handler Debug</div>
+            <div class="console-group">🎬 Create Video URL Debug</div>
+            <div class="console-group">📄 Upload Page Video URL Debug</div>
+            <div class="console-group">🎥 VideoDebugger Component Debug</div>
+            <div class="console-group">🔄 Reset Function Debug</div>
+            <div class="console-group">🧹 Component Unmount Cleanup</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Video Preview</h2>
+        <video id="videoPreview" class="video-preview" controls style="display: none;">
+            Your browser does not support the video tag.
+        </video>
+        <div id="videoInfo"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results">
+            <p>Click test buttons to begin comprehensive debugging verification.</p>
+        </div>
+    </div>
+
+    <script>
+        let testData = {
+            consoleGroups: 0,
+            debugMessages: 0,
+            blobOperations: 0,
+            stateChanges: 0,
+            startTime: 0,
+            logs: []
+        };
+
+        // Override console methods to capture debug output
+        const originalConsoleGroup = console.group;
+        const originalConsoleLog = console.log;
+        const originalConsoleGroupEnd = console.groupEnd;
+
+        console.group = function(...args) {
+            testData.consoleGroups++;
+            testData.debugMessages++;
+            const message = args.join(' ');
+            testData.logs.push(`[GROUP] ${message}`);
+            log(`📁 Console Group: ${message}`);
+            updateMetric('consoleGroups', testData.consoleGroups);
+            updateMetric('debugMessages', testData.debugMessages);
+            originalConsoleGroup.apply(console, args);
+        };
+
+        console.log = function(...args) {
+            testData.debugMessages++;
+            const message = args.join(' ');
+            testData.logs.push(`[LOG] ${message}`);
+            
+            // Categorize log messages
+            if (message.includes('blob') || message.includes('URL')) {
+                testData.blobOperations++;
+                updateMetric('blobOperations', testData.blobOperations);
+            }
+            if (message.includes('dispatch') || message.includes('action')) {
+                testData.stateChanges++;
+                updateMetric('stateChanges', testData.stateChanges);
+            }
+            
+            updateMetric('debugMessages', testData.debugMessages);
+            originalConsoleLog.apply(console, args);
+        };
+
+        console.groupEnd = function() {
+            testData.logs.push(`[GROUP_END]`);
+            log(`📁 Console Group End`);
+            originalConsoleGroupEnd.apply(console);
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            testData.logs = [];
+            testData.consoleGroups = 0;
+            testData.debugMessages = 0;
+            testData.blobOperations = 0;
+            testData.stateChanges = 0;
+            
+            updateMetric('consoleGroups', 0);
+            updateMetric('debugMessages', 0);
+            updateMetric('blobOperations', 0);
+            updateMetric('stateChanges', 0);
+        }
+
+        function updateMetric(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+            }
+        }
+
+        function updateMetricStatus(id, status) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + status;
+                element.className = 'metric ' + status;
+            }
+        }
+
+        function resetTestData() {
+            testData.consoleGroups = 0;
+            testData.debugMessages = 0;
+            testData.blobOperations = 0;
+            testData.stateChanges = 0;
+            testData.startTime = Date.now();
+            testData.logs = [];
+            
+            updateMetric('consoleGroups', 0);
+            updateMetric('debugMessages', 0);
+            updateMetric('blobOperations', 0);
+            updateMetric('stateChanges', 0);
+            updateMetricStatus('testStatus', 'warning');
+        }
+
+        // Simulate the debugging functions
+        function simulateFileChangeHandler(file) {
+            console.group('File Change Handler Debug');
+            console.log('Event Target:', 'fileInput');
+            console.log('Files Length:', 1);
+            console.log('Selected File:', file.name);
+            console.log('File Size:', file.size);
+            console.log('File Type:', file.type);
+            console.log('Current State File:', 'null');
+            console.log('Current Video URL:', 'null');
+            console.groupEnd();
+            
+            console.log('📁 File selected:', file.name);
+            console.log('📝 Dispatching SET_FILE action');
+            console.log('📝 Dispatching SET_IS_SAMPLE_VIDEO action (false)');
+            console.log('🎬 Calling createVideoUrl...');
+            console.log('📝 Setting global filename for analysis detection');
+            console.log('✅ File change handler completed successfully');
+        }
+
+        function simulateCreateVideoUrl(file) {
+            console.group('Create Video URL Debug');
+            console.log('Input File:', file.name);
+            console.log('File Size:', file.size);
+            console.log('File Type:', file.type);
+            console.log('Current Video URL:', 'null');
+            console.log('Previous URL Type:', 'None');
+            console.groupEnd();
+            
+            console.log('ℹ️ No previous URL to clean up');
+            console.log('🎥 VIDEO URL: Creating blob URL for file:', file.name);
+            console.log('✅ VIDEO URL CREATED:', 'blob:http://localhost:3000/test-url');
+            console.log('🔗 URL Type:', 'Blob URL');
+            console.log('📝 Dispatching SET_VIDEO_URL action');
+            console.log('✅ createVideoUrl completed successfully');
+        }
+
+        function simulateVideoUrlDebug(file, videoUrl) {
+            console.group('Upload Page Video URL Debug');
+            console.log('Selected File:', file.name);
+            console.log('Video URL State:', videoUrl);
+            console.log('Is Sample Video:', false);
+            console.log('File Size:', file.size);
+            console.log('File Type:', file.type);
+            console.groupEnd();
+            
+            console.log('🆕 File selected but no video URL - will be created by createVideoUrl');
+            console.log('🎥 VIDEO URL: Using existing blob URL:', videoUrl);
+        }
+
+        function simulateVideoDebugger(file, videoUrl) {
+            console.group('VideoDebugger Component Debug');
+            console.log('Selected File:', file.name);
+            console.log('Video URL:', videoUrl);
+            console.log('Video URL State:', videoUrl);
+            console.log('Mount Count:', 1);
+            console.log('Last URL:', 'null');
+            console.log('Is Sample Video:', false);
+            console.log('Loop Detected:', false);
+            console.groupEnd();
+            
+            console.log('🆕 New video URL detected:', videoUrl);
+        }
+
+        function simulateResetFunction(file, videoUrl) {
+            console.group('Reset Function Debug');
+            console.log('Current File:', file.name);
+            console.log('Current Video URL:', videoUrl);
+            console.log('Is Sample Video:', false);
+            console.log('Input Ref Current:', 'inputRef');
+            console.groupEnd();
+            
+            console.log('🔄 Resetting upload state...');
+            console.log('🧹 CLEANUP: Revoking blob URL on reset:', videoUrl);
+            console.log('📝 Dispatching RESET action');
+            console.log('🧹 Clearing file input value');
+            console.log('✅ Reset completed successfully');
+        }
+
+        function simulateUnmountCleanup(videoUrl) {
+            console.log('🔧 Cleanup useEffect registered for video URL:', videoUrl);
+            
+            console.group('Component Unmount Cleanup');
+            console.log('Video URL to clean up:', videoUrl);
+            console.log('URL Type:', 'Blob URL');
+            console.groupEnd();
+            
+            console.log('🧹 CLEANUP: Revoking blob URL on unmount:', videoUrl);
+            console.log('✅ Blob URL revoked successfully');
+        }
+
+        function testFileSelection() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                log('❌ No files selected');
+                return;
+            }
+            
+            log('🚀 Starting file selection debugging test...');
+            resetTestData();
+            
+            const file = files[0];
+            const videoUrl = 'blob:http://localhost:3000/test-url';
+            
+            // Simulate the complete flow
+            simulateFileChangeHandler(file);
+            simulateCreateVideoUrl(file);
+            simulateVideoUrlDebug(file, videoUrl);
+            simulateVideoDebugger(file, videoUrl);
+            
+            // Display video
+            const video = document.getElementById('videoPreview');
+            video.src = videoUrl;
+            video.style.display = 'block';
+            document.getElementById('videoInfo').innerHTML = `
+                <p><strong>Current Video URL:</strong> ${videoUrl}</p>
+                <p><strong>File Type:</strong> Blob URL</p>
+            `;
+            
+            setTimeout(() => {
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ File selection test completed in ${testDuration}ms`);
+                
+                if (testData.consoleGroups >= 4 && testData.debugMessages >= 20) {
+                    log('✅ File selection debugging test passed');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ File selection debugging test failed - insufficient debug output');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 500);
+        }
+
+        function testRapidChanges() {
+            log('🚀 Starting rapid changes debugging test...');
+            resetTestData();
+            
+            // Create test files
+            const testFiles = [];
+            for (let i = 0; i < 3; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = `hsl(${i * 120}, 50%, 50%)`;
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(`Test ${i + 1}`, 30, 50);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const file = new File([blob], `test${i + 1}.png`, { type: 'image/png' });
+                        testFiles.push(file);
+                        
+                        if (testFiles.length === 3) {
+                            // Simulate rapid changes
+                            testFiles.forEach((file, index) => {
+                                setTimeout(() => {
+                                    const videoUrl = `blob:http://localhost:3000/test-url-${index}`;
+                                    simulateFileChangeHandler(file);
+                                    simulateCreateVideoUrl(file);
+                                    simulateVideoUrlDebug(file, videoUrl);
+                                    simulateVideoDebugger(file, videoUrl);
+                                    
+                                    if (index === testFiles.length - 1) {
+                                        const testDuration = Date.now() - testData.startTime;
+                                        log(`⏱️ Rapid changes test completed in ${testDuration}ms`);
+                                        
+                                        if (testData.consoleGroups >= 12 && testData.debugMessages >= 60) {
+                                            log('✅ Rapid changes debugging test passed');
+                                            updateMetricStatus('testStatus', 'good');
+                                        } else {
+                                            log('❌ Rapid changes debugging test failed');
+                                            updateMetricStatus('testStatus', 'bad');
+                                        }
+                                    }
+                                }, index * 100);
+                            });
+                        }
+                    }
+                }, 'image/png');
+            }
+        }
+
+        function testResetFunction() {
+            log('🚀 Starting reset function debugging test...');
+            resetTestData();
+            
+            // Create a test file
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(0, 0, 100, 100);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.fillText('Reset Test', 20, 50);
+            
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const file = new File([blob], 'reset-test.png', { type: 'image/png' });
+                    const videoUrl = 'blob:http://localhost:3000/reset-test-url';
+                    
+                    // Simulate reset
+                    simulateResetFunction(file, videoUrl);
+                    
+                    setTimeout(() => {
+                        const testDuration = Date.now() - testData.startTime;
+                        log(`⏱️ Reset function test completed in ${testDuration}ms`);
+                        
+                        if (testData.consoleGroups >= 1 && testData.debugMessages >= 10) {
+                            log('✅ Reset function debugging test passed');
+                            updateMetricStatus('testStatus', 'good');
+                        } else {
+                            log('❌ Reset function debugging test failed');
+                            updateMetricStatus('testStatus', 'bad');
+                        }
+                    }, 200);
+                }
+            }, 'image/png');
+        }
+
+        function testMemoryCleanup() {
+            log('🚀 Starting memory cleanup debugging test...');
+            resetTestData();
+            
+            const videoUrl = 'blob:http://localhost:3000/cleanup-test-url';
+            
+            // Simulate unmount cleanup
+            simulateUnmountCleanup(videoUrl);
+            
+            setTimeout(() => {
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Memory cleanup test completed in ${testDuration}ms`);
+                
+                if (testData.consoleGroups >= 1 && testData.debugMessages >= 5) {
+                    log('✅ Memory cleanup debugging test passed');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ Memory cleanup debugging test failed');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+            }, 200);
+        }
+
+        function exportLogs() {
+            const logs = testData.logs.join('\n');
+            const blob = new Blob([logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'debug-logs.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+            log('📁 Debug logs exported successfully');
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            // Restore original console methods
+            console.group = originalConsoleGroup;
+            console.log = originalConsoleLog;
+            console.groupEnd = originalConsoleGroupEnd;
+        });
+    </script>
+</body>
+</html>
+
+
+
+

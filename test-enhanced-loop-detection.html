@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Loop Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .simulation {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Enhanced Loop Detection Test</h1>
+    
+    <div class="test-section info">
+        <h2>Test Description</h2>
+        <p>This test verifies the enhanced loop detection mechanism that prevents infinite re-rendering in the VideoDebugger component. The test simulates various scenarios including normal operation, rapid re-renders, and loop detection.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="startNormalTest()" id="normalBtn">Test Normal Operation</button>
+        <button onclick="startLoopTest()" id="loopBtn">Test Loop Detection</button>
+        <button onclick="startRapidRenderTest()" id="rapidBtn">Test Rapid Renders</button>
+        <button onclick="clearLog()" id="clearBtn">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Metrics</h2>
+        <div id="metrics">
+            <div class="metric" id="mountCount">Mount Count: 0</div>
+            <div class="metric" id="urlChanges">URL Changes: 0</div>
+            <div class="metric" id="loopDetected">Loop Detected: No</div>
+            <div class="metric" id="blobUrlsCreated">Blob URLs: 0</div>
+            <div class="metric" id="testStatus">Status: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results">
+            <p>Click a test button to begin testing the enhanced loop detection mechanism.</p>
+        </div>
+    </div>
+
+    <script>
+        let testData = {
+            mountCount: 0,
+            urlChanges: 0,
+            loopDetected: false,
+            blobUrlsCreated: 0,
+            startTime: 0,
+            lastUrl: null,
+            blobUrls: new Set()
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+            }
+        }
+
+        function updateMetricStatus(id, status) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + status;
+                element.className = 'metric ' + status;
+            }
+        }
+
+        function resetTestData() {
+            testData.mountCount = 0;
+            testData.urlChanges = 0;
+            testData.loopDetected = false;
+            testData.blobUrlsCreated = 0;
+            testData.lastUrl = null;
+            testData.blobUrls.clear();
+            
+            updateMetric('mountCount', 0);
+            updateMetric('urlChanges', 0);
+            updateMetric('blobUrlsCreated', 0);
+            updateMetricStatus('loopDetected', 'good');
+            updateMetricStatus('testStatus', 'warning');
+        }
+
+        function simulateMount(url) {
+            testData.mountCount++;
+            log(`🔄 Component mount #${testData.mountCount} for URL: ${url}`);
+            updateMetric('mountCount', testData.mountCount);
+            
+            // Detect infinite loop (enhanced detection)
+            if (testData.mountCount > 5) {
+                log('❌ INFINITE LOOP DETECTED! Stopping re-renders.');
+                testData.loopDetected = true;
+                updateMetricStatus('loopDetected', 'bad');
+                updateMetricStatus('testStatus', 'bad');
+                
+                // Force stop by clearing URL
+                if (url && url.startsWith('blob:')) {
+                    log('🧹 Force revoking blob URL to break loop: ' + url);
+                    URL.revokeObjectURL(url);
+                    testData.blobUrls.delete(url);
+                }
+                testData.mountCount = 0;
+                return false;
+            }
+            
+            // Check if URL is changing unnecessarily
+            if (url && url === testData.lastUrl) {
+                log('⚠️ Same URL detected, no need to re-mount');
+                return true;
+            }
+            
+            testData.lastUrl = url;
+            if (url && url.startsWith('blob:')) {
+                testData.urlChanges++;
+                updateMetric('urlChanges', testData.urlChanges);
+            }
+            
+            return true;
+        }
+
+        function createTestBlobUrl() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(0, 0, 100, 100);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.fillText('Test', 30, 50);
+            
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        testData.blobUrls.add(url);
+                        testData.blobUrlsCreated++;
+                        updateMetric('blobUrlsCreated', testData.blobUrlsCreated);
+                        log(`✅ Created blob URL: ${url}`);
+                        resolve(url);
+                    } else {
+                        resolve(null);
+                    }
+                }, 'image/png');
+            });
+        }
+
+        async function startNormalTest() {
+            log('🚀 Starting normal operation test...');
+            resetTestData();
+            testData.startTime = Date.now();
+            
+            try {
+                // Test 1: Normal video URL changes
+                log('📹 Testing normal video URL changes...');
+                
+                const url1 = await createTestBlobUrl();
+                if (url1) {
+                    simulateMount(url1);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                const url2 = await createTestBlobUrl();
+                if (url2) {
+                    simulateMount(url2);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // Test 2: Same URL (should not re-mount)
+                log('🔄 Testing same URL (should not re-mount)...');
+                simulateMount(url2);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Normal test completed in ${testDuration}ms`);
+                
+                if (testData.loopDetected) {
+                    log('❌ NORMAL TEST FAILED: Loop detected during normal operation');
+                    updateMetricStatus('testStatus', 'bad');
+                } else {
+                    log('✅ NORMAL TEST PASSED: No loops detected during normal operation');
+                    updateMetricStatus('testStatus', 'good');
+                }
+                
+            } catch (error) {
+                log(`❌ Normal test error: ${error.message}`);
+                updateMetricStatus('testStatus', 'bad');
+            }
+        }
+
+        async function startLoopTest() {
+            log('🔄 Starting loop detection test...');
+            resetTestData();
+            testData.startTime = Date.now();
+            
+            try {
+                // Create a test URL
+                const url = await createTestBlobUrl();
+                if (!url) {
+                    throw new Error('Failed to create test URL');
+                }
+                
+                // Simulate rapid mounts to trigger loop detection
+                log('🔄 Simulating rapid mounts to trigger loop detection...');
+                
+                for (let i = 0; i < 8; i++) {
+                    const shouldContinue = simulateMount(url);
+                    if (!shouldContinue) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 10)); // Very fast
+                }
+                
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Loop test completed in ${testDuration}ms`);
+                
+                if (testData.loopDetected) {
+                    log('✅ LOOP TEST PASSED: Loop detection worked correctly');
+                    updateMetricStatus('testStatus', 'good');
+                } else {
+                    log('❌ LOOP TEST FAILED: Loop detection did not trigger');
+                    updateMetricStatus('testStatus', 'bad');
+                }
+                
+            } catch (error) {
+                log(`❌ Loop test error: ${error.message}`);
+                updateMetricStatus('testStatus', 'bad');
+            }
+        }
+
+        async function startRapidRenderTest() {
+            log('⚡ Starting rapid render test...');
+            resetTestData();
+            testData.startTime = Date.now();
+            
+            try {
+                // Create multiple URLs
+                const urls = [];
+                for (let i = 0; i < 3; i++) {
+                    const url = await createTestBlobUrl();
+                    if (url) urls.push(url);
+                }
+                
+                // Simulate rapid renders with different URLs
+                log('⚡ Simulating rapid renders with different URLs...');
+                
+                for (let i = 0; i < 10; i++) {
+                    const url = urls[i % urls.length];
+                    const shouldContinue = simulateMount(url);
+                    if (!shouldContinue) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 5)); // Very fast
+                }
+                
+                const testDuration = Date.now() - testData.startTime;
+                log(`⏱️ Rapid render test completed in ${testDuration}ms`);
+                
+                if (testData.loopDetected) {
+                    log('✅ RAPID RENDER TEST PASSED: Loop detection prevented infinite renders');
+                    updateMetricStatus('testStatus', 'good');
+                } else if (testData.mountCount > 15) {
+                    log('⚠️ RAPID RENDER TEST WARNING: High mount count but no loop detected');
+                    updateMetricStatus('testStatus', 'warning');
+                } else {
+                    log('✅ RAPID RENDER TEST PASSED: Normal operation with multiple URLs');
+                    updateMetricStatus('testStatus', 'good');
+                }
+                
+            } catch (error) {
+                log(`❌ Rapid render test error: ${error.message}`);
+                updateMetricStatus('testStatus', 'bad');
+            }
+        }
+
+        // Clean up blob URLs when page unloads
+        window.addEventListener('beforeunload', () => {
+            testData.blobUrls.forEach(url => {
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
+

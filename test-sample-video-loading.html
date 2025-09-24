@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Video Loading Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .info {
+            color: #2196f3;
+        }
+        .warning {
+            color: #ff9800;
+        }
+        video {
+            width: 300px;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .video-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .test-button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #1976d2;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .status-item {
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Sample Video Loading Diagnostic Tool</h1>
+        <p>This tool tests if sample videos are accessible and can be loaded properly.</p>
+        
+        <div class="container">
+            <h2>Video File Status Check</h2>
+            <div id="file-status"></div>
+            <button class="test-button" onclick="checkVideoFiles()">Check Video Files</button>
+        </div>
+
+        <div class="container">
+            <h2>Video Loading Tests</h2>
+            <div id="video-tests"></div>
+            <button class="test-button" onclick="testVideoLoading()">Test Video Loading</button>
+        </div>
+
+        <div class="container">
+            <h2>Network Accessibility Test</h2>
+            <div id="network-tests"></div>
+            <button class="test-button" onclick="testNetworkAccess()">Test Network Access</button>
+        </div>
+    </div>
+
+    <script>
+        // Sample videos to test
+        const sampleVideos = [
+            {
+                name: "Tiger Woods Driver Swing",
+                url: "/fixtures/swings/tiger-woods-swing.mp4",
+                expected: true
+            },
+            {
+                name: "Tiger Woods Driver Swing (Slow Motion)",
+                url: "/fixtures/swings/tiger-woods-swing-slow.mp4",
+                expected: true
+            },
+            {
+                name: "Tiger Woods Driver Swing (Original)",
+                url: "/fixtures/swings/tiger-woods-swing-original.mp4",
+                expected: true
+            },
+            {
+                name: "Ludvig Aberg Driver Swing",
+                url: "/fixtures/swings/ludvig_aberg_driver.mp4",
+                expected: true
+            },
+            {
+                name: "Max Homa Iron Swing",
+                url: "/fixtures/swings/max_homa_iron.mp4",
+                expected: true
+            },
+            {
+                name: "Adam Scott Driver Swing",
+                url: "/fixtures/swings/pga_adam_scott_driver_3.mp4",
+                expected: true
+            },
+            {
+                name: "Collin Morikawa Driver Swing",
+                url: "/fixtures/swings/pga_collin_morikawa_driver_1.mp4",
+                expected: true
+            },
+            {
+                name: "Hideki Matsuyama Driver Swing",
+                url: "/fixtures/swings/pga_hideki_matsuyama_driver_1.mp4",
+                expected: true
+            }
+        ];
+
+        function checkVideoFiles() {
+            const statusDiv = document.getElementById('file-status');
+            statusDiv.innerHTML = '<div class="info">Checking video files...</div>';
+            
+            const statusGrid = document.createElement('div');
+            statusGrid.className = 'status-grid';
+            
+            sampleVideos.forEach(video => {
+                const statusItem = document.createElement('div');
+                statusItem.className = 'status-item';
+                
+                const title = document.createElement('h4');
+                title.textContent = video.name;
+                statusItem.appendChild(title);
+                
+                const url = document.createElement('p');
+                url.textContent = `URL: ${video.url}`;
+                url.style.fontSize = '12px';
+                url.style.color = '#666';
+                statusItem.appendChild(url);
+                
+                // Test if video is accessible
+                fetch(video.url, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            statusItem.innerHTML += '<div class="success">✅ Accessible</div>';
+                            statusItem.style.borderColor = '#4caf50';
+                        } else {
+                            statusItem.innerHTML += `<div class="error">❌ Not accessible (${response.status})</div>`;
+                            statusItem.style.borderColor = '#f44336';
+                        }
+                    })
+                    .catch(error => {
+                        statusItem.innerHTML += `<div class="error">❌ Network error: ${error.message}</div>`;
+                        statusItem.style.borderColor = '#f44336';
+                    });
+                
+                statusGrid.appendChild(statusItem);
+            });
+            
+            statusDiv.innerHTML = '';
+            statusDiv.appendChild(statusGrid);
+        }
+
+        function testVideoLoading() {
+            const testsDiv = document.getElementById('video-tests');
+            testsDiv.innerHTML = '<div class="info">Testing video loading...</div>';
+            
+            const testContainer = document.createElement('div');
+            
+            sampleVideos.forEach((video, index) => {
+                const videoTest = document.createElement('div');
+                videoTest.className = 'video-test';
+                
+                const title = document.createElement('h4');
+                title.textContent = `${index + 1}. ${video.name}`;
+                videoTest.appendChild(title);
+                
+                const videoElement = document.createElement('video');
+                videoElement.src = video.url;
+                videoElement.controls = true;
+                videoElement.style.width = '300px';
+                videoTest.appendChild(videoElement);
+                
+                const info = document.createElement('div');
+                info.className = 'video-info';
+                info.innerHTML = `
+                    <div>URL: ${video.url}</div>
+                    <div id="status-${index}">Loading...</div>
+                `;
+                videoTest.appendChild(info);
+                
+                // Event handlers
+                videoElement.onloadstart = () => {
+                    document.getElementById(`status-${index}`).innerHTML = 'Loading started...';
+                };
+                
+                videoElement.onloadedmetadata = () => {
+                    const status = document.getElementById(`status-${index}`);
+                    status.innerHTML = `
+                        <div class="success">✅ Loaded successfully</div>
+                        <div>Size: ${videoElement.videoWidth}x${videoElement.videoHeight}</div>
+                        <div>Duration: ${videoElement.duration.toFixed(2)}s</div>
+                    `;
+                };
+                
+                videoElement.oncanplay = () => {
+                    const status = document.getElementById(`status-${index}`);
+                    status.innerHTML += '<div class="success">Ready to play</div>';
+                };
+                
+                videoElement.onerror = (e) => {
+                    const status = document.getElementById(`status-${index}`);
+                    const error = videoElement.error;
+                    let errorMessage = 'Unknown error';
+                    
+                    if (error) {
+                        switch (error.code) {
+                            case 1: errorMessage = 'MEDIA_ERR_ABORTED'; break;
+                            case 2: errorMessage = 'MEDIA_ERR_NETWORK'; break;
+                            case 3: errorMessage = 'MEDIA_ERR_DECODE'; break;
+                            case 4: errorMessage = 'MEDIA_ERR_SRC_NOT_SUPPORTED'; break;
+                        }
+                    }
+                    
+                    status.innerHTML = `
+                        <div class="error">❌ Error: ${errorMessage}</div>
+                        <div>Error code: ${error ? error.code : 'unknown'}</div>
+                    `;
+                };
+                
+                testContainer.appendChild(videoTest);
+            });
+            
+            testsDiv.innerHTML = '';
+            testsDiv.appendChild(testContainer);
+        }
+
+        function testNetworkAccess() {
+            const networkDiv = document.getElementById('network-tests');
+            networkDiv.innerHTML = '<div class="info">Testing network access...</div>';
+            
+            const testResults = document.createElement('div');
+            
+            // Test basic connectivity
+            fetch('/fixtures/swings/', { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        testResults.innerHTML += '<div class="success">✅ Fixtures directory accessible</div>';
+                    } else {
+                        testResults.innerHTML += `<div class="error">❌ Fixtures directory not accessible (${response.status})</div>`;
+                    }
+                })
+                .catch(error => {
+                    testResults.innerHTML += `<div class="error">❌ Network error: ${error.message}</div>`;
+                });
+            
+            // Test specific video files
+            const testVideos = [
+                '/fixtures/swings/tiger-woods-swing.mp4',
+                '/fixtures/swings/tiger-woods-swing-slow.mp4',
+                '/fixtures/swings/ludvig_aberg_driver.mp4',
+                '/fixtures/swings/pga_adam_scott_driver_3.mp4'
+            ];
+            
+            testVideos.forEach((url, index) => {
+                fetch(url, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            testResults.innerHTML += `<div class="success">✅ ${url} accessible</div>`;
+                        } else {
+                            testResults.innerHTML += `<div class="error">❌ ${url} not accessible (${response.status})</div>`;
+                        }
+                    })
+                    .catch(error => {
+                        testResults.innerHTML += `<div class="error">❌ ${url} error: ${error.message}</div>`;
+                    });
+            });
+            
+            networkDiv.innerHTML = '';
+            networkDiv.appendChild(testResults);
+        }
+
+        // Auto-run tests on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎥 Sample Video Loading Diagnostic Tool loaded');
+            checkVideoFiles();
+        });
+    </script>
+</body>
+</html>

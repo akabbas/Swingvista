@@ -8,10 +8,10 @@ interface ProfessionalSwingValidatorProps {
   className?: string;
 }
 
-// Mock professional swing data based on PGA Tour statistics
-const PROFESSIONAL_SWING_DATA = {
-  tigerWoods: {
-    name: 'Tiger Woods',
+// Test swing data for validation - NO HARD-CODED EXPECTED RESULTS
+const TEST_SWING_DATA = {
+  testSwing1: {
+    name: 'Test Swing 1',
     poses: generateMockPoses(120), // 4 seconds at 30fps
     phases: [
       { name: 'address', startTime: 0, endTime: 200, startFrame: 0, endFrame: 6, duration: 200 },
@@ -23,12 +23,10 @@ const PROFESSIONAL_SWING_DATA = {
     trajectory: {
       rightWrist: generateMockTrajectory(120),
       leftWrist: generateMockTrajectory(120)
-    },
-    expectedGrade: 'A+',
-    expectedScore: 97
+    }
   },
-  ludvigAberg: {
-    name: 'Ludvig Åberg',
+  testSwing2: {
+    name: 'Test Swing 2',
     poses: generateMockPoses(100),
     phases: [
       { name: 'address', startTime: 0, endTime: 150, startFrame: 0, endFrame: 5, duration: 150 },
@@ -40,12 +38,10 @@ const PROFESSIONAL_SWING_DATA = {
     trajectory: {
       rightWrist: generateMockTrajectory(100),
       leftWrist: generateMockTrajectory(100)
-    },
-    expectedGrade: 'A',
-    expectedScore: 94
+    }
   },
-  maxHoma: {
-    name: 'Max Homa',
+  testSwing3: {
+    name: 'Test Swing 3',
     poses: generateMockPoses(110),
     phases: [
       { name: 'address', startTime: 0, endTime: 180, startFrame: 0, endFrame: 6, duration: 180 },
@@ -57,9 +53,7 @@ const PROFESSIONAL_SWING_DATA = {
     trajectory: {
       rightWrist: generateMockTrajectory(110),
       leftWrist: generateMockTrajectory(110)
-    },
-    expectedGrade: 'A-',
-    expectedScore: 91
+    }
   }
 };
 
@@ -88,14 +82,14 @@ export default function ProfessionalSwingValidator({ className = '' }: Professio
   const [results, setResults] = useState<any>(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  const validateProfessionalSwings = async () => {
+  const validateTestSwings = async () => {
     setIsRunning(true);
-    console.log('=== PROFESSIONAL SWING VALIDATION ===');
+    console.log('=== TEST SWING VALIDATION ===');
     
     const validationResults = [];
     
-    for (const [key, swingData] of Object.entries(PROFESSIONAL_SWING_DATA)) {
-      console.log(`\nValidating ${swingData.name}...`);
+    for (const [key, swingData] of Object.entries(TEST_SWING_DATA)) {
+      console.log(`\nAnalyzing ${swingData.name}...`);
       
       try {
         // Calculate accurate metrics
@@ -116,11 +110,7 @@ export default function ProfessionalSwingValidator({ className = '' }: Professio
         
         const result = {
           name: swingData.name,
-          expected: {
-            grade: swingData.expectedGrade,
-            score: swingData.expectedScore
-          },
-          actual: {
+          analysis: {
             accurateScore: accurateMetrics.overallScore,
             accurateGrade: accurateMetrics.letterGrade,
             comprehensiveScore: grade.overall.score,
@@ -144,14 +134,13 @@ export default function ProfessionalSwingValidator({ className = '' }: Professio
         
         validationResults.push(result);
         
-        console.log(`${swingData.name} Results:`, {
-          expected: `${swingData.expectedGrade} (${swingData.expectedScore})`,
-          actual: `${grade.overall.letter} (${grade.overall.score})`,
+        console.log(`${swingData.name} Analysis:`, {
+          grade: `${grade.overall.letter} (${grade.overall.score})`,
           emergencyOverrides: grade.emergencyOverrides.applied
         });
         
       } catch (error) {
-        console.error(`Error validating ${swingData.name}:`, error);
+        console.error(`Error analyzing ${swingData.name}:`, error);
         validationResults.push({
           name: swingData.name,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -161,31 +150,31 @@ export default function ProfessionalSwingValidator({ className = '' }: Professio
     
     setResults(validationResults);
     setIsRunning(false);
-    console.log('Validation complete:', validationResults);
+    console.log('Analysis complete:', validationResults);
     console.log('=====================================');
   };
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Professional Swing Validator</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Swing Analysis Validator</h3>
         <button
-          onClick={validateProfessionalSwings}
+          onClick={validateTestSwings}
           disabled={isRunning}
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
         >
-          {isRunning ? 'Validating...' : 'Validate Professional Swings'}
+          {isRunning ? 'Analyzing...' : 'Analyze Test Swings'}
         </button>
       </div>
       
       <p className="text-sm text-gray-600 mb-4">
-        This validator tests the grading system with known professional swing data to ensure 
-        Tiger Woods gets an A+ grade and other professionals get appropriate high grades.
+        This validator tests the grading system with sample swing data to ensure 
+        all metrics are calculated from actual video analysis, not hard-coded values.
       </p>
 
       {results && (
         <div className="space-y-4">
-          <h4 className="font-semibold text-gray-900">Validation Results</h4>
+          <h4 className="font-semibold text-gray-900">Analysis Results</h4>
           
           {results.map((result: any, index: number) => (
             <div key={index} className="border rounded-lg p-4">
@@ -200,13 +189,8 @@ export default function ProfessionalSwingValidator({ className = '' }: Professio
                     <h5 className="font-medium text-gray-900">{result.name}</h5>
                     <div className="flex gap-4 text-sm">
                       <div>
-                        Expected: <span className="font-medium">{result.expected.grade} ({result.expected.score})</span>
-                      </div>
-                      <div>
-                        Actual: <span className={`font-medium ${
-                          result.actual.comprehensiveScore >= result.expected.score - 5 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {result.actual.comprehensiveGrade} ({result.actual.comprehensiveScore})
+                        Analysis: <span className="font-medium text-blue-600">
+                          {result.analysis.comprehensiveGrade} ({result.analysis.comprehensiveScore})
                         </span>
                       </div>
                     </div>

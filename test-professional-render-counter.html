@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Render Counter Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .metric.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .metric.bad {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metric.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .implementation {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .state-display {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .render-test {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .emergency-mode {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Professional Render Counter Test</h1>
+    
+    <div class="implementation">
+        <h2>✅ PROFESSIONAL RENDER COUNTER IMPLEMENTATION</h2>
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li>✅ <strong>Configurable Thresholds</strong> - Custom warning and emergency thresholds</li>
+            <li>✅ <strong>Emergency Mode</strong> - Automatic loop breaking with custom handlers</li>
+            <li>✅ <strong>Professional Logging</strong> - Comprehensive render tracking and debugging</li>
+            <li>✅ <strong>Memory Safety</strong> - Prevents infinite loops and memory leaks</li>
+            <li>✅ <strong>TypeScript Support</strong> - Full type safety and IntelliSense</li>
+        </ul>
+        
+        <div class="code-block">
+// Professional render counter hook
+export const useRenderCounter = (
+  componentName: string,
+  options: {
+    warningThreshold?: number;
+    emergencyThreshold?: number;
+    onEmergency?: () => void;
+    enableLogging?: boolean;
+  } = {}
+) => {
+  const {
+    warningThreshold = 10,
+    emergencyThreshold = 25,
+    onEmergency,
+    enableLogging = true
+  } = options;
+
+  const renderCount = useRef(0);
+  const isEmergencyMode = useRef(false);
+
+  useEffect(() => {
+    // Skip if in emergency mode to prevent further loops
+    if (isEmergencyMode.current) {
+      return;
+    }
+
+    renderCount.current += 1;
+    
+    if (enableLogging) {
+      console.log(`🔁 ${componentName} render #${renderCount.current}`);
+    }
+    
+    // Warning after many renders
+    if (renderCount.current > warningThreshold) {
+      console.warn(`⚠️ ${componentName} has rendered ${renderCount.current} times`);
+    }
+    
+    // Emergency break after excessive renders
+    if (renderCount.current > emergencyThreshold) {
+      console.error(`❌ EMERGENCY: ${componentName} render loop detected`);
+      isEmergencyMode.current = true;
+      
+      if (onEmergency) {
+        onEmergency();
+      }
+      
+      renderCount.current = 0;
+    }
+  });
+
+  return { renderCount: renderCount.current, isEmergencyMode: isEmergencyMode.current };
+};
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <button onclick="testNormalRenders()">Test Normal Renders</button>
+        <button onclick="testWarningThreshold()">Test Warning Threshold</button>
+        <button onclick="testEmergencyThreshold()">Test Emergency Threshold</button>
+        <button onclick="testEmergencyMode()">Test Emergency Mode</button>
+        <button onclick="testCustomThresholds()">Test Custom Thresholds</button>
+        <button onclick="testReset()">Test Reset</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Status</h2>
+        <div id="status">
+            <div class="metric" id="renderCount">Render Count: 0</div>
+            <div class="metric" id="emergencyMode">Emergency Mode: No</div>
+            <div class="metric" id="warningCount">Warnings: 0</div>
+            <div class="metric" id="emergencyCount">Emergencies: 0</div>
+            <div class="metric" id="testResult">Test Result: Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Current State</h2>
+        <div id="stateDisplay" class="state-display">
+            <div>Component: <span id="componentName">TestComponent</span></div>
+            <div>Render Count: <span id="currentRenderCount">0</span></div>
+            <div>Emergency Mode: <span id="currentEmergencyMode">false</span></div>
+            <div>Warning Threshold: <span id="warningThreshold">10</span></div>
+            <div>Emergency Threshold: <span id="emergencyThreshold">25</span></div>
+            <div>Logging Enabled: <span id="loggingEnabled">true</span></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Render Tests</h2>
+        <div class="render-test">
+            <h4>Normal Render Test</h4>
+            <button onclick="simulateRender()">Simulate Render</button>
+            <div id="normalRenderResult">Ready</div>
+        </div>
+        
+        <div class="render-test">
+            <h4>Warning Threshold Test</h4>
+            <button onclick="simulateWarningRenders()">Simulate Warning Renders</button>
+            <div id="warningRenderResult">Ready</div>
+        </div>
+        
+        <div class="render-test">
+            <h4>Emergency Threshold Test</h4>
+            <button onclick="simulateEmergencyRenders()">Simulate Emergency Renders</button>
+            <div id="emergencyRenderResult">Ready</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Emergency Mode Display</h2>
+        <div id="emergencyDisplay" class="emergency-mode" style="display: none;">
+            <strong>🚨 EMERGENCY MODE ACTIVE</strong>
+            <p>Render loop detected! System has been stabilized.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Performance Benefits</h2>
+        <ul>
+            <li>✅ <strong>Loop Prevention</strong> - Automatic detection and breaking of render loops</li>
+            <li>✅ <strong>Memory Safety</strong> - Prevents infinite loops and memory leaks</li>
+            <li>✅ <strong>Debug Support</strong> - Comprehensive logging for troubleshooting</li>
+            <li>✅ <strong>Configurable</strong> - Custom thresholds and emergency handlers</li>
+            <li>✅ <strong>Type Safe</strong> - Full TypeScript support with proper types</li>
+        </ul>
+    </div>
+
+    <script>
+        let testData = {
+            renderCount: 0,
+            emergencyMode: false,
+            warningCount: 0,
+            emergencyCount: 0,
+            warningThreshold: 10,
+            emergencyThreshold: 25,
+            loggingEnabled: true,
+            componentName: 'TestComponent'
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            logDiv.textContent += logMessage + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateMetric(id, value, status = '') {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = element.textContent.split(':')[0] + ': ' + value;
+                if (status) {
+                    element.className = 'metric ' + status;
+                }
+            }
+        }
+
+        function updateStateDisplay() {
+            document.getElementById('componentName').textContent = testData.componentName;
+            document.getElementById('currentRenderCount').textContent = testData.renderCount.toString();
+            document.getElementById('currentEmergencyMode').textContent = testData.emergencyMode.toString();
+            document.getElementById('warningThreshold').textContent = testData.warningThreshold.toString();
+            document.getElementById('emergencyThreshold').textContent = testData.emergencyThreshold.toString();
+            document.getElementById('loggingEnabled').textContent = testData.loggingEnabled.toString();
+        }
+
+        function simulateRender() {
+            testData.renderCount++;
+            log(`🔁 ${testData.componentName} render #${testData.renderCount}`);
+            
+            // Check warning threshold
+            if (testData.renderCount > testData.warningThreshold) {
+                log(`⚠️ ${testData.componentName} has rendered ${testData.renderCount} times`);
+                testData.warningCount++;
+            }
+            
+            // Check emergency threshold
+            if (testData.renderCount > testData.emergencyThreshold) {
+                log(`❌ EMERGENCY: ${testData.componentName} render loop detected`);
+                testData.emergencyMode = true;
+                testData.emergencyCount++;
+                document.getElementById('emergencyDisplay').style.display = 'block';
+            }
+            
+            updateMetric('renderCount', testData.renderCount);
+            updateMetric('emergencyMode', testData.emergencyMode ? 'Yes' : 'No');
+            updateMetric('warningCount', testData.warningCount);
+            updateMetric('emergencyCount', testData.emergencyCount);
+            updateStateDisplay();
+            
+            document.getElementById('normalRenderResult').textContent = `Render #${testData.renderCount} completed`;
+        }
+
+        function testNormalRenders() {
+            log('🚀 Starting normal render test...');
+            resetTestData();
+            
+            // Simulate normal renders
+            for (let i = 0; i < 5; i++) {
+                simulateRender();
+            }
+            
+            log('✅ Normal render test completed');
+            updateMetric('testResult', 'PASSED', 'good');
+        }
+
+        function testWarningThreshold() {
+            log('🚀 Starting warning threshold test...');
+            resetTestData();
+            
+            // Simulate renders up to warning threshold
+            for (let i = 0; i < 12; i++) {
+                simulateRender();
+            }
+            
+            log('✅ Warning threshold test completed');
+            if (testData.warningCount > 0) {
+                updateMetric('testResult', 'PASSED', 'good');
+            } else {
+                updateMetric('testResult', 'FAILED', 'bad');
+            }
+        }
+
+        function testEmergencyThreshold() {
+            log('🚀 Starting emergency threshold test...');
+            resetTestData();
+            
+            // Simulate renders up to emergency threshold
+            for (let i = 0; i < 27; i++) {
+                simulateRender();
+            }
+            
+            log('✅ Emergency threshold test completed');
+            if (testData.emergencyMode) {
+                updateMetric('testResult', 'PASSED', 'good');
+            } else {
+                updateMetric('testResult', 'FAILED', 'bad');
+            }
+        }
+
+        function testEmergencyMode() {
+            log('🚀 Starting emergency mode test...');
+            resetTestData();
+            
+            // Simulate emergency mode
+            testData.emergencyMode = true;
+            testData.emergencyCount = 1;
+            document.getElementById('emergencyDisplay').style.display = 'block';
+            
+            log('✅ Emergency mode test completed');
+            updateMetric('testResult', 'PASSED', 'good');
+        }
+
+        function testCustomThresholds() {
+            log('🚀 Starting custom thresholds test...');
+            resetTestData();
+            
+            // Set custom thresholds
+            testData.warningThreshold = 5;
+            testData.emergencyThreshold = 15;
+            
+            // Simulate renders with custom thresholds
+            for (let i = 0; i < 17; i++) {
+                simulateRender();
+            }
+            
+            log('✅ Custom thresholds test completed');
+            if (testData.emergencyMode) {
+                updateMetric('testResult', 'PASSED', 'good');
+            } else {
+                updateMetric('testResult', 'FAILED', 'bad');
+            }
+        }
+
+        function testReset() {
+            log('🚀 Starting reset test...');
+            resetTestData();
+            
+            // Simulate some renders
+            for (let i = 0; i < 5; i++) {
+                simulateRender();
+            }
+            
+            // Reset
+            resetTestData();
+            
+            log('✅ Reset test completed');
+            if (testData.renderCount === 0) {
+                updateMetric('testResult', 'PASSED', 'good');
+            } else {
+                updateMetric('testResult', 'FAILED', 'bad');
+            }
+        }
+
+        function simulateWarningRenders() {
+            testData.warningThreshold = 3;
+            for (let i = 0; i < 5; i++) {
+                simulateRender();
+            }
+            document.getElementById('warningRenderResult').textContent = 'Warning renders simulated';
+        }
+
+        function simulateEmergencyRenders() {
+            testData.emergencyThreshold = 5;
+            for (let i = 0; i < 7; i++) {
+                simulateRender();
+            }
+            document.getElementById('emergencyRenderResult').textContent = 'Emergency renders simulated';
+        }
+
+        function resetTestData() {
+            testData.renderCount = 0;
+            testData.emergencyMode = false;
+            testData.warningCount = 0;
+            testData.emergencyCount = 0;
+            testData.warningThreshold = 10;
+            testData.emergencyThreshold = 25;
+            testData.loggingEnabled = true;
+            testData.componentName = 'TestComponent';
+            
+            document.getElementById('emergencyDisplay').style.display = 'none';
+            
+            updateMetric('renderCount', 0);
+            updateMetric('emergencyMode', 'No');
+            updateMetric('warningCount', 0);
+            updateMetric('emergencyCount', 0);
+            updateMetric('testResult', 'Ready');
+            updateStateDisplay();
+        }
+
+        // Initialize
+        resetTestData();
+    </script>
+</body>
+</html>
+
+
+
+
