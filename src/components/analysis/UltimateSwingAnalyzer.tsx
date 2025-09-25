@@ -326,12 +326,36 @@ export default function UltimateSwingAnalyzer({
                     {isNaN(analysis.metrics.weightTransfer.impact) ? 'N/A' : analysis.metrics.weightTransfer.impact.toFixed(1)}%
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Swing Plane:</span>
-                  <span className="font-medium">
-                    {isNaN(analysis.metrics.swingPlane.consistency) ? 'N/A' : analysis.metrics.swingPlane.consistency.toFixed(1)}%
-                  </span>
-                </div>
+            <div className="flex justify-between">
+              <span>Swing Plane:</span>
+              <span className="font-medium">
+                {isNaN(analysis.metrics.swingPlane.consistency) ? 'N/A' : analysis.metrics.swingPlane.consistency.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Power:</span>
+              <span className="font-medium">
+                {isNaN(analysis.metrics.power) ? 'N/A' : analysis.metrics.power.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Balance:</span>
+              <span className="font-medium">
+                {isNaN(analysis.metrics.balance) ? 'N/A' : analysis.metrics.balance.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flexibility:</span>
+              <span className="font-medium">
+                {isNaN(analysis.metrics.flexibility) ? 'N/A' : analysis.metrics.flexibility.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Swing Type:</span>
+              <span className="font-medium">
+                {analysis.metrics.swingType || 'N/A'}
+              </span>
+            </div>
               </div>
             </div>
             
