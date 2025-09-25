@@ -235,8 +235,18 @@ export async function analyzeUltimateGolfSwing(
     
     // 🎯 PHASE 2: ENHANCED PHASE DETECTION (from v2.0)
     console.log('🎬 ULTIMATE ANALYSIS: Phase 2 - Enhanced Phase Detection');
-    const phases = detectUltimateSwingPhases(poses, video);
-    console.log('✅ ULTIMATE ANALYSIS: Enhanced phases detected:', phases);
+    const phaseRanges = detectUltimateSwingPhases(poses, video);
+    console.log('✅ ULTIMATE ANALYSIS: Phase ranges detected:', phaseRanges);
+    
+    // Convert phase ranges to array format for dynamic advice generator
+    const phases = Object.entries(phaseRanges).map(([name, range]) => ({
+      name,
+      duration: range.duration || 0,
+      startFrame: range.start || 0,
+      endFrame: range.end || 0,
+      confidence: range.confidence || 0
+    }));
+    console.log('✅ ULTIMATE ANALYSIS: Phases converted to array format:', phases);
     
     // 🎯 PHASE 3: ENHANCED VALIDATION (from v2.0)
     let enhancedValidation = null;
@@ -592,39 +602,45 @@ function detectUltimateSwingPhases(poses: PoseResult[], video: HTMLVideoElement)
   const totalFrames = poses.length;
   const frameDuration = video.duration / totalFrames;
   
-  // Simple phase detection based on frame distribution
-  const phases = {
-    address: { 
-      start: 0, 
-      end: Math.floor(totalFrames * 0.1), 
-      confidence: 0.8 
-    },
-    backswing: { 
-      start: Math.floor(totalFrames * 0.1), 
-      end: Math.floor(totalFrames * 0.4), 
-      confidence: 0.8 
-    },
-    top: { 
-      start: Math.floor(totalFrames * 0.4), 
-      end: Math.floor(totalFrames * 0.5), 
-      confidence: 0.8 
-    },
-    downswing: { 
-      start: Math.floor(totalFrames * 0.5), 
-      end: Math.floor(totalFrames * 0.8), 
-      confidence: 0.8 
-    },
-    impact: { 
-      start: Math.floor(totalFrames * 0.8), 
-      end: Math.floor(totalFrames * 0.85), 
-      confidence: 0.8 
-    },
-    followThrough: { 
-      start: Math.floor(totalFrames * 0.85), 
-      end: totalFrames - 1, 
-      confidence: 0.8 
-    }
-  };
+      // Simple phase detection based on frame distribution
+      const phases = {
+        address: {
+          start: 0,
+          end: Math.floor(totalFrames * 0.1),
+          duration: frameDuration * (totalFrames * 0.1),
+          confidence: 0.8
+        },
+        backswing: {
+          start: Math.floor(totalFrames * 0.1),
+          end: Math.floor(totalFrames * 0.4),
+          duration: frameDuration * (totalFrames * 0.3),
+          confidence: 0.8
+        },
+        top: {
+          start: Math.floor(totalFrames * 0.4),
+          end: Math.floor(totalFrames * 0.5),
+          duration: frameDuration * (totalFrames * 0.1),
+          confidence: 0.8
+        },
+        downswing: {
+          start: Math.floor(totalFrames * 0.5),
+          end: Math.floor(totalFrames * 0.8),
+          duration: frameDuration * (totalFrames * 0.3),
+          confidence: 0.8
+        },
+        impact: {
+          start: Math.floor(totalFrames * 0.8),
+          end: Math.floor(totalFrames * 0.85),
+          duration: frameDuration * (totalFrames * 0.05),
+          confidence: 0.8
+        },
+        followThrough: {
+          start: Math.floor(totalFrames * 0.85),
+          end: totalFrames - 1,
+          duration: frameDuration * (totalFrames * 0.15),
+          confidence: 0.8
+        }
+      };
   
   console.log('✅ ULTIMATE PHASE DETECTION: Phases detected successfully');
   return phases;
