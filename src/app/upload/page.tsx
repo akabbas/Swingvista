@@ -917,25 +917,25 @@ export default function UploadPage() {
                   phases={[]} // Empty phases before analysis
                   overlaySettings={state.overlaySettings as any}
                   playbackSpeed={state.playbackSpeed}
-                  onTimeUpdate={(time) => {
+                  onTimeUpdate={useCallback((time: number) => {
                     console.log('🎥 Video time update:', time);
-                  }}
-                  onPlay={() => {
+                  }, [])}
+                  onPlay={useCallback(() => {
                     console.log('🎥 Video play');
-                  }}
-                  onPause={() => {
+                  }, [])}
+                  onPause={useCallback(() => {
                     console.log('🎥 Video pause');
-                  }}
-                  onLoadedMetadata={(duration) => {
+                  }, [])}
+                  onLoadedMetadata={useCallback((duration: number) => {
                     console.log('🎥 Video loaded, duration:', duration);
-                  }}
+                  }, [])}
                   isMuted={false}
-                  onMuteChange={(muted) => {
+                  onMuteChange={useCallback((muted: boolean) => {
                     console.log('🎥 Video mute change:', muted);
-                  }}
-                  onVideoError={() => {
+                  }, [])}
+                  onVideoError={useCallback(() => {
                     console.error('🎥 Video error');
-                  }}
+                  }, [])}
                 />
               </div>
 

@@ -146,33 +146,73 @@ const VideoPlayerWithOverlay: React.FC<VideoPlayerWithOverlayProps> = ({
     updateVideoDimensions();
   }, [updateVideoDimensions]);
 
-  // Set up event listeners
+  // Set up event listeners - FIXED: Remove callback dependencies to prevent infinite loops
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('resize', handleResize);
-    video.addEventListener('error', handleVideoError);
+    const handleTimeUpdateLocal = () => {
+      if (videoRef.current) {
+        const time = videoRef.current.currentTime * 1000; // Convert to milliseconds
+        setCurrentTime(time);
+        onTimeUpdate?.(time);
+      }
+    };
+
+    const handlePlayLocal = () => {
+      setIsPlaying(true);
+      onPlay?.();
+    };
+
+    const handlePauseLocal = () => {
+      setIsPlaying(false);
+      onPause?.();
+    };
+
+    const handleLoadedMetadataLocal = () => {
+      if (videoRef.current) {
+        const duration = videoRef.current.duration;
+        setDuration(duration);
+        onLoadedMetadata?.(duration);
+        updateVideoDimensions();
+      }
+    };
+
+    const handleResizeLocal = () => {
+      updateVideoDimensions();
+    };
+
+    const handleVideoErrorLocal = () => {
+      console.error('Video error occurred');
+      onVideoError?.();
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdateLocal);
+    video.addEventListener('play', handlePlayLocal);
+    video.addEventListener('pause', handlePauseLocal);
+    video.addEventListener('loadedmetadata', handleLoadedMetadataLocal);
+    video.addEventListener('resize', handleResizeLocal);
+    video.addEventListener('error', handleVideoErrorLocal);
 
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('resize', handleResize);
-      video.removeEventListener('error', handleVideoError);
+      video.removeEventListener('timeupdate', handleTimeUpdateLocal);
+      video.removeEventListener('play', handlePlayLocal);
+      video.removeEventListener('pause', handlePauseLocal);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadataLocal);
+      video.removeEventListener('resize', handleResizeLocal);
+      video.removeEventListener('error', handleVideoErrorLocal);
     };
-  }, [handleTimeUpdate, handlePlay, handlePause, handleLoadedMetadata, handleResize, handleVideoError]);
+  }, [videoUrl]); // Only depend on videoUrl to prevent infinite loops
 
-  // Handle window resize
+  // Handle window resize - FIXED: Remove callback dependency to prevent infinite loops
   useEffect(() => {
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [handleResize]);
+    const handleResizeLocal = () => {
+      updateVideoDimensions();
+    };
+
+    window.addEventListener('resize', handleResizeLocal);
+    return () => window.removeEventListener('resize', handleResizeLocal);
+  }, []); // Empty dependency array to prevent infinite loops
 
   // Apply playback speed when it changes
   useEffect(() => {
