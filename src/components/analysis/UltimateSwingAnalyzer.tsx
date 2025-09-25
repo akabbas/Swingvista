@@ -283,15 +283,21 @@ export default function UltimateSwingAnalyzer({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{analysis.overallScore}</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {isNaN(analysis.overallScore) ? 'N/A' : Math.round(analysis.overallScore)}
+                </div>
                 <div className="text-sm text-green-700">Overall Score</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{analysis.letterGrade}</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {analysis.letterGrade || 'N/A'}
+                </div>
                 <div className="text-sm text-green-700">Letter Grade</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{Math.round(analysis.confidence * 100)}%</div>
+                <div className="text-3xl font-bold text-green-600">
+                  {isNaN(analysis.confidence) ? 'N/A' : Math.round(analysis.confidence * 100)}%
+                </div>
                 <div className="text-sm text-green-700">Confidence</div>
               </div>
             </div>
@@ -304,19 +310,27 @@ export default function UltimateSwingAnalyzer({
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Tempo:</span>
-                  <span className="font-medium">{analysis.metrics.tempo.toFixed(2)}</span>
+                  <span className="font-medium">
+                    {isNaN(analysis.metrics.tempo) ? 'N/A' : analysis.metrics.tempo.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shoulder Turn:</span>
-                  <span className="font-medium">{analysis.metrics.rotation.shoulderTurn.toFixed(1)}°</span>
+                  <span className="font-medium">
+                    {isNaN(analysis.metrics.rotation.shoulderTurn) ? 'N/A' : analysis.metrics.rotation.shoulderTurn.toFixed(1)}°
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Weight Transfer:</span>
-                  <span className="font-medium">{analysis.metrics.weightTransfer.impact.toFixed(1)}%</span>
+                  <span className="font-medium">
+                    {isNaN(analysis.metrics.weightTransfer.impact) ? 'N/A' : analysis.metrics.weightTransfer.impact.toFixed(1)}%
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Swing Plane:</span>
-                  <span className="font-medium">{analysis.metrics.swingPlane.consistency.toFixed(1)}%</span>
+                  <span className="font-medium">
+                    {isNaN(analysis.metrics.swingPlane.consistency) ? 'N/A' : analysis.metrics.swingPlane.consistency.toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
@@ -372,15 +386,21 @@ export default function UltimateSwingAnalyzer({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <strong>Performance:</strong>
-                  <p className="text-purple-700">{analysis.ultimateFeatures.performanceMetrics.analysisTime.toFixed(0)}ms</p>
+                  <p className="text-purple-700">
+                    {isNaN(analysis.ultimateFeatures.performanceMetrics.analysisTime) ? 'N/A' : analysis.ultimateFeatures.performanceMetrics.analysisTime.toFixed(0)}ms
+                  </p>
                 </div>
                 <div>
                   <strong>Optimization:</strong>
-                  <p className="text-purple-700">{analysis.ultimateFeatures.performanceMetrics.optimizationLevel}%</p>
+                  <p className="text-purple-700">
+                    {isNaN(analysis.ultimateFeatures.performanceMetrics.optimizationLevel) ? 'N/A' : analysis.ultimateFeatures.performanceMetrics.optimizationLevel}%
+                  </p>
                 </div>
                 <div>
                   <strong>User Satisfaction:</strong>
-                  <p className="text-purple-700">{analysis.ultimateFeatures.userExperience.userSatisfaction}%</p>
+                  <p className="text-purple-700">
+                    {isNaN(analysis.ultimateFeatures.userExperience.userSatisfaction) ? 'N/A' : analysis.ultimateFeatures.userExperience.userSatisfaction}%
+                  </p>
                 </div>
               </div>
             </div>
