@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true,
   },
-  output: 'standalone',
+  // Remove standalone output for development
+  // output: 'standalone',
   compiler: {
     // Keep console logs for debugging
     removeConsole: false,
