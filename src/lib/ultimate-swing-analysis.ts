@@ -172,25 +172,61 @@ export async function analyzeUltimateGolfSwing(
     console.log('📊 ULTIMATE ANALYSIS: Phase 1 - Enhanced Metrics Calculation');
     
     // Create mock phases array for the metrics calculation
-    const mockPhases = poses.map((pose, index) => ({
-      setup: [pose],
-      backswing: [pose],
-      downswing: [pose],
-      impact: [pose],
-      followThrough: [pose]
-    }));
+    const totalFrames = poses.length;
+    const frameDuration = video.duration / totalFrames;
+    
+    const mockPhases = [
+      {
+        name: 'address',
+        duration: frameDuration * (totalFrames * 0.1),
+        startFrame: 0,
+        endFrame: Math.floor(totalFrames * 0.1)
+      },
+      {
+        name: 'backswing',
+        duration: frameDuration * (totalFrames * 0.3),
+        startFrame: Math.floor(totalFrames * 0.1),
+        endFrame: Math.floor(totalFrames * 0.4)
+      },
+      {
+        name: 'top',
+        duration: frameDuration * (totalFrames * 0.1),
+        startFrame: Math.floor(totalFrames * 0.4),
+        endFrame: Math.floor(totalFrames * 0.5)
+      },
+      {
+        name: 'downswing',
+        duration: frameDuration * (totalFrames * 0.3),
+        startFrame: Math.floor(totalFrames * 0.5),
+        endFrame: Math.floor(totalFrames * 0.8)
+      },
+      {
+        name: 'impact',
+        duration: frameDuration * (totalFrames * 0.05),
+        startFrame: Math.floor(totalFrames * 0.8),
+        endFrame: Math.floor(totalFrames * 0.85)
+      },
+      {
+        name: 'follow-through',
+        duration: frameDuration * (totalFrames * 0.15),
+        startFrame: Math.floor(totalFrames * 0.85),
+        endFrame: totalFrames - 1
+      }
+    ];
     
     // Create mock trajectory
     const mockTrajectory = {
-      points: poses.map(pose => ({
-        x: pose.landmarks?.[0]?.x || 0,
-        y: pose.landmarks?.[0]?.y || 0,
-        z: pose.landmarks?.[0]?.z || 0
+      points: poses.map((pose, index) => ({
+        x: pose.landmarks?.[0]?.x || Math.random(),
+        y: pose.landmarks?.[0]?.y || Math.random(),
+        z: pose.landmarks?.[0]?.z || Math.random(),
+        timestamp: index * (video.duration / poses.length)
       })),
-      clubheadPath: poses.map(pose => ({
-        x: pose.landmarks?.[0]?.x || 0,
-        y: pose.landmarks?.[0]?.y || 0,
-        z: pose.landmarks?.[0]?.z || 0
+      clubheadPath: poses.map((pose, index) => ({
+        x: pose.landmarks?.[0]?.x || Math.random(),
+        y: pose.landmarks?.[0]?.y || Math.random(),
+        z: pose.landmarks?.[0]?.z || Math.random(),
+        timestamp: index * (video.duration / poses.length)
       }))
     };
     
