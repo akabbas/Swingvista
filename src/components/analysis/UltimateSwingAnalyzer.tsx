@@ -321,27 +321,29 @@ export default function UltimateSwingAnalyzer({
               </div>
             </div>
             
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h4 className="font-bold text-gray-800 mb-3">🎯 Enhanced Validation</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Pose Quality:</span>
-                  <span className="font-medium">{analysis.enhancedValidation.poseDataQuality.poseConsistency.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Calculation Accuracy:</span>
-                  <span className="font-medium">{analysis.enhancedValidation.calculationAccuracy.tempoValidation ? '✅' : '❌'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Physical Possibility:</span>
-                  <span className="font-medium">{analysis.enhancedValidation.physicalPossibility.biomechanicallySound ? '✅' : '❌'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Video Consistency:</span>
-                  <span className="font-medium">{analysis.enhancedValidation.videoConsistency.temporalConsistency ? '✅' : '❌'}</span>
+            {analysis.enhancedValidation && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 className="font-bold text-gray-800 mb-3">🎯 Enhanced Validation</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Pose Quality:</span>
+                    <span className="font-medium">{(analysis.enhancedValidation.poseDataQuality?.confidence * 100 || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Calculation Accuracy:</span>
+                    <span className="font-medium">{(analysis.enhancedValidation.calculationAccuracy?.confidence * 100 || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Physical Possibility:</span>
+                    <span className="font-medium">{(analysis.enhancedValidation.physicalPossibility?.confidence * 100 || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Video Consistency:</span>
+                    <span className="font-medium">{(analysis.enhancedValidation.videoConsistency?.confidence * 100 || 0).toFixed(1)}%</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
           
           {/* 🎯 ULTIMATE FEEDBACK DISPLAY */}
