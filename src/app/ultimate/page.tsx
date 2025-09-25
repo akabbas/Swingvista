@@ -256,15 +256,21 @@ export default function UltimateSwingVistaPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">🎉 Ultimate Analysis Results</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-600">{analysis.overallScore}</div>
+                <div className="text-4xl font-bold text-green-600">
+                  {isNaN(analysis.overallScore) ? 'N/A' : Math.round(analysis.overallScore)}
+                </div>
                 <div className="text-sm text-green-700">Overall Score</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-600">{analysis.letterGrade}</div>
+                <div className="text-4xl font-bold text-green-600">
+                  {analysis.letterGrade || 'N/A'}
+                </div>
                 <div className="text-sm text-green-700">Letter Grade</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-600">{Math.round(analysis.confidence * 100)}%</div>
+                <div className="text-4xl font-bold text-green-600">
+                  {isNaN(analysis.confidence) ? 'N/A' : Math.round(analysis.confidence * 100)}%
+                </div>
                 <div className="text-sm text-green-700">Confidence</div>
               </div>
               <div className="text-center">
