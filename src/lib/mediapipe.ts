@@ -46,17 +46,13 @@ const runMediaPipeDiagnostics = async () => {
 
 // EMERGENCY FIX: Working MediaPipe CDN URLs that serve UMD/global scripts
 const CDN_SOURCES = [
-  // Primary: Working MediaPipe CDNs (UMD format)
-  'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635989137/pose.js',
-  'https://unpkg.com/@mediapipe/pose@0.5.1635989137/pose.js',
-  
-  // Secondary: Alternative CDN providers
+  // Primary: Working MediaPipe CDNs (tested and confirmed working)
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js',
   'https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js',
   
-  // Tertiary: CDNJS alternatives (UMD format)
-  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1635989137/pose.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1675469404/pose.js'
+  // Fallback: Alternative CDN providers (if primary fails)
+  'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635989137/pose.js',
+  'https://unpkg.com/@mediapipe/pose@0.5.1635989137/pose.js'
 ];
 
 // EMERGENCY FIX: Improved CDN loading with timeout
