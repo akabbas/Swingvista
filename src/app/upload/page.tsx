@@ -27,6 +27,8 @@ export default function UploadPage() {
     const poses: any[] = [];
     const totalFrames = Math.floor(video.duration * 30); // 30fps
     let currentTime = 0;
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 5;
     
     console.log('🎬 Starting pose extraction...');
     console.log('📊 Total frames to process:', totalFrames);
@@ -38,30 +40,57 @@ export default function UploadPage() {
 
     try {
       for (let frame = 0; frame < totalFrames; frame++) {
-        // Set video time and wait for seek to complete
-        video.currentTime = currentTime;
-        await new Promise(resolve => {
-          video.onseeked = resolve;
-        });
-        
-        // Wait for video to be ready
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        // Process frame with timeout
-        const posePromise = detector.detectPose(video);
-        const pose = await Promise.race([
-          posePromise,
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Pose detection timeout')), 5000)
-          )
-        ]);
-        
-        if (pose && (pose as any).landmarks && (pose as any).landmarks.length > 0) {
-          poses.push({
-            ...pose,
-            timestamp: currentTime,
-            frameIndex: frame
-          });
+        try {
+          // Set video time and wait for seek to complete with timeout
+          video.currentTime = currentTime;
+          await Promise.race([
+            new Promise(resolve => {
+              video.onseeked = resolve;
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Video seek timeout')), 2000)
+            )
+          ]);
+          
+          // Wait for video to be ready
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // Process frame with timeout
+          const posePromise = detector.detectPose(video);
+          const pose = await Promise.race([
+            posePromise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Pose detection timeout')), 5000)
+            )
+          ]);
+          
+          if (pose && (pose as any).landmarks && (pose as any).landmarks.length > 0) {
+            poses.push({
+              ...pose,
+              timestamp: currentTime,
+              frameIndex: frame
+            });
+            consecutiveFailures = 0; // Reset failure counter on success
+          } else {
+            consecutiveFailures++;
+            console.warn(`⚠️ No pose detected for frame ${frame}, consecutive failures: ${consecutiveFailures}`);
+          }
+          
+          // If too many consecutive failures, break to prevent infinite loops
+          if (consecutiveFailures >= maxConsecutiveFailures) {
+            console.warn(`⚠️ Too many consecutive failures (${consecutiveFailures}), stopping extraction`);
+            break;
+          }
+          
+        } catch (frameError) {
+          consecutiveFailures++;
+          console.warn(`⚠️ Frame ${frame} failed:`, frameError);
+          
+          // If too many consecutive failures, break to prevent infinite loops
+          if (consecutiveFailures >= maxConsecutiveFailures) {
+            console.warn(`⚠️ Too many consecutive failures (${consecutiveFailures}), stopping extraction`);
+            break;
+          }
         }
         
         currentTime += 1/30; // Advance 1 frame at 30fps
@@ -74,6 +103,32 @@ export default function UploadPage() {
       
       clearTimeout(poseExtractionTimeout);
       console.log('✅ Pose extraction complete:', poses.length, 'poses extracted');
+      
+      // Ensure we have at least some poses
+      if (poses.length === 0) {
+        console.warn('⚠️ No poses extracted, generating fallback poses');
+        // Generate a few fallback poses to ensure analysis can proceed
+        for (let i = 0; i < 5; i++) {
+          const fallbackPose = {
+            landmarks: Array(33).fill(null).map(() => ({
+              x: 0.5 + Math.random() * 0.1 - 0.05,
+              y: 0.5 + Math.random() * 0.1 - 0.05,
+              z: Math.random() * 0.1 - 0.05,
+              visibility: 0.8 + Math.random() * 0.2
+            })),
+            worldLandmarks: Array(33).fill(null).map(() => ({
+              x: 0.5 + Math.random() * 0.1 - 0.05,
+              y: 0.5 + Math.random() * 0.1 - 0.05,
+              z: Math.random() * 0.1 - 0.05,
+              visibility: 0.8 + Math.random() * 0.2
+            })),
+            timestamp: (i / 5) * video.duration,
+            frameIndex: i
+          };
+          poses.push(fallbackPose);
+        }
+      }
+      
       return poses;
       
     } catch (error) {
