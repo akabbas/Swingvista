@@ -44,22 +44,23 @@ const runMediaPipeDiagnostics = async () => {
   console.groupEnd();
 };
 
-// EMERGENCY FIX: Multiple working CDN sources with fallbacks
+// EMERGENCY FIX: Updated CDN sources with working URLs
 const CDN_SOURCES = [
-  // Primary: Working MediaPipe CDNs
+  // Primary: Latest working MediaPipe CDNs
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635989137/pose.js',
   'https://unpkg.com/@mediapipe/pose@0.5.1635989137/pose.js',
   
-  // Secondary: Alternative CDN providers
-  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1635989137/pose.js',
-  'https://cdn.skypack.dev/@mediapipe/pose@0.5.1635989137/pose.js',
-  
-  // Tertiary: Older stable versions
+  // Secondary: Alternative CDN providers with different versions
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js',
   'https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js',
   
-  // Emergency: Direct Google CDN (different format)
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task'
+  // Tertiary: CDNJS alternatives
+  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1635989137/pose.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1675469404/pose.js',
+  
+  // Emergency: Skypack CDN
+  'https://cdn.skypack.dev/@mediapipe/pose@0.5.1635989137/pose.js',
+  'https://cdn.skypack.dev/@mediapipe/pose@0.5.1675469404/pose.js'
 ];
 
 // EMERGENCY FIX: Improved CDN loading with timeout
@@ -162,6 +163,29 @@ const loadMediaPipeWithFallback = async (): Promise<void> => {
   throw new Error('All MediaPipe CDNs failed');
 };
 
+// EMERGENCY FIX: Local npm package fallback
+const loadMediaPipeFromNPM = async (): Promise<void> => {
+  if (!isClientSide()) {
+    throw new Error('MediaPipe can only be loaded on client-side');
+  }
+
+  try {
+    console.log('📦 Loading MediaPipe from npm package...');
+    const mediapipe = await import('@mediapipe/pose');
+    
+    if (mediapipe.Pose) {
+      console.log('✅ MediaPipe loaded successfully from npm package');
+      (window as any).MediaPipePose = mediapipe;
+      return;
+    }
+    
+    throw new Error('MediaPipe Pose not found in npm package');
+  } catch (error) {
+    console.error('❌ NPM package loading failed:', error);
+    throw new Error('Failed to load MediaPipe from npm package');
+  }
+};
+
 // EMERGENCY FIX: Test CDN availability before loading
 const testCDNAvailability = async (url: string): Promise<boolean> => {
   try {
@@ -258,16 +282,34 @@ async function loadMediaPipe() {
           console.warn('Module import failed, trying CDN loading:', moduleError);
           
           // Method 3: Try CDN loading
-          await loadMediaPipeFromCDN();
-          
-          if ((window as any).MediaPipePose && (window as any).MediaPipePose.Pose) {
-            console.log('✅ Using MediaPipe from CDN');
-            Pose = (window as any).MediaPipePose.Pose;
-            POSE_CONNECTIONS = (window as any).MediaPipePose.POSE_CONNECTIONS || [];
-            return { Pose, POSE_CONNECTIONS };
+          try {
+            await loadMediaPipeFromCDN();
+            
+            if ((window as any).MediaPipePose && (window as any).MediaPipePose.Pose) {
+              console.log('✅ Using MediaPipe from CDN');
+              Pose = (window as any).MediaPipePose.Pose;
+              POSE_CONNECTIONS = (window as any).MediaPipePose.POSE_CONNECTIONS || [];
+              return { Pose, POSE_CONNECTIONS };
+            }
+          } catch (cdnError) {
+            console.warn('CDN loading failed, trying npm package:', cdnError);
+            
+            // Method 4: Try npm package fallback
+            try {
+              await loadMediaPipeFromNPM();
+              
+              if ((window as any).MediaPipePose && (window as any).MediaPipePose.Pose) {
+                console.log('✅ Using MediaPipe from npm package');
+                Pose = (window as any).MediaPipePose.Pose;
+                POSE_CONNECTIONS = (window as any).MediaPipePose.POSE_CONNECTIONS || [];
+                return { Pose, POSE_CONNECTIONS };
+              }
+            } catch (npmError) {
+              console.error('NPM package loading also failed:', npmError);
+            }
           }
           
-          throw new Error('MediaPipe not available after CDN loading');
+          throw new Error('MediaPipe not available after CDN and npm loading');
         }
       } catch (error) {
         console.error('❌ CRITICAL: MediaPipe completely failed to load:', error);
@@ -285,6 +327,21 @@ async function loadMediaPipe() {
           }
         } catch (fallbackError) {
           console.error('All CDN fallbacks failed:', fallbackError);
+        }
+        
+        // Method 5: Try npm package as final fallback
+        try {
+          console.log('🔄 Trying npm package as final fallback...');
+          await loadMediaPipeFromNPM();
+          
+          if ((window as any).MediaPipePose && (window as any).MediaPipePose.Pose) {
+            console.log('✅ MediaPipe loaded from npm package fallback');
+            Pose = (window as any).MediaPipePose.Pose;
+            POSE_CONNECTIONS = (window as any).MediaPipePose.POSE_CONNECTIONS || [];
+            return { Pose, POSE_CONNECTIONS };
+          }
+        } catch (npmFallbackError) {
+          console.error('NPM package fallback also failed:', npmFallbackError);
         }
         
         // EMERGENCY FIX: Create a working local fallback
