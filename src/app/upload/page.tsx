@@ -10,7 +10,17 @@ export default function UploadPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Progress tracking function
+  const updateProgress = (frame: number, totalFrames: number) => {
+    const percent = Math.round((frame / totalFrames) * 100);
+    console.log(`📈 Progress: ${percent}% (${frame}/${totalFrames} frames)`);
+    
+    // Update UI progress
+    setAnalysisProgress(percent);
+  };
 
   // Extract poses from video frames with timeout protection
   const extractPosesFromVideo = async (video: HTMLVideoElement, detector: MediaPipePoseDetector) => {
@@ -58,7 +68,7 @@ export default function UploadPage() {
         
         // Update progress
         if (frame % 10 === 0) {
-          console.log(`📈 Progress: ${Math.round((frame / totalFrames) * 100)}% (${frame}/${totalFrames} frames)`);
+          updateProgress(frame, totalFrames);
         }
       }
       
@@ -86,6 +96,7 @@ export default function UploadPage() {
     
     setIsAnalyzing(true);
     setError(null);
+    setAnalysisProgress(0);
     setResult(null);
     
     try {
@@ -188,6 +199,7 @@ export default function UploadPage() {
     setFile(null);
     setResult(null);
     setError(null);
+    setAnalysisProgress(0);
     if (inputRef.current) {
       inputRef.current.value = '';
     }
@@ -265,9 +277,20 @@ export default function UploadPage() {
           {isAnalyzing && (
             <div className="mb-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center">
+                <div className="flex items-center mb-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
                   <span className="text-blue-800">Analyzing your swing...</span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${analysisProgress}%` }}
+                  ></div>
+                </div>
+                <div className="text-sm text-blue-600 mt-2 text-center">
+                  {analysisProgress}% Complete
                 </div>
               </div>
             </div>
