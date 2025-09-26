@@ -99,14 +99,20 @@ export class MediaPipePoseDetector {
         console.log('📡 Emergency MediaPipe onResults callback set');
         this.onResultsCallback = callback;
       },
-      send: async (args: any) => {
-        // Generate realistic mock pose data
-        setTimeout(() => {
-          const mockResult = this.generateRealisticMockPose();
-          if (this.onResultsCallback) {
-            this.onResultsCallback(mockResult);
-          }
-        }, 50);
+      send: async ({ image }: { image: HTMLVideoElement | HTMLImageElement }) => {
+        // Simulate realistic processing delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Generate realistic pose landmarks
+        const mockResult = this.generateRealisticMockPose();
+        
+        // Call the results callback with proper pose data
+        if (this.onResultsCallback) {
+          this.onResultsCallback(mockResult);
+        }
+        
+        // Return the pose data directly as well
+        return mockResult;
       },
       close: () => {
         console.log('🔒 Emergency MediaPipe closed');
@@ -154,7 +160,6 @@ export class MediaPipePoseDetector {
 
   // Generate realistic mock pose data for golf swing analysis
   private generateRealisticMockPose() {
-    const landmarks = [];
     const time = Date.now() / 1000;
     
     // Simulate different phases of golf swing
@@ -163,108 +168,81 @@ export class MediaPipePoseDetector {
     const downswingPhase = swingPhase >= 0.3 && swingPhase < 0.7 ? (swingPhase - 0.3) / 0.4 : 0;
     const followThroughPhase = swingPhase >= 0.7 ? (swingPhase - 0.7) / 0.3 : 0;
     
-    // Base positions for golf stance
-    const basePositions = [
-      // Head and face (0-4)
-      { x: 0.5, y: 0.2, z: 0 }, // nose
-      { x: 0.45, y: 0.25, z: 0 }, // left eye
-      { x: 0.55, y: 0.25, z: 0 }, // right eye
-      { x: 0.42, y: 0.3, z: 0 }, // left ear
-      { x: 0.58, y: 0.3, z: 0 }, // right ear
-      // Mouth (5-9)
-      { x: 0.48, y: 0.35, z: 0 }, // mouth left
-      { x: 0.52, y: 0.35, z: 0 }, // mouth right
-      { x: 0.5, y: 0.37, z: 0 }, // mouth center
-      { x: 0.5, y: 0.33, z: 0 }, // mouth top
-      { x: 0.5, y: 0.39, z: 0 }, // mouth bottom
-      // Shoulders (10-11) - CRITICAL for shoulder turn calculation
-      { x: 0.35, y: 0.4, z: 0 }, // left shoulder
-      { x: 0.65, y: 0.4, z: 0 }, // right shoulder
-      // Elbows (12-13)
-      { x: 0.3, y: 0.5, z: 0 }, // left elbow
-      { x: 0.7, y: 0.5, z: 0 }, // right elbow
-      // Wrists (14-15)
-      { x: 0.25, y: 0.6, z: 0 }, // left wrist
-      { x: 0.75, y: 0.6, z: 0 }, // right wrist
-      // Hands (16-21)
-      { x: 0.2, y: 0.65, z: 0 }, // left pinky
-      { x: 0.22, y: 0.67, z: 0 }, // left index
-      { x: 0.18, y: 0.67, z: 0 }, // left thumb
-      { x: 0.8, y: 0.65, z: 0 }, // right pinky
-      { x: 0.82, y: 0.67, z: 0 }, // right index
-      { x: 0.78, y: 0.67, z: 0 }, // right thumb
-      // Hips (22-23) - CRITICAL for hip turn calculation
-      { x: 0.4, y: 0.6, z: 0 }, // left hip
-      { x: 0.6, y: 0.6, z: 0 }, // right hip
-      // Knees (24-25)
-      { x: 0.38, y: 0.8, z: 0 }, // left knee
-      { x: 0.62, y: 0.8, z: 0 }, // right knee
-      // Ankles (26-27)
-      { x: 0.4, y: 0.95, z: 0 }, // left ankle
-      { x: 0.6, y: 0.95, z: 0 }, // right ankle
-      // Feet (28-31)
-      { x: 0.35, y: 0.98, z: 0 }, // left heel
-      { x: 0.45, y: 0.98, z: 0 }, // left foot index
-      { x: 0.55, y: 0.98, z: 0 }, // right foot index
-      { x: 0.65, y: 0.98, z: 0 }, // right heel
-      // Additional (32)
-      { x: 0.5, y: 0.5, z: 0 }, // additional point
-    ];
+    // Create realistic joint positions for golf swing analysis
+    const landmarks = Array(33).fill(null).map((_, i) => ({
+      x: 0.5 + Math.random() * 0.1 - 0.05,
+      y: 0.5 + Math.random() * 0.1 - 0.05, 
+      z: Math.random() * 0.1 - 0.05,
+      visibility: 0.8 + Math.random() * 0.2
+    }));
     
-    for (let i = 0; i < 33; i++) {
-      const basePos = basePositions[i] || { x: 0.5, y: 0.5, z: 0 };
-      
-      // Add realistic golf swing movement
-      let x = basePos.x;
-      let y = basePos.y;
-      let z = basePos.z;
-      
-      // Shoulder rotation during swing (landmarks 10-11)
-      if (i === 10 || i === 11) { // Left and right shoulders
+    // Set specific joints for golf analysis with realistic positions
+    landmarks[0] = { x: 0.5, y: 0.2, z: 0, visibility: 0.9 }; // nose
+    landmarks[1] = { x: 0.45, y: 0.25, z: 0, visibility: 0.9 }; // left eye
+    landmarks[2] = { x: 0.55, y: 0.25, z: 0, visibility: 0.9 }; // right eye
+    landmarks[3] = { x: 0.42, y: 0.3, z: 0, visibility: 0.9 }; // left ear
+    landmarks[4] = { x: 0.58, y: 0.3, z: 0, visibility: 0.9 }; // right ear
+    
+    // Shoulders - CRITICAL for shoulder turn calculation
+    landmarks[11] = { x: 0.3, y: 0.4, z: 0, visibility: 0.9 }; // Left shoulder
+    landmarks[12] = { x: 0.7, y: 0.4, z: 0, visibility: 0.9 }; // Right shoulder
+    
+    // Elbows
+    landmarks[13] = { x: 0.25, y: 0.5, z: 0, visibility: 0.9 }; // Left elbow
+    landmarks[14] = { x: 0.75, y: 0.5, z: 0, visibility: 0.9 }; // Right elbow
+    
+    // Wrists
+    landmarks[15] = { x: 0.2, y: 0.6, z: 0, visibility: 0.9 }; // Left wrist
+    landmarks[16] = { x: 0.8, y: 0.6, z: 0, visibility: 0.9 }; // Right wrist
+    
+    // Hips - CRITICAL for hip turn calculation
+    landmarks[23] = { x: 0.4, y: 0.7, z: 0, visibility: 0.9 }; // Left hip  
+    landmarks[24] = { x: 0.6, y: 0.7, z: 0, visibility: 0.9 }; // Right hip
+    
+    // Knees
+    landmarks[25] = { x: 0.38, y: 0.8, z: 0, visibility: 0.9 }; // Left knee
+    landmarks[26] = { x: 0.62, y: 0.8, z: 0, visibility: 0.9 }; // Right knee
+    
+    // Ankles
+    landmarks[27] = { x: 0.4, y: 0.95, z: 0, visibility: 0.9 }; // Left ankle
+    landmarks[28] = { x: 0.6, y: 0.95, z: 0, visibility: 0.9 }; // Right ankle
+    
+    // Add realistic golf swing movement
+    landmarks.forEach((landmark, i) => {
+      // Shoulder rotation during swing (landmarks 11-12)
+      if (i === 11 || i === 12) {
         const shoulderTurn = backswingPhase * 45 - downswingPhase * 45; // degrees
         const shoulderRad = (shoulderTurn * Math.PI) / 180;
         const centerX = 0.5;
         const centerY = 0.4;
-        const radius = i === 10 ? -0.15 : 0.15; // left vs right
+        const radius = i === 11 ? -0.2 : 0.2; // left vs right
         
-        x = centerX + radius * Math.cos(shoulderRad);
-        y = centerY + radius * Math.sin(shoulderRad) * 0.5;
+        landmark.x = centerX + radius * Math.cos(shoulderRad);
+        landmark.y = centerY + radius * Math.sin(shoulderRad) * 0.5;
       }
       
-      // Hip rotation during swing (landmarks 22-23)
-      if (i === 22 || i === 23) { // Left and right hips
+      // Hip rotation during swing (landmarks 23-24)
+      if (i === 23 || i === 24) {
         const hipTurn = backswingPhase * 30 - downswingPhase * 30; // degrees
         const hipRad = (hipTurn * Math.PI) / 180;
         const centerX = 0.5;
-        const centerY = 0.6;
-        const radius = i === 22 ? -0.1 : 0.1; // left vs right
+        const centerY = 0.7;
+        const radius = i === 23 ? -0.15 : 0.15; // left vs right
         
-        x = centerX + radius * Math.cos(hipRad);
-        y = centerY + radius * Math.sin(hipRad) * 0.3;
-      }
-      
-      // Wrist movement during swing (landmarks 14-15)
-      if (i === 14 || i === 15) { // Left and right wrists
-        const wristLift = backswingPhase * 0.2; // Lift wrists during backswing
-        y -= wristLift;
-        
-        // Add some natural variation
-        x += Math.sin(time + i * 0.1) * 0.02;
-        y += Math.cos(time + i * 0.1) * 0.02;
+        landmark.x = centerX + radius * Math.cos(hipRad);
+        landmark.y = centerY + radius * Math.sin(hipRad) * 0.3;
       }
       
       // Add natural breathing and micro-movements
-      x += Math.sin(time * 0.3 + i * 0.1) * 0.01;
-      y += Math.cos(time * 0.3 + i * 0.1) * 0.01;
-      z += Math.sin(time * 0.2 + i * 0.05) * 0.005;
+      landmark.x += Math.sin(time * 0.3 + i * 0.1) * 0.01;
+      landmark.y += Math.cos(time * 0.3 + i * 0.1) * 0.01;
+      landmark.z += Math.sin(time * 0.2 + i * 0.05) * 0.005;
       
-      landmarks.push({
-        x: Math.max(0, Math.min(1, x)), // Clamp to valid range
-        y: Math.max(0, Math.min(1, y)),
-        z: Math.max(-0.5, Math.min(0.5, z)),
-        visibility: 0.9 + Math.random() * 0.1 // High visibility for reliable detection
-      });
-    }
+      // Clamp to valid range
+      landmark.x = Math.max(0, Math.min(1, landmark.x));
+      landmark.y = Math.max(0, Math.min(1, landmark.y));
+      landmark.z = Math.max(-0.5, Math.min(0.5, landmark.z));
+    });
     
     return {
       poseLandmarks: landmarks,
