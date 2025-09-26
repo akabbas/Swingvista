@@ -12,52 +12,65 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Extract poses from video frames
+  // Extract poses from video frames with timeout protection
   const extractPosesFromVideo = async (video: HTMLVideoElement, detector: MediaPipePoseDetector) => {
     const poses: any[] = [];
-    const frameRate = 30; // Target frame rate
-    const frameInterval = 1000 / frameRate; // ms between frames
+    const totalFrames = Math.floor(video.duration * 30); // 30fps
+    let currentTime = 0;
     
     console.log('🎬 Starting pose extraction...');
-    
-    // Set video to first frame
-    video.currentTime = 0;
-    await new Promise(resolve => {
-      video.onseeked = resolve;
-    });
-    
-    const totalFrames = Math.floor(video.duration * frameRate);
     console.log('📊 Total frames to process:', totalFrames);
     
-    for (let i = 0; i < totalFrames; i++) {
-      const currentTime = (i * frameInterval) / 1000;
-      video.currentTime = currentTime;
-      
-      await new Promise(resolve => {
-        video.onseeked = resolve;
-      });
-      
-      try {
-        const pose = await detector.detectPose(video);
-        if (pose && pose.landmarks && pose.landmarks.length > 0) {
+    // Add timeout protection
+    const poseExtractionTimeout = setTimeout(() => {
+      throw new Error('Pose extraction timed out after 30 seconds');
+    }, 30000);
+
+    try {
+      for (let frame = 0; frame < totalFrames; frame++) {
+        // Set video time and wait for seek to complete
+        video.currentTime = currentTime;
+        await new Promise(resolve => {
+          video.onseeked = resolve;
+        });
+        
+        // Wait for video to be ready
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Process frame with timeout
+        const posePromise = detector.detectPose(video);
+        const pose = await Promise.race([
+          posePromise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Pose detection timeout')), 5000)
+          )
+        ]);
+        
+        if (pose && (pose as any).landmarks && (pose as any).landmarks.length > 0) {
           poses.push({
             ...pose,
             timestamp: currentTime,
-            frameIndex: i
+            frameIndex: frame
           });
         }
-      } catch (error) {
-        console.warn('⚠️ Pose detection failed for frame', i, ':', error);
+        
+        currentTime += 1/30; // Advance 1 frame at 30fps
+        
+        // Update progress
+        if (frame % 10 === 0) {
+          console.log(`📈 Progress: ${Math.round((frame / totalFrames) * 100)}% (${frame}/${totalFrames} frames)`);
+        }
       }
       
-      // Update progress every 10 frames
-      if (i % 10 === 0) {
-        console.log(`📈 Progress: ${Math.round((i / totalFrames) * 100)}% (${i}/${totalFrames} frames)`);
-      }
+      clearTimeout(poseExtractionTimeout);
+      console.log('✅ Pose extraction complete:', poses.length, 'poses extracted');
+      return poses;
+      
+    } catch (error) {
+      clearTimeout(poseExtractionTimeout);
+      console.error('❌ Pose extraction failed:', error);
+      throw error;
     }
-    
-    console.log('✅ Pose extraction complete:', poses.length, 'poses extracted');
-    return poses;
   };
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +158,7 @@ export default function UploadPage() {
         poseCount: poses.length,
         videoDuration: video.duration,
         isEmergencyMode: poses.some(pose => 
-          pose.landmarks?.some(landmark => landmark.visibility === 0.9)
+          (pose as any).landmarks?.some((landmark: any) => landmark.visibility === 0.9)
         ) // Detect if using fallback data
       });
       
