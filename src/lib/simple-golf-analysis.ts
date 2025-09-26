@@ -111,11 +111,11 @@ function validatePhysicalPossibility(metrics: any): void {
   console.log(`🔍 Physical validation: ${isEmergencyMode ? 'EMERGENCY MODE' : 'NORMAL MODE'} (tolerance: ${toleranceMultiplier}x)`);
   
   // Tempo validation (humanly possible range) - RELAXED
-  if (metrics.tempo?.tempoRatio) {
+  if (metrics.tempo?.ratio) {
     const minTempo = 0.5 * toleranceMultiplier;
     const maxTempo = 15.0 * toleranceMultiplier;
-    if (metrics.tempo.tempoRatio < minTempo || metrics.tempo.tempoRatio > maxTempo) {
-      errors.push(`Tempo ratio ${metrics.tempo.tempoRatio} is outside normal range (${minTempo}-${maxTempo})`);
+    if (metrics.tempo.ratio < minTempo || metrics.tempo.ratio > maxTempo) {
+      errors.push(`Tempo ratio ${metrics.tempo.ratio} is outside normal range (${minTempo}-${maxTempo})`);
     }
   }
   
@@ -457,18 +457,18 @@ function calculateActualSwingMetrics(poses: PoseResult[]) {
       try {
         const tempoData = calculateActualTempo(poses, fps);
         metrics.tempo = {
-          tempoRatio: tempoData.tempoRatio || 2.5,
+          ratio: tempoData.ratio || 2.5,
           backswingTime: tempoData.backswingTime || 1.0,
           downswingTime: tempoData.downswingTime || 0.4,
-          downswingTimeClamped: tempoData.downswingTimeClamped || 0.4
+          score: 0 // Will be calculated by gradeTempo
         };
       } catch (tempoError) {
         console.warn('Tempo calculation failed, using fallback values:', tempoError);
         metrics.tempo = {
-          tempoRatio: 2.5,
+          ratio: 2.5,
           backswingTime: 1.0,
           downswingTime: 0.4,
-          downswingTimeClamped: 0.4
+          score: 0 // Will be calculated by gradeTempo
         };
       }
     }
@@ -617,7 +617,7 @@ function calculateActualTempo(poses: PoseResult[], fps: number) {
   return {
     backswingTime: clampedBackswingTime,
     downswingTime: clampedDownswingTime,
-    tempoRatio: clampedTempoRatio,
+    ratio: clampedTempoRatio,
     score: 0 // Will be calculated by gradeTempo
   };
 }
@@ -816,7 +816,7 @@ function calculateWeightDistribution(address: any, current: any) {
  */
 function gradeTempo(tempo: any): number {
   const idealRatio = 3.0;
-  const ratioDeviation = Math.abs(tempo.tempoRatio - idealRatio);
+  const ratioDeviation = Math.abs(tempo.ratio - idealRatio);
   
   if (ratioDeviation <= 0.2) return 95;
   if (ratioDeviation <= 0.5) return 85;
@@ -904,7 +904,7 @@ function calculateConfidence(frameCount: number, metrics: any): number {
   else if (frameCount > 30) confidence += 0.1;
   
   // Increase confidence if metrics seem reasonable
-  if (metrics.tempo.tempoRatio > 1.5 && metrics.tempo.tempoRatio < 5.0) confidence += 0.1;
+  if (metrics.tempo.ratio > 1.5 && metrics.tempo.ratio < 5.0) confidence += 0.1;
   if (metrics.rotation.shoulderTurn > 60) confidence += 0.1;
   if (metrics.weightTransfer.impact > 60) confidence += 0.1;
   
@@ -920,8 +920,8 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
   const metrics = analysis.metrics;
   
   // Add safety checks for tempo metrics
-  if (metrics.tempo && metrics.tempo.tempoRatio) {
-    const tempoRatio = metrics.tempo.tempoRatio;
+  if (metrics.tempo && metrics.tempo.ratio) {
+    const tempoRatio = metrics.tempo.ratio;
     
     if (tempoRatio > 3.5) {
       feedback.push(`Your tempo ratio is ${safeToFixed(tempoRatio, 1)}:1, which is too fast. Focus on a smoother, more controlled transition.`);
@@ -1013,10 +1013,10 @@ function generateKeyImprovements(analysis: SimpleGolfAnalysis): string[] {
   const metrics = analysis.metrics;
   
   // Identify specific areas for improvement based on actual metrics
-  if (metrics.tempo.tempoRatio < 2.5) {
-    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.tempoRatio, 1)}:1 - too fast. Practice counting "1-2-3" on backswing, "1" on downswing to achieve 3:1 ratio`);
-  } else if (metrics.tempo.tempoRatio > 3.5) {
-    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.tempoRatio, 1)}:1 - too slow. Practice accelerating through impact while maintaining control`);
+  if (metrics.tempo.ratio < 2.5) {
+    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.ratio, 1)}:1 - too fast. Practice counting "1-2-3" on backswing, "1" on downswing to achieve 3:1 ratio`);
+  } else if (metrics.tempo.ratio > 3.5) {
+    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.ratio, 1)}:1 - too slow. Practice accelerating through impact while maintaining control`);
   }
   
   if (metrics.rotation.shoulderTurn < 70) {
@@ -1105,7 +1105,7 @@ export async function analyzeGolfSwingSimple(poses: PoseResult[]): Promise<Simpl
     metrics: {
       tempo: {
         score: actualMetrics.tempo.score,
-        ratio: actualMetrics.tempo.tempoRatio,
+        ratio: actualMetrics.tempo.ratio,
         backswingTime: actualMetrics.tempo.backswingTime,
         downswingTime: actualMetrics.tempo.downswingTime
       },
@@ -1182,7 +1182,7 @@ export async function testSystemAccuracy(): Promise<void> {
     console.log('✅ POOR PROFESSIONAL RESULT:', {
       grade: poorAnalysis.letterGrade,
       score: poorAnalysis.overallScore,
-      tempo: poorAnalysis.metrics.tempo.tempoRatio
+      tempo: poorAnalysis.metrics.tempo.ratio
     });
     
     // Verify it got a poor score despite being "professional"
@@ -1207,7 +1207,7 @@ export async function testSystemAccuracy(): Promise<void> {
     console.log('✅ GREAT AMATEUR RESULT:', {
       grade: greatAnalysis.letterGrade,
       score: greatAnalysis.overallScore,
-      tempo: greatAnalysis.metrics.tempo.tempoRatio
+      tempo: greatAnalysis.metrics.tempo.ratio
     });
     
     // Verify it got a great score despite being "amateur"
