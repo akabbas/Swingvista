@@ -387,7 +387,7 @@ export default function UploadPage() {
       
       let extracted: PoseResult[];
       try {
-        extracted = await extractPosesFromVideo(state.file, {
+        extracted = await extractPosesFromVideoFile(state.file, {
           sampleFps: 20,
           maxFrames: 200,
           minConfidence: 0.4,

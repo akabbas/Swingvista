@@ -13,7 +13,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { UltimateSwingAnalysis, analyzeUltimateGolfSwing } from '@/lib/ultimate-swing-analysis';
+import { SwingAnalysis, analyzeGolfSwing } from '@/lib/swing-analysis';
 import { loadVideoWithFallbacks, diagnoseVideoLoading } from '@/lib/video-loading-fixes';
 import { PoseResult } from '@/lib/mediapipe';
 
@@ -26,9 +26,9 @@ interface UltimateSwingAnalyzerProps {
   enableAI?: boolean;
   enableValidation?: boolean;
   enableDynamicAdvice?: boolean;
-  enableUltimateFeatures?: boolean;
+  enableSystemFeatures?: boolean;
   performanceMode?: 'fast' | 'balanced' | 'thorough';
-  onAnalysisComplete?: (analysis: UltimateSwingAnalysis) => void;
+  onAnalysisComplete?: (analysis: SwingAnalysis) => void;
   onError?: (error: Error) => void;
 }
 
@@ -41,7 +41,7 @@ export default function UltimateSwingAnalyzer({
   enableAI = true,
   enableValidation = true,
   enableDynamicAdvice = true,
-  enableUltimateFeatures = true,
+  enableSystemFeatures = true,
   performanceMode = 'balanced',
   onAnalysisComplete,
   onError
@@ -51,7 +51,7 @@ export default function UltimateSwingAnalyzer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<UltimateSwingAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [poses, setPoses] = useState<PoseResult[]>([]);
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -115,6 +115,12 @@ export default function UltimateSwingAnalyzer({
           z: Math.random(),
           visibility: Math.random()
         })),
+        worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+          x: Math.random(),
+          y: Math.random(),
+          z: Math.random(),
+          visibility: Math.random()
+        })),
         confidence: Math.random(),
         timestamp: i * 100
       }));
@@ -122,7 +128,7 @@ export default function UltimateSwingAnalyzer({
       setPoses(mockPoses);
       
       // 🎯 ULTIMATE ANALYSIS
-      const analysisResult = await analyzeUltimateGolfSwing(
+      const analysisResult = await analyzeGolfSwing(
         videoRef.current,
         mockPoses,
         {
@@ -162,7 +168,7 @@ export default function UltimateSwingAnalyzer({
   
   // 🎯 ULTIMATE RENDER
   return (
-    <div className={`ultimate-swing-analyzer ${className}`}>
+    <div className={`ultimate-swing-analyzer ${className || ''}`}>
       {/* 🎥 ULTIMATE VIDEO PLAYER */}
       <div className="ultimate-video-container mb-6">
         <video

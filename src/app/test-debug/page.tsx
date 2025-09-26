@@ -16,6 +16,12 @@ const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => ({
     z: 0,
     visibility: 0.8 + Math.random() * 0.2
   })),
+  worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+    x: 0.5 + Math.sin(i * 0.1) * 0.2,
+    y: 0.5 + Math.cos(i * 0.1) * 0.2,
+    z: 0,
+    visibility: 0.8 + Math.random() * 0.2
+  })),
   timestamp: i * 33.33,
   confidence: 0.8 + Math.random() * 0.2
 }));

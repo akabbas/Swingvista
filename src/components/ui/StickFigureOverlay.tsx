@@ -300,7 +300,13 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
     const video = videoRef.current;
     
     if (!canvas || !video) {
-      console.error('🔧 OVERLAY FIX: Canvas or video reference is null');
+      console.warn('🔧 OVERLAY FIX: Canvas or video reference is null, skipping render');
+      return;
+    }
+    
+    // Additional safety checks
+    if (!video.videoWidth || !video.videoHeight) {
+      console.warn('🔧 OVERLAY FIX: Video dimensions not available, skipping render');
       return;
     }
 

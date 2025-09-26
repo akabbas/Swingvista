@@ -25,6 +25,12 @@ const TestClubTracerPage: React.FC = () => {
         y: Math.random(),
         z: Math.random(),
         visibility: Math.random() > 0.1 ? 0.9 : 0.1 // Simulate some low confidence
+      })),
+      worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+        x: Math.random(),
+        y: Math.random(),
+        z: Math.random(),
+        visibility: Math.random() > 0.1 ? 0.9 : 0.1
       }))
     }));
     setPoses(dummyPoses);

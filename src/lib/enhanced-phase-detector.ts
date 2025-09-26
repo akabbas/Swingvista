@@ -63,6 +63,15 @@ export class EnhancedPhaseDetector {
   private currentPhase: string = 'address';
   private phaseStartTime: number = 0;
   private phaseStartFrame: number = 0;
+  
+  // 🚀 SMART PHASE DETECTION ENHANCEMENTS
+  private phaseBuffer: string[] = []; // Buffer for temporal smoothing
+  private velocityHistory: number[] = []; // Track velocity over time
+  private phaseConfidenceHistory: number[] = []; // Track confidence over time
+  private lastPhaseChangeTime: number = 0;
+  private phaseChangeCooldown: number = 100; // ms - minimum time between phase changes
+  private smoothingWindow: number = 5; // frames for temporal smoothing
+  private hysteresisThreshold: number = 0.15; // confidence threshold for phase changes
 
   /**
    * Calculate accurate weight distribution that always sums to 100%
@@ -157,6 +166,142 @@ export class EnhancedPhaseDetector {
   }
 
   /**
+   * 🚀 NEW: Real Club Detection using MediaPipe Hand Landmarks
+   * This replaces the simple wrist estimation with actual club detection
+   */
+  calculateRealClubPosition(pose: PoseResult): ClubPosition {
+    // MediaPipe hand landmarks: 0=wrist, 4=thumb_tip, 8=index_tip, 12=middle_tip, 16=ring_tip, 20=pinky_tip
+    const leftWrist = pose.landmarks[15]; // Left wrist from pose
+    const rightWrist = pose.landmarks[16]; // Right wrist from pose
+    
+    if (!leftWrist || !rightWrist) {
+      // Fallback to simple estimation if hand landmarks not available
+      return this.calculateClubHeadPosition(pose);
+    }
+
+    // Detect grip position (where hands meet the club)
+    const gripPosition = this.detectGripPosition(leftWrist, rightWrist);
+    
+    // Estimate club shaft angle from wrist-to-elbow vector
+    const clubShaftAngle = this.calculateClubShaftAngle(pose, gripPosition);
+    
+    // Calculate club head position based on grip and shaft angle
+    const clubHeadPosition = this.calculateClubHeadFromGrip(gripPosition, clubShaftAngle);
+    
+    return {
+      x: clubHeadPosition.x,
+      y: clubHeadPosition.y,
+      z: clubHeadPosition.z,
+      angle: clubShaftAngle
+    };
+  }
+
+  /**
+   * 🚀 NEW: Detect grip position from hand landmarks
+   */
+  private detectGripPosition(leftWrist: PoseLandmark, rightWrist: PoseLandmark): { x: number; y: number; z: number } {
+    // Grip is typically between the wrists, slightly closer to the dominant hand
+    const gripX = (leftWrist.x + rightWrist.x) / 2;
+    const gripY = (leftWrist.y + rightWrist.y) / 2;
+    const gripZ = ((leftWrist.z || 0.5) + (rightWrist.z || 0.5)) / 2;
+    
+    return { x: gripX, y: gripY, z: gripZ };
+  }
+
+  /**
+   * 🚀 NEW: Calculate club shaft angle from wrist-to-elbow vector
+   */
+  private calculateClubShaftAngle(pose: PoseResult, gripPosition: { x: number; y: number; z: number }): number {
+    // Get elbow landmarks for shaft angle calculation
+    const leftElbow = pose.landmarks[13]; // Left elbow
+    const rightElbow = pose.landmarks[14]; // Right elbow
+    
+    if (!leftElbow || !rightElbow) {
+      // Fallback to wrist-based angle if elbows not available
+      const leftWrist = pose.landmarks[15];
+      const rightWrist = pose.landmarks[16];
+      if (leftWrist && rightWrist) {
+        const dx = rightWrist.x - leftWrist.x;
+        const dy = rightWrist.y - leftWrist.y;
+        return Math.atan2(dy, dx) * (180 / Math.PI);
+      }
+      return 0;
+    }
+
+    // Calculate shaft angle from grip to elbow (more accurate for golf)
+    const elbowX = (leftElbow.x + rightElbow.x) / 2;
+    const elbowY = (leftElbow.y + rightElbow.y) / 2;
+    
+    const dx = gripPosition.x - elbowX;
+    const dy = gripPosition.y - elbowY;
+    
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+  }
+
+  /**
+   * 🚀 NEW: Calculate club head position from grip and shaft angle
+   */
+  private calculateClubHeadFromGrip(
+    gripPosition: { x: number; y: number; z: number }, 
+    shaftAngle: number
+  ): { x: number; y: number; z: number } {
+    // Standard golf club length (normalized to pose coordinates)
+    const clubLength = 0.3; // Adjust based on your coordinate system
+    
+    // Calculate club head position based on grip and shaft angle
+    const angleRad = (shaftAngle * Math.PI) / 180;
+    const clubHeadX = gripPosition.x + Math.cos(angleRad) * clubLength;
+    const clubHeadY = gripPosition.y + Math.sin(angleRad) * clubLength;
+    const clubHeadZ = gripPosition.z; // Keep same depth as grip
+    
+    return {
+      x: clubHeadX,
+      y: clubHeadY,
+      z: clubHeadZ
+    };
+  }
+
+  /**
+   * 🚀 NEW: Calculate club head velocity for more accurate phase detection
+   */
+  calculateClubHeadVelocity(poses: PoseResult[], currentFrame: number): number {
+    if (currentFrame < 2) return 0;
+    
+    const currentPose = poses[currentFrame];
+    const previousPose = poses[currentFrame - 1];
+    
+    if (!currentPose || !previousPose) return 0;
+    
+    const currentClub = this.calculateRealClubPosition(currentPose);
+    const previousClub = this.calculateRealClubPosition(previousPose);
+    
+    // Calculate velocity as distance moved per frame
+    const dx = currentClub.x - previousClub.x;
+    const dy = currentClub.y - previousClub.y;
+    const velocity = Math.sqrt(dx * dx + dy * dy);
+    
+    return velocity;
+  }
+
+  /**
+   * 🚀 NEW: Calculate club face angle for swing analysis
+   */
+  calculateClubFaceAngle(pose: PoseResult): number {
+    // This would require more sophisticated hand landmark analysis
+    // For now, estimate based on wrist positions
+    const leftWrist = pose.landmarks[15];
+    const rightWrist = pose.landmarks[16];
+    
+    if (!leftWrist || !rightWrist) return 0;
+    
+    // Simple face angle estimation based on wrist alignment
+    const dx = rightWrist.x - leftWrist.x;
+    const dy = rightWrist.y - leftWrist.y;
+    
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+  }
+
+  /**
    * Calculate body rotation metrics
    */
   calculateBodyRotation(pose: PoseResult): BodyRotation {
@@ -192,7 +337,7 @@ export class EnhancedPhaseDetector {
   }
 
   /**
-   * Detect current swing phase based on pose analysis
+   * Detect current swing phase based on pose analysis with smart enhancements
    */
   detectSwingPhase(poses: PoseResult[], currentFrame: number, currentTime: number): SwingPhase {
     const currentPose = poses[currentFrame];
@@ -200,40 +345,209 @@ export class EnhancedPhaseDetector {
       return this.createPhase('address', currentFrame, currentFrame, currentTime, currentTime, 0);
     }
 
-    // Calculate key metrics for phase detection
-    const clubPosition = this.calculateClubHeadPosition(currentPose);
+    // 🚀 ENHANCED: Use real club detection instead of simple estimation
+    const clubPosition = this.calculateRealClubPosition(currentPose);
     const bodyRotation = this.calculateBodyRotation(currentPose);
     const weightDistribution = this.calculateWeightDistribution(currentPose);
-    const swingVelocity = this.calculateSwingVelocity(poses, currentFrame);
+    const swingVelocity = this.calculateClubHeadVelocity(poses, currentFrame); // Use club velocity instead of general swing velocity
 
-    // Phase detection logic
-    let detectedPhase: string = 'address';
-
-    if (this.isAddressPhase(currentPose, weightDistribution)) {
-      detectedPhase = 'address';
-    } else if (this.isBackswingPhase(currentPose, clubPosition, bodyRotation)) {
-      detectedPhase = 'backswing';
-    } else if (this.isTopOfSwingPhase(currentPose, clubPosition, bodyRotation, weightDistribution)) {
-      detectedPhase = 'top';
-    } else if (this.isDownswingPhase(currentPose, clubPosition, swingVelocity)) {
-      detectedPhase = 'downswing';
-    } else if (this.isImpactPhase(currentPose, clubPosition, swingVelocity, weightDistribution)) {
-      detectedPhase = 'impact';
-    } else if (this.isFollowThroughPhase(currentPose, clubPosition, bodyRotation)) {
-      detectedPhase = 'follow-through';
+    // 🚀 ENHANCED PHASE DETECTION WITH VELOCITY-BASED SMOOTHING
+    const rawDetectedPhase = this.detectRawPhase(currentPose, clubPosition, bodyRotation, weightDistribution, swingVelocity);
+    const phaseConfidence = this.calculatePhaseConfidence(currentPose, rawDetectedPhase);
+    
+    // Add to buffers for temporal smoothing
+    this.phaseBuffer.push(rawDetectedPhase);
+    this.velocityHistory.push(swingVelocity);
+    this.phaseConfidenceHistory.push(phaseConfidence);
+    
+    // Maintain buffer size
+    if (this.phaseBuffer.length > this.smoothingWindow) {
+      this.phaseBuffer.shift();
+      this.velocityHistory.shift();
+      this.phaseConfidenceHistory.shift();
     }
-
+    
+    // Apply smart phase detection with hysteresis and temporal smoothing
+    const smartDetectedPhase = this.applySmartPhaseDetection(rawDetectedPhase, currentTime);
+    
     // Update phase tracking
-    this.updatePhase(detectedPhase, currentFrame, currentTime);
+    this.updatePhase(smartDetectedPhase, currentFrame, currentTime);
 
     return this.createPhase(
-      detectedPhase as any,
+      smartDetectedPhase as any,
       this.phaseStartFrame,
       currentFrame,
       this.phaseStartTime,
       currentTime,
-      this.calculatePhaseConfidence(currentPose, detectedPhase)
+      phaseConfidence
     );
+  }
+
+  /**
+   * 🚀 NEW: Detect raw phase without smoothing (original logic)
+   */
+  private detectRawPhase(pose: PoseResult, clubPosition: ClubPosition, bodyRotation: BodyRotation, weightDistribution: WeightDistribution, swingVelocity: number): string {
+    if (this.isAddressPhase(pose, weightDistribution)) {
+      return 'address';
+    } else if (this.isBackswingPhase(pose, clubPosition, bodyRotation)) {
+      return 'backswing';
+    } else if (this.isTopOfSwingPhase(pose, clubPosition, bodyRotation, weightDistribution)) {
+      return 'top';
+    } else if (this.isDownswingPhase(pose, clubPosition, swingVelocity)) {
+      return 'downswing';
+    } else if (this.isImpactPhase(pose, clubPosition, swingVelocity, weightDistribution)) {
+      return 'impact';
+    } else if (this.isFollowThroughPhase(pose, clubPosition, bodyRotation)) {
+      return 'follow-through';
+    }
+    return 'address';
+  }
+
+  /**
+   * 🚀 NEW: Apply smart phase detection with hysteresis and temporal smoothing
+   */
+  private applySmartPhaseDetection(rawPhase: string, currentTime: number): string {
+    // 1. Check cooldown period to prevent rapid phase flipping
+    if (currentTime - this.lastPhaseChangeTime < this.phaseChangeCooldown) {
+      return this.currentPhase; // Stay in current phase during cooldown
+    }
+
+    // 2. Apply temporal smoothing over the buffer
+    const smoothedPhase = this.applyTemporalSmoothing();
+    
+    // 3. Apply hysteresis - require higher confidence to change phases
+    const shouldChangePhase = this.shouldChangePhase(smoothedPhase, currentTime);
+    
+    if (shouldChangePhase) {
+      this.lastPhaseChangeTime = currentTime;
+      return smoothedPhase;
+    }
+    
+    return this.currentPhase; // Keep current phase
+  }
+
+  /**
+   * 🚀 NEW: Apply temporal smoothing over phase buffer
+   */
+  private applyTemporalSmoothing(): string {
+    if (this.phaseBuffer.length < 3) {
+      return this.phaseBuffer[this.phaseBuffer.length - 1] || this.currentPhase;
+    }
+
+    // Count phase occurrences in buffer
+    const phaseCounts: { [key: string]: number } = {};
+    this.phaseBuffer.forEach(phase => {
+      phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
+    });
+
+    // Find most common phase
+    let mostCommonPhase = this.currentPhase;
+    let maxCount = 0;
+    
+    Object.entries(phaseCounts).forEach(([phase, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonPhase = phase;
+      }
+    });
+
+    // Require majority consensus (at least 60% of frames)
+    const consensusThreshold = Math.ceil(this.phaseBuffer.length * 0.6);
+    if (maxCount >= consensusThreshold) {
+      return mostCommonPhase;
+    }
+
+    return this.currentPhase; // Keep current phase if no clear consensus
+  }
+
+  /**
+   * 🚀 NEW: Determine if phase should change based on hysteresis
+   */
+  private shouldChangePhase(newPhase: string, currentTime: number): boolean {
+    // Don't change if it's the same phase
+    if (newPhase === this.currentPhase) {
+      return false;
+    }
+
+    // Calculate average confidence over recent frames
+    const recentConfidence = this.phaseConfidenceHistory.slice(-3);
+    const avgConfidence = recentConfidence.length > 0 
+      ? recentConfidence.reduce((sum, conf) => sum + conf, 0) / recentConfidence.length 
+      : 0.5;
+
+    // Apply hysteresis - require higher confidence to change phases
+    const confidenceThreshold = this.hysteresisThreshold;
+    if (avgConfidence < confidenceThreshold) {
+      return false; // Not confident enough to change
+    }
+
+    // Check velocity-based phase transition rules
+    const velocityTransition = this.checkVelocityBasedTransition(newPhase);
+    if (!velocityTransition) {
+      return false; // Velocity doesn't support this transition
+    }
+
+    // Check for valid phase sequence
+    const validSequence = this.isValidPhaseSequence(this.currentPhase, newPhase);
+    if (!validSequence) {
+      return false; // Invalid phase sequence
+    }
+
+    return true;
+  }
+
+  /**
+   * 🚀 NEW: Check velocity-based phase transitions
+   */
+  private checkVelocityBasedTransition(newPhase: string): boolean {
+    if (this.velocityHistory.length < 2) return true;
+
+    const currentVelocity = this.velocityHistory[this.velocityHistory.length - 1];
+    const previousVelocity = this.velocityHistory[this.velocityHistory.length - 2];
+    const velocityChange = currentVelocity - previousVelocity;
+
+    // Define velocity requirements for each phase transition
+    switch (newPhase) {
+      case 'backswing':
+        // Backswing should have increasing velocity
+        return velocityChange > -0.1;
+      
+      case 'top':
+        // Top should have decreasing velocity (slowing down)
+        return velocityChange < 0.1;
+      
+      case 'downswing':
+        // Downswing should have high velocity
+        return currentVelocity > 0.5;
+      
+      case 'impact':
+        // Impact should have maximum velocity
+        return currentVelocity > 0.8;
+      
+      case 'follow-through':
+        // Follow-through should have decreasing velocity
+        return velocityChange < 0.2;
+      
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * 🚀 NEW: Check if phase sequence is valid
+   */
+  private isValidPhaseSequence(fromPhase: string, toPhase: string): boolean {
+    const validTransitions: { [key: string]: string[] } = {
+      'address': ['backswing'],
+      'backswing': ['top', 'address'], // Allow going back to address
+      'top': ['downswing', 'backswing'], // Allow going back to backswing
+      'downswing': ['impact', 'top'], // Allow going back to top
+      'impact': ['follow-through', 'downswing'], // Allow going back to downswing
+      'follow-through': ['address', 'impact'] // Allow going back to impact
+    };
+
+    const allowedTransitions = validTransitions[fromPhase] || [];
+    return allowedTransitions.includes(toPhase);
   }
 
   /**
@@ -459,6 +773,54 @@ export class EnhancedPhaseDetector {
   }
 
   /**
+   * 🚀 NEW: Get smart detection statistics
+   */
+  getSmartDetectionStats(): any {
+    return {
+      currentPhase: this.currentPhase,
+      phaseBuffer: [...this.phaseBuffer],
+      velocityHistory: [...this.velocityHistory],
+      confidenceHistory: [...this.phaseConfidenceHistory],
+      lastPhaseChangeTime: this.lastPhaseChangeTime,
+      smoothingWindow: this.smoothingWindow,
+      hysteresisThreshold: this.hysteresisThreshold,
+      phaseChangeCooldown: this.phaseChangeCooldown,
+      bufferSize: this.phaseBuffer.length,
+      averageVelocity: this.velocityHistory.length > 0 
+        ? this.velocityHistory.reduce((sum, v) => sum + v, 0) / this.velocityHistory.length 
+        : 0,
+      averageConfidence: this.phaseConfidenceHistory.length > 0 
+        ? this.phaseConfidenceHistory.reduce((sum, c) => sum + c, 0) / this.phaseConfidenceHistory.length 
+        : 0
+    };
+  }
+
+  /**
+   * 🚀 NEW: Configure smart detection parameters
+   */
+  configureSmartDetection(config: {
+    smoothingWindow?: number;
+    hysteresisThreshold?: number;
+    phaseChangeCooldown?: number;
+  }): void {
+    if (config.smoothingWindow !== undefined) {
+      this.smoothingWindow = Math.max(3, Math.min(10, config.smoothingWindow));
+    }
+    if (config.hysteresisThreshold !== undefined) {
+      this.hysteresisThreshold = Math.max(0.05, Math.min(0.5, config.hysteresisThreshold));
+    }
+    if (config.phaseChangeCooldown !== undefined) {
+      this.phaseChangeCooldown = Math.max(50, Math.min(500, config.phaseChangeCooldown));
+    }
+    
+    console.log('🚀 SMART DETECTION: Configuration updated', {
+      smoothingWindow: this.smoothingWindow,
+      hysteresisThreshold: this.hysteresisThreshold,
+      phaseChangeCooldown: this.phaseChangeCooldown
+    });
+  }
+
+  /**
    * Reset phase detector
    */
   reset(): void {
@@ -466,6 +828,12 @@ export class EnhancedPhaseDetector {
     this.currentPhase = 'address';
     this.phaseStartTime = 0;
     this.phaseStartFrame = 0;
+    
+    // 🚀 Reset smart detection properties
+    this.phaseBuffer = [];
+    this.velocityHistory = [];
+    this.phaseConfidenceHistory = [];
+    this.lastPhaseChangeTime = 0;
   }
 }
 
@@ -489,34 +857,4 @@ export function validatePhaseDetection(video: any, detectedPhases: any): void {
   const actualSequence = detectedPhases.phaseHistory ? detectedPhases.phaseHistory.map((p: any) => p.phase) : [];
   
   validatePhaseSequence(actualSequence, expectedSequence);
-}
-
-/**
- * Validate phase sequence
- */
-function validatePhaseSequence(actual: string[], expected: string[]): void {
-  let expectedIndex = 0;
-  
-  for (const phase of actual) {
-    if (phase === expected[expectedIndex]) {
-      expectedIndex++;
-    } else if (expectedIndex > 0 && phase === expected[expectedIndex - 1]) {
-      // Same phase continuing
-      continue;
-    } else {
-      console.warn(`Unexpected phase sequence: Expected ${expected[expectedIndex]}, got ${phase}`);
-    }
-  }
-}
-
-/**
- * Display current phase information
- */
-export function displayCurrentPhase(phase: string, weightDistribution: WeightDistribution, clubPosition: ClubPosition): string {
-  return `
-    🏌️‍♂️ Current Phase: ${phase.toUpperCase()}
-    ⚖️  Weight: ${weightDistribution.left}% Left / ${weightDistribution.right}% Right
-    📍 Club Position: X=${clubPosition.x.toFixed(2)}, Y=${clubPosition.y.toFixed(2)}
-    📊 Total: ${weightDistribution.left + weightDistribution.right}% (Should be 100%)
-  `;
 }

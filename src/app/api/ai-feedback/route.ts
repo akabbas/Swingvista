@@ -61,7 +61,7 @@ Format your response as a JSON object with these exact fields:
       return NextResponse.json({ 
         success: false,
         error: 'Failed to parse AI response',
-        fallback: generateFallbackFeedback(swingMetrics, swingCharacteristics)
+        fallback: generateFallbackFeedback({}, {})
       });
     }
 
@@ -71,7 +71,7 @@ Format your response as a JSON object with these exact fields:
       { 
         success: false,
         error: "Failed to generate AI feedback",
-        fallback: generateFallbackFeedback(swingMetrics, swingCharacteristics)
+        fallback: generateFallbackFeedback({}, {})
       },
       { status: 500 }
     );

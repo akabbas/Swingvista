@@ -288,7 +288,7 @@ export default function UploadPage() {
           {/* Error Display */}
           {state.error && (
             <ErrorAlert 
-              message={state.error}
+              message={state.error || 'Unknown error'}
               onClose={() => dispatch({ type: 'SET_ERROR', payload: null })}
             />
           )}
@@ -358,7 +358,7 @@ export default function UploadPage() {
           {/* Video Analysis Display */}
           {state.result?.realAnalysis && state.videoUrl && (
             <VideoAnalysisDisplay
-              videoFile={state.file}
+              videoFile={state.file!}
               videoUrl={state.videoUrl}
               analysis={state.result.realAnalysis}
               className="mb-6"

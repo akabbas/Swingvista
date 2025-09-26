@@ -373,8 +373,8 @@ function calculateActualTempo(poses: PoseResult[], fps: number) {
   
   // Simplified phase detection based on hand movement patterns
   const handPositions = poses.map(pose => {
-    const leftWrist = pose.pose?.keypoints.find(kp => kp.name === 'left_wrist');
-    const rightWrist = pose.pose?.keypoints.find(kp => kp.name === 'right_wrist');
+    const leftWrist = pose.landmarks[15];
+    const rightWrist = pose.landmarks[16];
     return {
       left: leftWrist ? { x: leftWrist.x, y: leftWrist.y } : null,
       right: rightWrist ? { x: rightWrist.x, y: rightWrist.y } : null
@@ -492,8 +492,8 @@ function calculateActualRotation(poses: PoseResult[]) {
 function calculateActualWeightTransfer(poses: PoseResult[]) {
   // Simplified weight transfer calculation based on hip positions
   const hipPositions = poses.map(pose => {
-    const leftHip = pose.pose?.keypoints.find(kp => kp.name === 'left_hip');
-    const rightHip = pose.pose?.keypoints.find(kp => kp.name === 'right_hip');
+    const leftHip = pose.landmarks[23]; // Left hip landmark
+    const rightHip = pose.landmarks[24]; // Right hip landmark
     return { left: leftHip, right: rightHip };
   }).filter(pos => pos.left && pos.right);
   
@@ -525,8 +525,8 @@ function calculateActualWeightTransfer(poses: PoseResult[]) {
 function calculateActualSwingPlane(poses: PoseResult[]) {
   // Calculate swing plane from hand trajectory
   const handPositions = poses.map(pose => {
-    const leftWrist = pose.pose?.keypoints.find(kp => kp.name === 'left_wrist');
-    const rightWrist = pose.pose?.keypoints.find(kp => kp.name === 'right_wrist');
+    const leftWrist = pose.landmarks[15];
+    const rightWrist = pose.landmarks[16];
     return {
       left: leftWrist ? { x: leftWrist.x, y: leftWrist.y } : null,
       right: rightWrist ? { x: rightWrist.x, y: rightWrist.y } : null

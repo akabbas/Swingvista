@@ -1,25 +1,25 @@
 # SwingVista - Advanced Golf Swing Analysis Platform
 
-A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, TypeScript, and Tailwind CSS. Features real-time pose detection, comprehensive swing phase analysis, and professional-grade feedback.
+A golf swing analysis platform built with Next.js 15, TypeScript, and Tailwind CSS. Features pose detection using MediaPipe, rule-based swing phase analysis, and AI-powered feedback with fallback systems.
 
 ## 📊 Current Status
 
-**🟢 Production-Ready AI-Powered Golf Swing Analyzer**: Complete golf swing analysis platform with robust pose detection, comprehensive swing phase identification, AI-powered feedback, and professional grading system.
+**🟢 Production-Ready Golf Swing Analyzer**: Complete golf swing analysis platform with MediaPipe pose detection, rule-based phase identification, AI-powered feedback (with fallbacks), and grading system.
 
 **Core Capabilities:**
-- ✅ **Real-time Camera Analysis** - Live pose detection and swing phase identification
-- ✅ **Video Upload Analysis** - Upload and analyze golf swing videos with 100+ pose detection
-- ✅ **Comprehensive Swing Phase Detection** - 6 specific phases: address, backswing, top, downswing, impact, follow-through
-- ✅ **AI-Powered Analysis** - OpenAI GPT-4o-mini integration for professional golf instructor insights
-- ✅ **Professional Grading System** - A+ to F grading based on PGA Tour benchmarks with emergency overrides
-- ✅ **Robust Pose Detection** - Multi-layered pose detection with TensorFlow.js fallback and mock data
-- ✅ **Real-time Feedback** - Live swing phase detection with instant feedback
-- ✅ **Comprehensive Metrics** - Tempo, rotation, weight transfer, swing plane, body alignment
-- ✅ **Advanced Weight Distribution Analysis** - Camera-angle compensated weight distribution tracking
-- ✅ **Dynamic Swing Feedback System** - Real-time, phase-specific improvement recommendations
-- ✅ **Comprehensive Debug System** - Developer-focused monitoring and validation tools
-- ✅ **Mobile-Optimized** - Responsive design for recording and analysis on any device
-- ✅ **Error Recovery** - Multiple fallback systems ensure analysis always works
+- ✅ **Camera Analysis** - Live pose detection using MediaPipe Pose model with 33 body landmarks
+- ✅ **Video Upload Analysis** - Upload MP4/MOV/AVI/WebM videos for pose extraction and analysis
+- ✅ **Rule-Based Swing Phase Detection** - 6 phases detected using geometric calculations: address, backswing, top, downswing, impact, follow-through
+- ✅ **AI-Powered Analysis** - OpenAI GPT-4o-mini integration for text-based swing feedback (requires API key)
+- ✅ **Grading System** - A+ to F scoring based on calculated metrics with professional swing overrides
+- ✅ **Multi-Layer Pose Detection** - MediaPipe primary, TensorFlow.js fallback, mock data emergency system
+- ✅ **Live Feedback** - Real-time swing phase detection with basic geometric thresholds
+- ✅ **Basic Metrics Calculation** - Tempo ratios, rotation angles, weight distribution estimates, swing plane analysis
+- ✅ **Weight Distribution Analysis** - Hip center tracking with basic camera angle compensation
+- ✅ **Phase-Specific Feedback** - Rule-based recommendations for each swing phase
+- ✅ **Debug System** - Console logging and validation for development troubleshooting
+- ✅ **Mobile-Optimized** - Responsive design for camera recording on mobile devices
+- ✅ **Fallback Systems** - Multiple detection methods ensure analysis completes even with poor pose data
 
 ## 📚 Documentation
 
@@ -89,6 +89,37 @@ A comprehensive, AI-powered golf swing analysis platform built with Next.js 15, 
 - **Responsive Design**: Works on all devices and screen sizes
 - **Error Recovery**: Comprehensive fallback systems ensure analysis always works
 - **Professional Grade Override**: Prevents professional swings from getting F grades
+
+## 🔧 Technical Implementation
+
+### Multi-layered Pose Detection Architecture
+SwingVista uses a robust three-layer pose detection system designed for maximum reliability:
+
+- **Primary Layer (MediaPipe)**: High-performance pose detection using Google's MediaPipe Pose model with 33 body landmarks, optimized for real-time processing
+- **Fallback Layer (TensorFlow.js)**: Automatic fallback to TensorFlow.js pose detection when MediaPipe fails to load or encounters errors
+- **Emergency Layer (Mock Data)**: Mock pose data generation ensures the analysis pipeline never fails, even in development or when pose detection is unavailable
+
+This multi-layered approach guarantees that swing analysis always completes, making the system highly reliable for production use.
+
+### Rule-Based Phase Detection Engine
+Swing phase detection uses a sophisticated rule engine that analyzes geometric relationships between 33 pose landmarks:
+
+- **Geometric Calculations**: Each phase is detected using specific geometric thresholds (angles, positions, velocities)
+- **Real-time Performance**: Rule-based detection is fast enough for live camera analysis without ML model inference delays
+- **Deterministic Results**: Consistent, predictable phase detection that doesn't require training data or model updates
+- **Confidence Scoring**: Each detected phase includes confidence scores based on landmark quality and geometric consistency
+
+The rule engine analyzes key metrics including club head position (estimated from wrist positions), body rotation angles, weight distribution, and swing velocity to identify the 6 golf swing phases.
+
+### Modular Architecture
+The system is built with clear separation of concerns:
+
+- **Analysis Engine**: Core pose detection and swing analysis logic (`src/lib/`) - works independently of external services
+- **AI Feedback Layer**: OpenAI GPT-4o-mini integration (`src/app/api/ai-feedback/`) - provides enhanced feedback when available
+- **Fallback Systems**: Heuristic analysis replaces AI feedback when OpenAI API is unavailable
+- **UI Components**: React components (`src/components/`) handle visualization and user interaction
+
+This architecture ensures the core analysis works reliably even when external services (AI APIs) are unavailable, while still providing enhanced features when they are accessible.
 
 ## 🏆 AI Grading System
 

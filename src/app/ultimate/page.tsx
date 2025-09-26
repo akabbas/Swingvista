@@ -14,7 +14,7 @@
 
 import React, { useState, useCallback } from 'react';
 import UltimateSwingAnalyzer from '@/components/analysis/UltimateSwingAnalyzer';
-import { UltimateSwingAnalysis } from '@/lib/ultimate-swing-analysis';
+import { SwingAnalysis } from '@/lib/swing-analysis';
 
 // 🎯 ULTIMATE SAMPLE VIDEOS
 const ultimateSampleVideos = [
@@ -63,7 +63,7 @@ const ultimateSampleVideos = [
 // 🚀 ULTIMATE SWINGVISTA PAGE
 export default function UltimateSwingVistaPage() {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<UltimateSwingAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<any | null>(null);
   const [showFeatures, setShowFeatures] = useState(false);
   
   // 🎯 ULTIMATE VIDEO SELECTION
@@ -74,7 +74,7 @@ export default function UltimateSwingVistaPage() {
   }, []);
   
   // 🎯 ULTIMATE ANALYSIS COMPLETE
-  const handleAnalysisComplete = useCallback((analysisResult: UltimateSwingAnalysis) => {
+  const handleAnalysisComplete = useCallback((analysisResult: any) => {
     setAnalysis(analysisResult);
     console.log('🎉 ULTIMATE ANALYSIS: Analysis completed:', analysisResult);
   }, []);
@@ -240,7 +240,7 @@ export default function UltimateSwingVistaPage() {
               enableAI={true}
               enableValidation={true}
               enableDynamicAdvice={true}
-              enableUltimateFeatures={true}
+              enableSystemFeatures={true}
               performanceMode="balanced"
               onAnalysisComplete={handleAnalysisComplete}
               onError={handleError}
