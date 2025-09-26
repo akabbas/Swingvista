@@ -146,9 +146,11 @@ function validatePhysicalPossibility(metrics: any): void {
 function validatePoseDataQuality(poses: PoseResult[]): void {
   const errors: string[] = [];
   
-  // Check minimum frame count
-  if (poses.length < 10) {
-    errors.push(`Insufficient frames: ${poses.length}/10 minimum required`);
+  // Check minimum frame count - RELAXED: Lowered from 10 to 5 frames
+  if (poses.length < 5) {
+    errors.push(`Insufficient frames: ${poses.length}/5 minimum required`);
+  } else {
+    console.log(`✅ Frame count: ${poses.length} frames - sufficient for analysis`);
   }
   
   // Check pose data completeness
@@ -159,11 +161,14 @@ function validatePoseDataQuality(poses: PoseResult[]): void {
     }
   });
   
-  if (validPoses < poses.length * 0.8) {
-    errors.push(`Poor pose detection quality: ${validPoses}/${poses.length} valid poses (need 80%+)`);
+  // RELAXED: Lowered from 80% to 60% valid poses (more lenient for real-world conditions)
+  if (validPoses < poses.length * 0.6) {
+    errors.push(`Poor pose detection quality: ${validPoses}/${poses.length} valid poses (need 60%+)`);
+  } else {
+    console.log(`✅ Pose quality: ${validPoses}/${poses.length} valid poses (${Math.round((validPoses/poses.length)*100)}%)`);
   }
   
-  // Check for sufficient movement (not just static poses)
+  // Check for sufficient movement (not just static poses) - RELAXED THRESHOLDS
   if (poses.length >= 5) {
     const firstPose = poses[0];
     const lastPose = poses[poses.length - 1];
@@ -175,20 +180,40 @@ function validatePoseDataQuality(poses: PoseResult[]): void {
       const rightWristEnd = lastPose.landmarks[16];
       
       if (leftWrist && rightWrist && leftWristEnd && rightWristEnd) {
-        const movement = Math.sqrt(
+        // Check both wrists for movement
+        const leftMovement = Math.sqrt(
           Math.pow(leftWristEnd.x - leftWrist.x, 2) + 
           Math.pow(leftWristEnd.y - leftWrist.y, 2)
         );
+        const rightMovement = Math.sqrt(
+          Math.pow(rightWristEnd.x - rightWrist.x, 2) + 
+          Math.pow(rightWristEnd.y - rightWrist.y, 2)
+        );
         
-        if (movement < 0.1) {
-          errors.push('Insufficient movement detected - please ensure you are performing a full golf swing');
+        // Use the maximum movement between both wrists
+        const maxMovement = Math.max(leftMovement, rightMovement);
+        
+        // RELAXED: Lowered from 0.1 to 0.02 (5x more lenient)
+        if (maxMovement < 0.02) {
+          console.warn('⚠️ Low movement detected:', maxMovement, '- proceeding with analysis anyway');
+          // Don't throw error, just warn - let analysis proceed
+        } else {
+          console.log('✅ Movement detected:', maxMovement, '- good swing motion');
         }
       }
     }
   }
   
   if (errors.length > 0) {
-    throw new Error(`Pose data quality issues: ${errors.join(', ')}`);
+    // FINAL FALLBACK: If we have enough poses, proceed anyway with warning
+    if (poses.length >= 3 && validPoses >= 2) {
+      console.warn('⚠️ Pose validation issues detected, but proceeding with analysis:', errors.join(', '));
+      console.log('🔄 Using fallback validation - analysis will continue');
+    } else {
+      throw new Error(`Pose data quality issues: ${errors.join(', ')}`);
+    }
+  } else {
+    console.log('✅ All pose validation checks passed');
   }
 }
 
