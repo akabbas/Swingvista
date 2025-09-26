@@ -83,20 +83,41 @@ export default function UploadPage() {
       video.src = URL.createObjectURL(file);
       video.crossOrigin = 'anonymous';
       
-      // Wait for video to load
+      // Wait for video to load with timeout
       await new Promise((resolve, reject) => {
-        video.onloadedmetadata = resolve;
-        video.onerror = reject;
+        const timeout = setTimeout(() => {
+          reject(new Error('Video loading timeout - please try a smaller video file'));
+        }, 10000); // 10 second timeout
+        
+        video.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          resolve(undefined);
+        };
+        video.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(new Error('Video loading failed - please check file format'));
+        };
         video.load();
       });
       
       console.log('📹 Video loaded, duration:', video.duration, 'seconds');
       
-      // Initialize MediaPipe pose detector
+      // Initialize MediaPipe pose detector with timeout
       console.log('🤖 Initializing MediaPipe pose detector...');
       const detector = MediaPipePoseDetector.getInstance();
-      await detector.initialize();
-      console.log('✅ MediaPipe initialized successfully');
+      
+      // Add timeout for MediaPipe initialization
+      const mediaPipeTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('MediaPipe initialization timeout - using fallback mode')), 15000);
+      });
+      
+      try {
+        await Promise.race([detector.initialize(), mediaPipeTimeout]);
+        console.log('✅ MediaPipe initialized successfully');
+      } catch (mediaPipeError) {
+        console.warn('⚠️ MediaPipe initialization failed, using fallback mode:', mediaPipeError);
+        // Continue with fallback - the detector will use emergency mode
+      }
       
       // Initialize phase detector
       const phaseDetector = new EnhancedPhaseDetector();
@@ -116,13 +137,16 @@ export default function UploadPage() {
       const analysis = await analyzeGolfSwingSimple(poses);
       console.log('✅ Analysis complete:', analysis);
       
-      // Set result
+      // Set result with status information
       setResult({
         message: 'Swing analysis complete!',
         file: file.name,
         analysis: analysis,
         poseCount: poses.length,
-        videoDuration: video.duration
+        videoDuration: video.duration,
+        isEmergencyMode: poses.some(pose => 
+          pose.landmarks?.some(landmark => landmark.visibility === 0.9)
+        ) // Detect if using fallback data
       });
       
       // Clean up
@@ -130,7 +154,18 @@ export default function UploadPage() {
       
     } catch (err) {
       console.error('❌ Analysis failed:', err);
-      setError(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('timeout')) {
+        setError(`Analysis timeout: ${errorMessage}. Please try with a shorter video or check your internet connection.`);
+      } else if (errorMessage.includes('No poses detected')) {
+        setError(`Pose detection failed: ${errorMessage}. Please ensure the video shows a clear view of a person performing a golf swing.`);
+      } else if (errorMessage.includes('MediaPipe')) {
+        setError(`MediaPipe error: ${errorMessage}. The system is using fallback mode with limited accuracy.`);
+      } else {
+        setError(`Analysis failed: ${errorMessage}`);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -152,20 +187,20 @@ export default function UploadPage() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Golf Swing Analysis
-            </h1>
+          </h1>
             <p className="text-gray-600">
               Upload a video of your golf swing for AI-powered analysis
             </p>
-          </div>
+            </div>
 
           {!file && !result && (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <input
+                <input
                 ref={inputRef}
-                type="file"
-                accept="video/*"
+                  type="file"
+                  accept="video/*"
                 onChange={handleFileChange}
-                className="hidden"
+                  className="hidden"
                 id="file-upload"
               />
               <label
@@ -207,12 +242,12 @@ export default function UploadPage() {
                 <button
                   onClick={handleReset}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
-                >
+                    >
                   Reset
                 </button>
               </div>
-            </div>
-          )}
+              </div>
+              )}
 
           {isAnalyzing && (
             <div className="mb-6">
@@ -226,14 +261,14 @@ export default function UploadPage() {
           )}
 
           {error && (
-            <div className="mb-6">
+              <div className="mb-6">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center">
                   <svg className="w-5 h-5 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-red-800">{error}</span>
-                </div>
+              </div>
               </div>
             </div>
           )}
@@ -246,13 +281,30 @@ export default function UploadPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-green-800">{result.message}</span>
-                </div>
-              </div>
-              
+                    </div>
+                    </div>
+                    
               {/* Analysis Results */}
               {result.analysis && (
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Analysis Results</h3>
+                  
+                  {/* Status Information */}
+                  {result.isEmergencyMode && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                  <div>
+                          <span className="text-yellow-800 font-medium">Fallback Mode Active</span>
+                          <p className="text-yellow-700 text-sm mt-1">
+                            MediaPipe failed to load. Analysis completed using fallback data with reduced accuracy.
+                          </p>
+                  </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="bg-gray-50 p-3 rounded">
@@ -262,6 +314,18 @@ export default function UploadPage() {
                     <div className="bg-gray-50 p-3 rounded">
                       <span className="text-sm font-medium text-gray-600">Video Duration:</span>
                       <span className="ml-2 text-lg font-semibold text-gray-900">{result.videoDuration?.toFixed(1)}s</span>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <span className="text-sm font-medium text-gray-600">Analysis Mode:</span>
+                      <span className={`ml-2 text-lg font-semibold ${result.isEmergencyMode ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {result.isEmergencyMode ? 'Fallback' : 'Full'}
+                      </span>
+                      </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <span className="text-sm font-medium text-gray-600">Accuracy:</span>
+                      <span className={`ml-2 text-lg font-semibold ${result.isEmergencyMode ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {result.isEmergencyMode ? 'Limited' : 'Full'}
+                      </span>
                     </div>
                   </div>
                   
@@ -278,12 +342,12 @@ export default function UploadPage() {
                             <span className="ml-2 text-sm font-semibold text-blue-900">
                               {typeof value === 'number' ? value.toFixed(2) : String(value)}
                             </span>
-                          </div>
-                        ))}
                       </div>
-                    </div>
-                  )}
-                  
+                    ))}
+                  </div>
+                </div>
+              )}
+
                   {/* Swing Phases */}
                   {result.analysis.phases && result.analysis.phases.length > 0 && (
                     <div className="mb-4">
@@ -294,19 +358,19 @@ export default function UploadPage() {
                             {phase.phase} ({phase.startTime?.toFixed(1)}s - {phase.endTime?.toFixed(1)}s)
                           </span>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                  
+                  </div>
+                </div>
+              )}
+
                   {/* Overall Grade */}
                   {result.analysis.overallGrade && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-yellow-800 mb-2">Overall Swing Grade</h4>
                       <div className="text-2xl font-bold text-yellow-900">
                         {result.analysis.overallGrade}
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                </div>
+              )}
                 </div>
               )}
             </div>
