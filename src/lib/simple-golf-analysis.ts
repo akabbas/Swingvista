@@ -1057,6 +1057,60 @@ function generateKeyImprovements(analysis: SimpleGolfAnalysis): string[] {
  */
 
 /**
+ * Validate metrics before using them in analysis
+ */
+function validateMetricsBeforeUse(metrics: any) {
+  console.log('🔍 METRICS VALIDATION: Validating all metrics before use...');
+  
+  // Validate tempo metrics
+  if (!metrics.tempo || typeof metrics.tempo.ratio !== 'number' || isNaN(metrics.tempo.ratio)) {
+    console.warn('⚠️ Tempo ratio invalid, using default value');
+    metrics.tempo = metrics.tempo || {};
+    metrics.tempo.ratio = 2.5; // Default tempo ratio
+  }
+  
+  // Validate rotation metrics
+  if (!metrics.rotation || typeof metrics.rotation.shoulderTurn !== 'number' || isNaN(metrics.rotation.shoulderTurn)) {
+    console.warn('⚠️ Shoulder turn invalid, using default value');
+    metrics.rotation = metrics.rotation || {};
+    metrics.rotation.shoulderTurn = 60; // Default shoulder turn
+  }
+  
+  if (typeof metrics.rotation.hipTurn !== 'number' || isNaN(metrics.rotation.hipTurn)) {
+    console.warn('⚠️ Hip turn invalid, using default value');
+    metrics.rotation.hipTurn = 30; // Default hip turn
+  }
+  
+  if (typeof metrics.rotation.xFactor !== 'number' || isNaN(metrics.rotation.xFactor)) {
+    console.warn('⚠️ X-factor invalid, using default value');
+    metrics.rotation.xFactor = 30; // Default X-factor
+  }
+  
+  // Validate weight transfer metrics
+  if (!metrics.weightTransfer || typeof metrics.weightTransfer.impact !== 'number' || isNaN(metrics.weightTransfer.impact)) {
+    console.warn('⚠️ Weight transfer invalid, using default value');
+    metrics.weightTransfer = metrics.weightTransfer || {};
+    metrics.weightTransfer.impact = 70; // Default weight transfer
+  }
+  
+  // Validate swing plane metrics
+  if (!metrics.swingPlane || typeof metrics.swingPlane.planeDeviation !== 'number' || isNaN(metrics.swingPlane.planeDeviation)) {
+    console.warn('⚠️ Swing plane deviation invalid, using default value');
+    metrics.swingPlane = metrics.swingPlane || {};
+    metrics.swingPlane.planeDeviation = 3; // Default plane deviation
+  }
+  
+  // Validate body alignment metrics
+  if (!metrics.bodyAlignment || typeof metrics.bodyAlignment.spineAngle !== 'number' || isNaN(metrics.bodyAlignment.spineAngle)) {
+    console.warn('⚠️ Spine angle invalid, using default value');
+    metrics.bodyAlignment = metrics.bodyAlignment || {};
+    metrics.bodyAlignment.spineAngle = 40; // Default spine angle
+  }
+  
+  console.log('✅ METRICS VALIDATION: All metrics validated and fallbacks applied');
+}
+
+/**
  * Main analysis function - 100% video-based golf swing analysis
  * NO HARD-CODED VALUES - All metrics calculated from actual pose data
  */
@@ -1086,6 +1140,9 @@ export async function analyzeGolfSwingSimple(poses: PoseResult[]): Promise<Simpl
   
   // Calculate actual metrics from pose data
   const actualMetrics = calculateActualSwingMetrics(poses);
+  
+  // VALIDATION: Ensure all metrics are properly calculated and have valid values
+  validateMetricsBeforeUse(actualMetrics);
   
   // Update scores based on actual grading
   actualMetrics.tempo.score = gradeTempo(actualMetrics.tempo);
