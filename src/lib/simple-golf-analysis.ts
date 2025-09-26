@@ -7,6 +7,16 @@
 
 import { PoseResult } from './mediapipe';
 
+/**
+ * Safe number formatting helper to prevent errors with undefined/null/NaN values
+ */
+function safeToFixed(value: number | undefined | null, decimals: number = 1): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return '0.0'; // Default fallback value
+  }
+  return value.toFixed(decimals);
+}
+
 export interface SimpleGolfAnalysis {
   overallScore: number;
   letterGrade: string;
@@ -914,11 +924,11 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
     const tempoRatio = metrics.tempo.tempoRatio;
     
     if (tempoRatio > 3.5) {
-      feedback.push(`Your tempo ratio is ${tempoRatio.toFixed(1)}:1, which is too fast. Focus on a smoother, more controlled transition.`);
+      feedback.push(`Your tempo ratio is ${safeToFixed(tempoRatio, 1)}:1, which is too fast. Focus on a smoother, more controlled transition.`);
     } else if (tempoRatio < 2.0) {
-      feedback.push(`Your tempo ratio is ${tempoRatio.toFixed(1)}:1, which is quite slow. Try speeding up your downswing while maintaining control.`);
+      feedback.push(`Your tempo ratio is ${safeToFixed(tempoRatio, 1)}:1, which is quite slow. Try speeding up your downswing while maintaining control.`);
     } else {
-      feedback.push(`Great tempo! Your ${tempoRatio.toFixed(1)}:1 ratio is within the ideal range for consistent ball striking.`);
+      feedback.push(`Great tempo! Your ${safeToFixed(tempoRatio, 1)}:1 ratio is within the ideal range for consistent ball striking.`);
     }
   } else {
     // Fallback feedback if tempo data is missing
@@ -929,11 +939,11 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
   if (metrics.rotation && metrics.rotation.shoulderTurn !== undefined && metrics.rotation.shoulderTurn !== null) {
     const shoulderTurn = Math.abs(metrics.rotation.shoulderTurn);
     if (shoulderTurn < 45) {
-      feedback.push(`Shoulder turn limited to ${shoulderTurn.toFixed(0)}°. Work on increasing your backswing rotation for more power.`);
+      feedback.push(`Shoulder turn limited to ${safeToFixed(shoulderTurn, 0)}°. Work on increasing your backswing rotation for more power.`);
     } else if (shoulderTurn > 90) {
-      feedback.push(`Excellent shoulder rotation of ${shoulderTurn.toFixed(0)}°! You're generating good torque.`);
+      feedback.push(`Excellent shoulder rotation of ${safeToFixed(shoulderTurn, 0)}°! You're generating good torque.`);
     } else {
-      feedback.push(`Good shoulder turn of ${shoulderTurn.toFixed(0)}°. Maintain this range for consistent power.`);
+      feedback.push(`Good shoulder turn of ${safeToFixed(shoulderTurn, 0)}°. Maintain this range for consistent power.`);
     }
   } else {
     feedback.push('Shoulder turn analysis unavailable. Focus on full upper body rotation during your backswing.');
@@ -943,9 +953,9 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
   if (metrics.rotation && metrics.rotation.hipTurn !== undefined && metrics.rotation.hipTurn !== null) {
     const hipTurn = Math.abs(metrics.rotation.hipTurn);
     if (hipTurn < 20) {
-      feedback.push(`Hip rotation limited to ${hipTurn.toFixed(0)}°. Try initiating your downswing with your hips more aggressively.`);
+      feedback.push(`Hip rotation limited to ${safeToFixed(hipTurn, 0)}°. Try initiating your downswing with your hips more aggressively.`);
     } else {
-      feedback.push(`Good hip rotation of ${hipTurn.toFixed(0)}°. This helps generate power from the ground up.`);
+      feedback.push(`Good hip rotation of ${safeToFixed(hipTurn, 0)}°. This helps generate power from the ground up.`);
     }
   }
   
@@ -955,9 +965,9 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
     if (xFactor < 15) {
       feedback.push('Limited separation between upper and lower body. Work on creating more coil in your backswing.');
     } else if (xFactor > 45) {
-      feedback.push(`Excellent X-factor of ${xFactor.toFixed(0)}°! You're creating great power potential.`);
+      feedback.push(`Excellent X-factor of ${safeToFixed(xFactor, 0)}°! You're creating great power potential.`);
     } else {
-      feedback.push(`Good X-factor of ${xFactor.toFixed(0)}°. This separation helps generate clubhead speed.`);
+      feedback.push(`Good X-factor of ${safeToFixed(xFactor, 0)}°. This separation helps generate clubhead speed.`);
     }
   }
   
@@ -965,11 +975,11 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
   if (metrics.weightTransfer && metrics.weightTransfer.impact !== undefined && metrics.weightTransfer.impact !== null) {
     const weightTransfer = metrics.weightTransfer.impact;
     if (weightTransfer < 60) {
-      feedback.push(`At impact, you're transferring only ${weightTransfer.toFixed(0)}% of your weight to your front foot. Professional golfers transfer 80-90% for maximum power.`);
+      feedback.push(`At impact, you're transferring only ${safeToFixed(weightTransfer, 0)}% of your weight to your front foot. Professional golfers transfer 80-90% for maximum power.`);
     } else if (weightTransfer > 95) {
-      feedback.push(`Your weight transfer of ${weightTransfer.toFixed(0)}% is excellent! You're getting great ground force through impact.`);
+      feedback.push(`Your weight transfer of ${safeToFixed(weightTransfer, 0)}% is excellent! You're getting great ground force through impact.`);
     } else {
-      feedback.push(`Good weight transfer of ${weightTransfer.toFixed(0)}% at impact. This helps with consistent ball striking.`);
+      feedback.push(`Good weight transfer of ${safeToFixed(weightTransfer, 0)}% at impact. This helps with consistent ball striking.`);
     }
   }
   
@@ -977,9 +987,9 @@ function generateRealGolfFeedback(analysis: SimpleGolfAnalysis): string[] {
   if (metrics.swingPlane && metrics.swingPlane.planeDeviation !== undefined && metrics.swingPlane.planeDeviation !== null) {
     const planeDeviation = metrics.swingPlane.planeDeviation;
     if (planeDeviation > 5) {
-      feedback.push(`Your swing plane deviation is ${planeDeviation.toFixed(1)}°. Professional golfers maintain within 2° for consistent ball flight.`);
+      feedback.push(`Your swing plane deviation is ${safeToFixed(planeDeviation, 1)}°. Professional golfers maintain within 2° for consistent ball flight.`);
     } else {
-      feedback.push(`Great swing plane! Your ${planeDeviation.toFixed(1)}° deviation shows excellent club path control.`);
+      feedback.push(`Great swing plane! Your ${safeToFixed(planeDeviation, 1)}° deviation shows excellent club path control.`);
     }
   }
   
@@ -1004,9 +1014,9 @@ function generateKeyImprovements(analysis: SimpleGolfAnalysis): string[] {
   
   // Identify specific areas for improvement based on actual metrics
   if (metrics.tempo.tempoRatio < 2.5) {
-    improvements.push(`Your tempo ratio is ${metrics.tempo.tempoRatio.toFixed(1)}:1 - too fast. Practice counting "1-2-3" on backswing, "1" on downswing to achieve 3:1 ratio`);
+    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.tempoRatio, 1)}:1 - too fast. Practice counting "1-2-3" on backswing, "1" on downswing to achieve 3:1 ratio`);
   } else if (metrics.tempo.tempoRatio > 3.5) {
-    improvements.push(`Your tempo ratio is ${metrics.tempo.tempoRatio.toFixed(1)}:1 - too slow. Practice accelerating through impact while maintaining control`);
+    improvements.push(`Your tempo ratio is ${safeToFixed(metrics.tempo.tempoRatio, 1)}:1 - too slow. Practice accelerating through impact while maintaining control`);
   }
   
   if (metrics.rotation.shoulderTurn < 70) {
@@ -1024,7 +1034,7 @@ function generateKeyImprovements(analysis: SimpleGolfAnalysis): string[] {
   }
   
   if (metrics.swingPlane.planeDeviation > 5) {
-    improvements.push(`Your swing plane deviation is ${metrics.swingPlane.planeDeviation.toFixed(1)}° - too much. Practice the "plane drill" with an alignment stick`);
+    improvements.push(`Your swing plane deviation is ${safeToFixed(metrics.swingPlane.planeDeviation, 1)}° - too much. Practice the "plane drill" with an alignment stick`);
   }
   
   if (Math.abs(metrics.bodyAlignment.spineAngle - 40) > 10) {
