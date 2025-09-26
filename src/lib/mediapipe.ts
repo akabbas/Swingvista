@@ -43,47 +43,35 @@ export class MediaPipePoseDetector {
       return;
     }
     
-    // Only run on client-side
+    // Check if we're in browser environment
     if (typeof window === 'undefined') {
-      throw new Error('MediaPipe can only be initialized on client-side');
+      console.log('⚠️ Server-side rendering detected, using emergency mode');
+      this.createEmergencyFallback();
+      return;
     }
 
     try {
       console.log('🤖 Initializing MediaPipe with Next.js compatibility...');
       
-      // Try to load MediaPipe from npm package
+      // Dynamic import for client-side only
       const { Pose } = await import('@mediapipe/pose');
       
-      if (!Pose) {
-        throw new Error('MediaPipe Pose not found in npm package');
-      }
-
-      // Create Pose instance with proper configuration
       this.pose = new Pose({
-        locateFile: (file: string) => {
-          // Use CDN for MediaPipe assets
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
-        }
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
       });
-
-      // Configure MediaPipe options
+      
       await this.pose.setOptions({
         modelComplexity: 1,
         smoothLandmarks: true,
-        enableSegmentation: false,
-        smoothSegmentation: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
       });
-
-      // Initialize the pose detector
-      await this.pose.initialize();
       
-      this.isInitialized = true;
+      await this.pose.initialize();
       console.log('✅ MediaPipe initialized successfully');
       
     } catch (error) {
-      console.warn('⚠️ MediaPipe initialization failed, using fallback mode:', error);
+      console.warn('⚠️ MediaPipe failed, using emergency fallback:', error);
       this.createEmergencyFallback();
     }
   }
