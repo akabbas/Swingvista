@@ -75,6 +75,10 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
 }: StickFigureOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
+  
+  // EMERGENCY LOOP BREAKER: Track render count to prevent infinite loops
+  const renderCountRef = useRef(0);
+  const lastRenderTimeRef = useRef(0);
 
   // Find the closest pose to current time
   const findClosestPose = useCallback((time: number): PoseResult | null => {
@@ -295,6 +299,25 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
   // Main render function
   const render = useCallback(() => {
     console.log('🔧 OVERLAY FIX: Render function called with poses:', poses.length, 'currentTime:', currentTime);
+    
+    // STOP INFINITE LOOP: Early pose validation checks
+    if (!poses || poses.length === 0) return;
+    if (!poses.filter(p => p?.landmarks?.length > 0).length) return;
+    
+    // EMERGENCY LOOP BREAKER: Prevent excessive rendering
+    const now = Date.now();
+    if (renderCountRef.current > 100 && (now - lastRenderTimeRef.current) < 16) {
+      console.warn('🚨 EMERGENCY: Stopping infinite render loop');
+      return;
+    }
+    
+    // Reset render count if enough time has passed
+    if (now - lastRenderTimeRef.current > 1000) {
+      renderCountRef.current = 0;
+    }
+    
+    renderCountRef.current++;
+    lastRenderTimeRef.current = now;
     
     const canvas = canvasRef.current;
     const video = videoRef.current;
