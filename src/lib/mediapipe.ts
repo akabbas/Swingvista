@@ -53,8 +53,13 @@ export class MediaPipePoseDetector {
     try {
       console.log('🤖 Initializing MediaPipe with Next.js compatibility...');
       
-      // Dynamic import for client-side only
-      const { Pose } = await import('@mediapipe/pose');
+      // Try to load MediaPipe with better error handling
+      const mediaPipeModule = await import('@mediapipe/pose');
+      const { Pose } = mediaPipeModule;
+      
+      if (!Pose || typeof Pose !== 'function') {
+        throw new Error('Pose constructor not available in loaded module');
+      }
       
       this.pose = new Pose({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
@@ -71,7 +76,7 @@ export class MediaPipePoseDetector {
       console.log('✅ MediaPipe initialized successfully');
       
     } catch (error) {
-      console.warn('⚠️ MediaPipe failed, using emergency fallback:', error);
+      console.warn('⚠️ MediaPipe unavailable, using emergency fallback:', error.message);
       this.createEmergencyFallback();
     }
   }
@@ -158,10 +163,10 @@ export class MediaPipePoseDetector {
           }
         });
 
-        // Send video frame for processing
+        // Send video frame for processing with better error handling
         this.pose.send({ image: video }).catch((error: any) => {
           clearTimeout(timeoutId);
-          console.warn('⚠️ MediaPipe send failed, using fallback:', error);
+          console.warn('⚠️ MediaPipe send failed, using fallback:', error.message || error);
           const fallbackResult = this.generateRealisticMockPose();
           resolve({
             landmarks: fallbackResult.poseLandmarks,
@@ -171,7 +176,7 @@ export class MediaPipePoseDetector {
         });
       } catch (error) {
         clearTimeout(timeoutId);
-        console.warn('⚠️ MediaPipe error, using fallback:', error);
+        console.warn('⚠️ MediaPipe error, using fallback:', error.message || error);
         const fallbackResult = this.generateRealisticMockPose();
         resolve({
           landmarks: fallbackResult.poseLandmarks,
