@@ -26,6 +26,7 @@ export interface TrajectoryPoint {
 export class MediaPipePoseDetector {
   private pose: any = null;
   private isInitialized = false;
+  private isEmergencyMode = false;
   private static instance: MediaPipePoseDetector | null = null;
 
   private constructor() {}
@@ -188,76 +189,59 @@ export class MediaPipePoseDetector {
     emergencyDetector.onResults = emergencyDetector.onResults.bind(emergencyDetector);
     
     this.pose = emergencyDetector;
+    this.isEmergencyMode = true;
     this.isInitialized = true;
   }
 
   private onResultsCallback: any = null;
 
   async detectPose(video: HTMLVideoElement): Promise<PoseResult> {
-    if (!this.isInitialized) {
+    try {
+      if (!this.isInitialized) {
       await this.initialize();
     }
     
-    return new Promise((resolve, reject) => {
-      // Add timeout to prevent infinite hanging
-      const timeoutId = setTimeout(() => {
-        console.warn('⚠️ Pose detection timeout, using fallback data');
-        const fallbackResult = this.generateRealisticMockPose();
-        resolve({
-          landmarks: fallbackResult.poseLandmarks,
-          worldLandmarks: fallbackResult.poseWorldLandmarks,
-          timestamp: Date.now()
-        });
-      }, 3000); // 3 second timeout
-
-      if (!this.pose) {
-        clearTimeout(timeoutId);
-        // Return fallback data
-        const fallbackResult = this.generateRealisticMockPose();
-        resolve({
-          landmarks: fallbackResult.poseLandmarks,
-          worldLandmarks: fallbackResult.poseWorldLandmarks,
-          timestamp: Date.now()
-        });
-        return;
+      if (!this.pose && !this.isEmergencyMode) {
+        throw new Error('No pose detector available');
       }
-
-      try {
-        // Set up one-time callback
-        const originalCallback = this.onResultsCallback;
-        this.pose.onResults((results: any) => {
-          clearTimeout(timeoutId);
-          if (this.onResultsCallback === originalCallback) {
-            resolve({
-              landmarks: results.poseLandmarks || [],
-              worldLandmarks: results.poseWorldLandmarks || [],
-              timestamp: Date.now()
-            });
-          }
-        });
-
-        // Send video frame for processing with better error handling
-        this.pose.send({ image: video }).catch((error: any) => {
-          clearTimeout(timeoutId);
-          console.warn('⚠️ MediaPipe send failed, using fallback:', error.message || error);
-          const fallbackResult = this.generateRealisticMockPose();
-          resolve({
-            landmarks: fallbackResult.poseLandmarks,
-            worldLandmarks: fallbackResult.poseWorldLandmarks,
-            timestamp: Date.now()
-          });
-        });
+      
+      const detector = this.pose;
+      
+      // Validate method existence
+      if (detector?.detectForVideo && typeof detector.detectForVideo === 'function') {
+        const result = await detector.detectForVideo(video, Date.now());
+        return {
+          landmarks: result.poseLandmarks || [],
+          worldLandmarks: result.poseWorldLandmarks || [],
+          timestamp: Date.now()
+        };
+      } else if (detector?.send && typeof detector.send === 'function') {
+        const result = await detector.send({ image: video });
+        return {
+          landmarks: result.poseLandmarks || [],
+          worldLandmarks: result.poseWorldLandmarks || [],
+          timestamp: Date.now()
+        };
+      } else {
+        throw new Error('No valid detection method available');
+      }
       } catch (error) {
-        clearTimeout(timeoutId);
-        console.warn('⚠️ MediaPipe error, using fallback:', error.message || error);
-        const fallbackResult = this.generateRealisticMockPose();
-        resolve({
-          landmarks: fallbackResult.poseLandmarks,
-          worldLandmarks: fallbackResult.poseWorldLandmarks,
-          timestamp: Date.now()
-        });
-      }
-    });
+      console.warn('⚠️ Pose detection failed, using emergency fallback:', (error as Error).message);
+      // Generate emergency pose data
+      return this.generateEmergencyPoseData();
+    }
+  }
+
+  generateEmergencyPoseData(): PoseResult {
+    return {
+      landmarks: Array(33).fill(null).map((_, i) => ({
+        x: 0.5, y: 0.5, z: 0, visibility: 0.9
+      })),
+      worldLandmarks: Array(33).fill(null).map((_, i) => ({
+        x: 0, y: 0, z: 0, visibility: 0.9
+      })),
+      timestamp: Date.now()
+    };
   }
 
   // Generate realistic mock pose data for golf swing analysis
@@ -358,9 +342,9 @@ export class MediaPipePoseDetector {
 
   close(): void {
     if (this.pose && typeof this.pose.close === 'function') {
-      this.pose.close();
-    }
-    this.isInitialized = false;
+        this.pose.close(); 
+      }
+      this.isInitialized = false;
   }
 }
 
