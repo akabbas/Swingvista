@@ -568,6 +568,27 @@ export default function CameraPage() {
     };
   }, [stopCamera]);
 
+  // 🛡️ BROWSER EXTENSION PROTECTION
+  useEffect(() => {
+    const handleExtensionInterference = () => {
+      if (videoRef.current) {
+        // Get original classes from data attribute
+        const originalClasses = videoRef.current.getAttribute('data-original-classes') || 'w-full rounded-lg bg-black';
+        
+        // Check if browser extension has added classes
+        if (videoRef.current.className !== originalClasses) {
+          console.log('🛡️ Browser extension interference detected, restoring original classes');
+          videoRef.current.className = originalClasses;
+        }
+      }
+    };
+
+    // Check for extension interference periodically
+    const interval = setInterval(handleExtensionInterference, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-16">
       <div className="text-center">
@@ -580,7 +601,14 @@ export default function CameraPage() {
 
         <div className="bg-gray-50 rounded-2xl p-6 mb-8">
           <div className="relative w-full max-w-3xl mx-auto">
-            <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline muted />
+            <video 
+              ref={videoRef} 
+              className="w-full rounded-lg bg-black" 
+              data-original-classes="w-full rounded-lg bg-black"
+              playsInline 
+              muted 
+              suppressHydrationWarning
+            />
             
             {/* Enhanced Overlay System */}
             <CameraOverlayContainer
