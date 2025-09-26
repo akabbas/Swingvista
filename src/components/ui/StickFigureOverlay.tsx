@@ -309,6 +309,19 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
       console.warn('🔧 OVERLAY FIX: Video dimensions not available, skipping render');
       return;
     }
+    
+    // Check if poses are valid to prevent infinite loops
+    if (!poses || poses.length === 0) {
+      console.log('🔧 OVERLAY FIX: No poses available, skipping render');
+      return;
+    }
+    
+    // Check if poses have valid landmarks
+    const validPoses = poses.filter(pose => pose && pose.landmarks && pose.landmarks.length > 0);
+    if (validPoses.length === 0) {
+      console.log('🔧 OVERLAY FIX: No valid poses with landmarks, skipping render');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -335,14 +348,14 @@ const StickFigureOverlay = memo(function StickFigureOverlay({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Find current pose and phase
+    // Find current pose and phase from valid poses only
     const currentPose = findClosestPose(currentTime);
     const currentPhase = getCurrentPhase(currentTime);
 
     console.log('🔧 OVERLAY FIX: Current pose found:', !!currentPose, 'landmarks:', currentPose?.landmarks?.length);
 
-    if (!currentPose || !currentPose.landmarks) {
-      console.warn('🔧 OVERLAY FIX: No valid pose found at time', currentTime, 'poses available:', poses.length);
+    if (!currentPose || !currentPose.landmarks || currentPose.landmarks.length === 0) {
+      console.warn('🔧 OVERLAY FIX: No valid pose found at time', currentTime, 'valid poses available:', validPoses.length);
       // Draw a test rectangle even without pose data to confirm canvas is working
       ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
       ctx.fillRect(10, 10, 50, 50);

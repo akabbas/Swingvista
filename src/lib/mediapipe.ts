@@ -44,23 +44,19 @@ const runMediaPipeDiagnostics = async () => {
   console.groupEnd();
 };
 
-// EMERGENCY FIX: Updated CDN sources with working URLs
+// EMERGENCY FIX: Working MediaPipe CDN URLs that serve UMD/global scripts
 const CDN_SOURCES = [
-  // Primary: Latest working MediaPipe CDNs
+  // Primary: Working MediaPipe CDNs (UMD format)
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635989137/pose.js',
   'https://unpkg.com/@mediapipe/pose@0.5.1635989137/pose.js',
   
-  // Secondary: Alternative CDN providers with different versions
+  // Secondary: Alternative CDN providers
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js',
   'https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js',
   
-  // Tertiary: CDNJS alternatives
+  // Tertiary: CDNJS alternatives (UMD format)
   'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1635989137/pose.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1675469404/pose.js',
-  
-  // Emergency: Skypack CDN
-  'https://cdn.skypack.dev/@mediapipe/pose@0.5.1635989137/pose.js',
-  'https://cdn.skypack.dev/@mediapipe/pose@0.5.1675469404/pose.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.5.1675469404/pose.js'
 ];
 
 // EMERGENCY FIX: Improved CDN loading with timeout
@@ -163,7 +159,7 @@ const loadMediaPipeWithFallback = async (): Promise<void> => {
   throw new Error('All MediaPipe CDNs failed');
 };
 
-// EMERGENCY FIX: Local npm package fallback
+// EMERGENCY FIX: Local npm package fallback with correct initialization
 const loadMediaPipeFromNPM = async (): Promise<void> => {
   if (!isClientSide()) {
     throw new Error('MediaPipe can only be loaded on client-side');
@@ -171,15 +167,23 @@ const loadMediaPipeFromNPM = async (): Promise<void> => {
 
   try {
     console.log('📦 Loading MediaPipe from npm package...');
-    const mediapipe = await import('@mediapipe/pose');
     
-    if (mediapipe.Pose) {
+    // Import the MediaPipe pose module
+    const { Pose, POSE_CONNECTIONS } = await import('@mediapipe/pose');
+    
+    if (Pose && typeof Pose === 'function') {
       console.log('✅ MediaPipe loaded successfully from npm package');
-      (window as any).MediaPipePose = mediapipe;
+      
+      // Set up global MediaPipe object for compatibility
+      (window as any).MediaPipePose = {
+        Pose: Pose,
+        POSE_CONNECTIONS: POSE_CONNECTIONS || []
+      };
+      
       return;
     }
     
-    throw new Error('MediaPipe Pose not found in npm package');
+    throw new Error('MediaPipe Pose constructor not found in npm package');
   } catch (error) {
     console.error('❌ NPM package loading failed:', error);
     throw new Error('Failed to load MediaPipe from npm package');
@@ -253,27 +257,13 @@ async function loadMediaPipe() {
 
         // Method 2: Try proper module import first
         try {
-          const mp = await import('@mediapipe/pose');
-          console.log('✅ MediaPipe module imported successfully:', mp);
+          const { Pose: MediaPipePose, POSE_CONNECTIONS: MediaPipeConnections } = await import('@mediapipe/pose');
+          console.log('✅ MediaPipe module imported successfully');
           
-          if (mp && mp.Pose && typeof mp.Pose === 'function') {
+          if (MediaPipePose && typeof MediaPipePose === 'function') {
             console.log('✅ Pose constructor found in module');
-            Pose = mp.Pose;
-            POSE_CONNECTIONS = mp.POSE_CONNECTIONS || [];
-            return { Pose, POSE_CONNECTIONS };
-          }
-          
-          if (mp.default && typeof mp.default === 'function') {
-            console.log('✅ Using mp.default as Pose constructor');
-            Pose = mp.default;
-            POSE_CONNECTIONS = mp.POSE_CONNECTIONS || [];
-            return { Pose, POSE_CONNECTIONS };
-          }
-          
-          if (mp.default && typeof mp.default === 'object' && mp.default.Pose) {
-            console.log('✅ Found mp.default.Pose');
-            Pose = mp.default.Pose;
-            POSE_CONNECTIONS = mp.default.POSE_CONNECTIONS || [];
+            Pose = MediaPipePose;
+            POSE_CONNECTIONS = MediaPipeConnections || [];
             return { Pose, POSE_CONNECTIONS };
           }
           
