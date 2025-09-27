@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MediaPipe Test</title>
+</head>
+<body>
+    <h1>MediaPipe Loading Test</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        async function testMediaPipeLoading() {
+            const results = document.getElementById('results');
+            
+            try {
+                console.log('🔄 Testing MediaPipe import...');
+                const mediaPipeModule = await import('/mediapipe/pose.js');
+                console.log('📦 MediaPipe module loaded:', Object.keys(mediaPipeModule));
+                console.log('📦 Default export:', mediaPipeModule.default ? Object.keys(mediaPipeModule.default) : 'No default export');
+                
+                // Try different possible exports
+                const Pose = mediaPipeModule.Pose || mediaPipeModule.default?.Pose || mediaPipeModule.default;
+                
+                console.log('🔍 Pose constructor type:', typeof Pose);
+                console.log('🔍 Pose constructor found:', !!Pose);
+                
+                if (Pose && typeof Pose === 'function') {
+                    results.innerHTML = '<p style="color: green;">✅ MediaPipe loaded successfully! Pose constructor found.</p>';
+                    console.log('✅ MediaPipe test successful');
+                } else {
+                    results.innerHTML = '<p style="color: red;">❌ MediaPipe failed: Pose constructor not found</p>';
+                    console.log('❌ MediaPipe test failed: Pose constructor not found');
+                }
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">❌ MediaPipe import failed: ${error.message}</p>`;
+                console.error('❌ MediaPipe import failed:', error);
+            }
+        }
+        
+        testMediaPipeLoading();
+    </script>
+</body>
+</html>

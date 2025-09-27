@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Loading Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        #results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>MediaPipe Loading Test</h1>
+    <p>This page tests if MediaPipe can load successfully from local files.</p>
+    
+    <button onclick="testMediaPipeLoading()">Test MediaPipe Loading</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function testFileAccessibility() {
+            addResult('🔍 Testing file accessibility...', 'info');
+            
+            try {
+                // Test local MediaPipe files
+                const files = [
+                    '/mediapipe/pose.js',
+                    '/mediapipe/pose_solution_simd_wasm_bin.wasm',
+                    '/mediapipe/pose_landmark_lite.tflite'
+                ];
+                
+                for (const file of files) {
+                    try {
+                        const response = await fetch(file);
+                        if (response.ok) {
+                            addResult(`✅ ${file} - Accessible (${response.status})`, 'success');
+                        } else {
+                            addResult(`❌ ${file} - Not accessible (${response.status})`, 'error');
+                        }
+                    } catch (error) {
+                        addResult(`❌ ${file} - Error: ${error.message}`, 'error');
+                    }
+                }
+            } catch (error) {
+                addResult(`❌ File accessibility test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMediaPipeImport() {
+            addResult('📦 Testing MediaPipe import...', 'info');
+            
+            try {
+                // Test direct import
+                const mediaPipeModule = await import('@mediapipe/pose');
+                addResult('✅ MediaPipe module imported successfully', 'success');
+                addResult(`📦 Module exports: ${Object.keys(mediaPipeModule).join(', ')}`, 'info');
+                
+                // Check for Pose constructor
+                const Pose = mediaPipeModule.Pose || mediaPipeModule.default?.Pose || mediaPipeModule.default;
+                if (Pose && typeof Pose === 'function') {
+                    addResult('✅ Pose constructor found', 'success');
+                    return { Pose };
+                } else {
+                    addResult('❌ Pose constructor not found', 'error');
+                    return null;
+                }
+            } catch (error) {
+                addResult(`❌ MediaPipe import failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function testMediaPipeInitialization(poseModule) {
+            if (!poseModule) {
+                addResult('❌ Cannot test initialization - no Pose module', 'error');
+                return false;
+            }
+            
+            addResult('🚀 Testing MediaPipe initialization...', 'info');
+            
+            try {
+                const pose = new poseModule.Pose({
+                    locateFile: (file) => {
+                        addResult(`📁 Loading file: ${file}`, 'info');
+                        return `/mediapipe/${file}`;
+                    }
+                });
+                
+                addResult('✅ MediaPipe Pose instance created', 'success');
+                
+                // Test setOptions
+                await pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                addResult('✅ MediaPipe options set successfully', 'success');
+                
+                // Test initialize
+                await pose.initialize();
+                addResult('✅ MediaPipe initialized successfully!', 'success');
+                
+                // Clean up
+                if (pose.close) {
+                    pose.close();
+                    addResult('🔒 MediaPipe closed', 'info');
+                }
+                
+                return true;
+            } catch (error) {
+                addResult(`❌ MediaPipe initialization failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testMediaPipeLoading() {
+            addResult('🧪 Starting MediaPipe loading test...', 'info');
+            
+            // Test 1: File accessibility
+            await testFileAccessibility();
+            
+            // Test 2: Module import
+            const poseModule = await testMediaPipeImport();
+            
+            // Test 3: Initialization
+            const success = await testMediaPipeInitialization(poseModule);
+            
+            if (success) {
+                addResult('🎉 ALL TESTS PASSED! MediaPipe is working correctly.', 'success');
+            } else {
+                addResult('❌ Some tests failed. Check the results above.', 'error');
+            }
+        }
+
+        // Auto-run test on page load
+        window.addEventListener('load', () => {
+            addResult('📄 Test page loaded. Click "Test MediaPipe Loading" to begin.', 'info');
+        });
+    </script>
+</body>
+</html>

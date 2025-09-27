@@ -27,12 +27,96 @@ const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => ({
 }));
 
 const mockPhases: EnhancedSwingPhase[] = [
-  { name: 'address', startFrame: 0, endFrame: 10, confidence: 0.9 },
-  { name: 'backswing', startFrame: 10, endFrame: 40, confidence: 0.8 },
-  { name: 'top', startFrame: 40, endFrame: 45, confidence: 0.9 },
-  { name: 'downswing', startFrame: 45, endFrame: 70, confidence: 0.8 },
-  { name: 'impact', startFrame: 70, endFrame: 75, confidence: 0.9 },
-  { name: 'follow-through', startFrame: 75, endFrame: 100, confidence: 0.8 }
+  { 
+    name: 'address', 
+    startFrame: 0, 
+    endFrame: 10, 
+    duration: 10,
+    confidence: 0.9,
+    startTime: 0,
+    endTime: 0.33,
+    color: '#10b981',
+    description: 'Address position',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  },
+  { 
+    name: 'backswing', 
+    startFrame: 10, 
+    endFrame: 40, 
+    duration: 30,
+    confidence: 0.8,
+    startTime: 0.33,
+    endTime: 1.33,
+    color: '#10b981',
+    description: 'Backswing motion',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  },
+  { 
+    name: 'top', 
+    startFrame: 40, 
+    endFrame: 45, 
+    duration: 5,
+    confidence: 0.9,
+    startTime: 1.33,
+    endTime: 1.5,
+    color: '#f59e0b',
+    description: 'Top of backswing',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  },
+  { 
+    name: 'downswing', 
+    startFrame: 45, 
+    endFrame: 70, 
+    duration: 25,
+    confidence: 0.8,
+    startTime: 1.5,
+    endTime: 2.33,
+    color: '#ef4444',
+    description: 'Downswing motion',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  },
+  { 
+    name: 'impact', 
+    startFrame: 70, 
+    endFrame: 75, 
+    duration: 5,
+    confidence: 0.9,
+    startTime: 2.33,
+    endTime: 2.5,
+    color: '#dc2626',
+    description: 'Impact with ball',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  },
+  { 
+    name: 'follow-through', 
+    startFrame: 75, 
+    endFrame: 100, 
+    duration: 25,
+    confidence: 0.8,
+    startTime: 2.5,
+    endTime: 3.33,
+    color: '#8b5cf6',
+    description: 'Follow-through motion',
+    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    grade: 'B',
+    professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+    recommendations: []
+  }
 ];
 
 const TestDebugContent: React.FC = () => {

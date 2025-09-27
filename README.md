@@ -33,6 +33,40 @@ A golf swing analysis platform built with Next.js 15, TypeScript, and Tailwind C
 - **[Quick Reference](./docs/QUICK_REFERENCE.md)** - Quick reference for metrics and improvement tips
 - **[Grading Flowchart](./docs/GRADING_FLOWCHART.md)** - Visual representation of the analysis process
 
+## 🧪 Testing
+
+### Quick Test Execution
+1. **Start the development server**: `npm run dev`
+2. **Navigate to test page**: http://localhost:3001/test-implementation
+3. **Click "Run All Implementation Tests"** to execute the comprehensive test suite
+4. **Monitor console output** for detailed test results and any failures
+
+### Test Coverage
+- ✅ **MediaPipe Configuration** - Verifies MediaPipe initialization and fallback systems
+- ✅ **Tempo Validation Logic** - Tests golf swing tempo calculations and validation
+- ✅ **Emergency Pose Generation** - Validates fallback pose generation for poor video quality
+- ✅ **Video Preparation** - Tests video format support and processing capabilities
+- ✅ **Golf Analysis Integration** - End-to-end analysis pipeline testing
+- ✅ **Console Logging Patterns** - Verifies proper logging and debugging output
+- ✅ **Error Handling** - Tests error scenarios and graceful degradation
+- ✅ **Performance Benchmarks** - Measures analysis speed and memory usage
+
+### Force Emergency Mode Testing
+To test the emergency fallback system:
+```bash
+# Set environment variable to force emergency mode
+export SV_FORCE_EMERGENCY=1
+npm run dev
+```
+
+### CI/CD Pipeline
+Automated testing runs on every push and pull request:
+- TypeScript type checking
+- Build verification
+- Test execution
+- ESLint code quality checks
+- Security audit
+
 ## 🏌️ Features
 
 ### 🎥 Real-Time Camera Analysis

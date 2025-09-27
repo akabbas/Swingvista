@@ -79,7 +79,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
             </Tooltip>
           </div>
           <p className="text-sm text-gray-600">Times: {tempoText}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{swingMetrics.tempo?.ratio?.toFixed(2) || '0.00'} : 1</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{swingMetrics.tempo?.tempoRatio?.toFixed(2) || '0.00'} : 1</p>
           <p className="text-xs text-gray-500 mt-1">Ideal ≈ 3.0 : 1</p>
         </div>
 
@@ -90,7 +90,7 @@ export default function SwingFeedback({ title = 'Your Swing Analysis', analysis 
               <span className="text-xs text-gray-500">Info</span>
             </Tooltip>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation?.shoulders?.toFixed(1) || '0.0'}°</p>
+          <p className="text-2xl font-bold text-gray-900">{swingMetrics.rotation?.shoulderTurn?.toFixed(1) || '0.0'}°</p>
           <p className="text-xs text-gray-500 mt-1">Target 90–100°</p>
         </div>
 

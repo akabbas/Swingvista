@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MediaPipePoseDetector, type PoseResult } from '@/lib/mediapipe';
 import { trackEvent } from '@/lib/analytics';
 import CameraOverlayContainer from '@/components/ui/CameraOverlayContainer';
-import { EnhancedPhaseDetector, WeightDistribution, ClubPosition, displayCurrentPhase } from '@/lib/enhanced-phase-detector';
+import { EnhancedPhaseDetector, WeightDistribution, ClubPosition } from '@/lib/enhanced-phase-detector';
 import { calculateSwingMetrics } from '@/lib/golf-metrics';
 
 export default function CameraEnhancedPage() {
@@ -97,7 +97,7 @@ export default function CameraEnhancedPage() {
     // Check if swing is complete
     if (detectedPhase.name === 'follow-through' && poseHistory.length > 30) {
       // Calculate final metrics
-      const metrics = calculateSwingMetrics([...poseHistory, pose]);
+      const metrics = calculateSwingMetrics([...poseHistory, pose], [], { path: [], smoothness: 0, accuracy: 0 });
       setSwingMetrics(metrics);
       
       // Reset after a delay
@@ -127,10 +127,9 @@ export default function CameraEnhancedPage() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Detect poses
-    const poses = await poseDetectorRef.current.detectPoses(canvas);
+    const pose = await poseDetectorRef.current.detectPose(video);
     
-    if (poses.length > 0) {
-      const pose = poses[0];
+    if (pose && pose.landmarks) {
       analyzeSwingPhase(pose);
       
       // Draw pose landmarks
@@ -165,7 +164,7 @@ export default function CameraEnhancedPage() {
 
       // Initialize pose detector
       if (!poseDetectorRef.current) {
-        poseDetectorRef.current = new MediaPipePoseDetector();
+        poseDetectorRef.current = MediaPipePoseDetector.getInstance();
         await poseDetectorRef.current.initialize();
       }
 
@@ -349,12 +348,46 @@ export default function CameraEnhancedPage() {
               <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-semibold mb-3">Swing Metrics</h3>
                 <div className="text-sm space-y-1">
-                  {Object.entries(swingMetrics).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                      <span className="font-mono">{typeof value === 'number' ? value.toFixed(2) : String(value)}</span>
-                    </div>
-                  ))}
+                  {Object.entries(swingMetrics).map(([key, value]) => {
+                    // Handle different metric types properly
+                    let displayValue = 'N/A';
+                    
+                    if (typeof value === 'number') {
+                      displayValue = value.toFixed(2);
+                    } else if (typeof value === 'object' && value !== null) {
+                      // Handle metric objects with specific properties
+                      if (key === 'tempo' && (value as any).tempoRatio !== undefined) {
+                        displayValue = `${(value as any).tempoRatio.toFixed(1)}:1`;
+                      } else if (key === 'rotation' && (value as any).shoulderTurn !== undefined) {
+                        displayValue = `${(value as any).shoulderTurn.toFixed(0)}°`;
+                      } else if (key === 'weightTransfer' && (value as any).impact !== undefined) {
+                        displayValue = `${(value as any).impact.toFixed(1)}%`;
+                      } else if (key === 'swingPlane' && (value as any).planeDeviation !== undefined) {
+                        displayValue = `${(value as any).planeDeviation.toFixed(1)}°`;
+                      } else if (key === 'bodyAlignment' && (value as any).spineAngle !== undefined) {
+                        displayValue = `${(value as any).spineAngle.toFixed(1)}°`;
+                      } else {
+                        // For other objects, show a summary
+                        const objKeys = Object.keys(value);
+                        if (objKeys.length > 0) {
+                          displayValue = `${objKeys.length} metrics`;
+                        } else {
+                          displayValue = 'No data';
+                        }
+                      }
+                    } else if (typeof value === 'string') {
+                      displayValue = value;
+                    } else if (typeof value === 'boolean') {
+                      displayValue = value ? 'Yes' : 'No';
+                    }
+                    
+                    return (
+                      <div key={key} className="flex justify-between">
+                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                        <span className="font-mono text-green-400">{displayValue}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

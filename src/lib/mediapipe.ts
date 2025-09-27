@@ -44,6 +44,13 @@ export class MediaPipePoseDetector {
       console.log('✅ MediaPipe already initialized');
       return;
     }
+
+    // Check for force emergency mode environment variable
+    if (process.env.SV_FORCE_EMERGENCY === '1' || process.env.NEXT_PUBLIC_SV_FORCE_EMERGENCY === '1') {
+      console.log('🔧 Force emergency mode enabled via environment variable');
+      this.createEnhancedEmergencyFallback();
+      return;
+    }
     
     // Check if we're in browser environment
     if (typeof window === 'undefined') {

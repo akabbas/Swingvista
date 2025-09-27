@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyze Button Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .debug { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <h1>Analyze Button Debug Guide</h1>
+    <p>This page helps you debug why the analyze button disappears after file upload.</p>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function createDebugGuide() {
+            addResult('🔍 Analyze Button Debug Guide', 'info');
+            addResult('', 'info');
+            
+            addResult('📋 Step-by-Step Debug Process:', 'debug');
+            addResult('1. Open the upload page in your browser', 'debug');
+            addResult('2. Open browser console (F12 → Console)', 'debug');
+            addResult('3. Look for the yellow debug box at the top', 'debug');
+            addResult('4. Upload a video file', 'debug');
+            addResult('5. Watch the debug messages change', 'debug');
+            addResult('', 'info');
+            
+            addResult('🎯 What to Look For:', 'info');
+            addResult('', 'info');
+            
+            addResult('BEFORE FILE UPLOAD:', 'success');
+            addResult('• Yellow box shows: "File state = null"', 'success');
+            addResult('• Yellow box shows: "Show analyze button = no"', 'success');
+            addResult('• Red message: "UPLOAD AREA VISIBLE"', 'success');
+            addResult('• Console shows: "UploadPage render - file state: null"', 'success');
+            addResult('', 'info');
+            
+            addResult('AFTER FILE UPLOAD:', 'success');
+            addResult('• Yellow box shows: "File state = [filename]"', 'success');
+            addResult('• Yellow box shows: "Show analyze button = yes"', 'success');
+            addResult('• Green message: "FILE CONDITION MET"', 'success');
+            addResult('• Blue message: "ANALYZE BUTTON SECTION IS RENDERING"', 'success');
+            addResult('• Purple message: "ANALYZE BUTTON IS BEING RENDERED HERE"', 'success');
+            addResult('• Console shows: "File change event triggered"', 'success');
+            addResult('', 'info');
+            
+            addResult('🚨 If Analyze Button Still Disappears:', 'error');
+            addResult('• Check if you see the green/blue/purple messages', 'error');
+            addResult('• Check console for any JavaScript errors', 'error');
+            addResult('• Check if result state is being set unexpectedly', 'error');
+            addResult('• Look for React rendering errors', 'error');
+            addResult('', 'info');
+            
+            addResult('📞 Report Back:', 'info');
+            addResult('Tell me what you see in:', 'info');
+            addResult('1. The yellow debug box (before and after)', 'info');
+            addResult('2. The console messages', 'info');
+            addResult('3. Whether you see the colored debug messages', 'info');
+            addResult('4. Whether the analyze button actually appears', 'info');
+        }
+        
+        // Run debug guide
+        createDebugGuide();
+    </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ const ProgressChart = lazy(() => import('@/components/analysis/ProgressChart'));
 
 // Import unified analysis system
 import { analyzeGolfSwing, validateVideoFile, getAnalysisStatus } from '@/lib/unified-analysis';
+import { extractPosesFromVideo } from '@/lib/video-poses';
 import type { PoseResult } from '@/lib/mediapipe';
 
 // State management
@@ -387,7 +388,7 @@ export default function UploadPage() {
       
       let extracted: PoseResult[];
       try {
-        extracted = await extractPosesFromVideoFile(state.file, {
+        extracted = await extractPosesFromVideo(state.file, {
           sampleFps: 20,
           maxFrames: 200,
           minConfidence: 0.4,

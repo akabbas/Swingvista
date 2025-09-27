@@ -37,12 +37,100 @@ const TestClubTracerPage: React.FC = () => {
 
     // Simulate swing phases
     const dummyPhases: EnhancedSwingPhase[] = [
-      { name: 'address', startFrame: 0, endFrame: 10, duration: 10, confidence: 0.9 },
-      { name: 'backswing', startFrame: 11, endFrame: 40, duration: 30, confidence: 0.8 },
-      { name: 'top', startFrame: 41, endFrame: 45, duration: 5, confidence: 0.95 },
-      { name: 'downswing', startFrame: 46, endFrame: 60, duration: 15, confidence: 0.85 },
-      { name: 'impact', startFrame: 61, endFrame: 63, duration: 3, confidence: 0.98 },
-      { name: 'follow-through', startFrame: 64, endFrame: 99, duration: 36, confidence: 0.8 }
+      { 
+        name: 'address', 
+        startFrame: 0, 
+        endFrame: 10, 
+        duration: 10, 
+        confidence: 0.9,
+        startTime: 0,
+        endTime: 0.33,
+        color: '#3b82f6',
+        description: 'Setup position',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'A',
+        recommendations: [],
+        professionalBenchmark: {
+          idealDuration: 0.33,
+          keyPositions: [],
+          commonMistakes: []
+        }
+      },
+      { 
+        name: 'backswing', 
+        startFrame: 11, 
+        endFrame: 40, 
+        duration: 30, 
+        confidence: 0.8,
+        startTime: 0.37,
+        endTime: 1.33,
+        color: '#10b981',
+        description: 'Backswing motion',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'B',
+        professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+        recommendations: []
+      },
+      { 
+        name: 'top', 
+        startFrame: 41, 
+        endFrame: 45, 
+        duration: 5, 
+        confidence: 0.95,
+        startTime: 1.37,
+        endTime: 1.5,
+        color: '#f59e0b',
+        description: 'Top of backswing',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'B',
+        professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+        recommendations: []
+      },
+      { 
+        name: 'downswing', 
+        startFrame: 46, 
+        endFrame: 60, 
+        duration: 15, 
+        confidence: 0.85,
+        startTime: 1.53,
+        endTime: 2.0,
+        color: '#ef4444',
+        description: 'Downswing motion',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'B',
+        professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+        recommendations: []
+      },
+      { 
+        name: 'impact', 
+        startFrame: 61, 
+        endFrame: 63, 
+        duration: 3, 
+        confidence: 0.98,
+        startTime: 2.03,
+        endTime: 2.1,
+        color: '#dc2626',
+        description: 'Impact with ball',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'B',
+        professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+        recommendations: []
+      },
+      { 
+        name: 'follow-through', 
+        startFrame: 64, 
+        endFrame: 99, 
+        duration: 36, 
+        confidence: 0.8,
+        startTime: 2.13,
+        endTime: 3.3,
+        color: '#8b5cf6',
+        description: 'Follow-through motion',
+        metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+        grade: 'B',
+        professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
+        recommendations: []
+      }
     ];
     setPhases(dummyPhases);
   }, []);

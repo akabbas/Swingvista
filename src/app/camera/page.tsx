@@ -426,7 +426,7 @@ export default function CameraPage() {
       streamRef.current = null;
     }
     if (detectorRef.current) {
-      detectorRef.current.destroy();
+      detectorRef.current.close();
       detectorRef.current = null;
     }
     try { trackEvent('camera_session_end'); } catch {}

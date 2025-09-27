@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { MediaPipePoseDetector } from '@/lib/mediapipe';
 import { EnhancedPhaseDetector } from '@/lib/enhanced-phase-detector';
@@ -13,6 +13,111 @@ export default function UploadPage() {
   const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Debug: Log file state changes
+  console.log('🔍 UploadPage render - file state:', file ? file.name : 'null');
+  console.log('🔍 UploadPage render - result state:', result ? 'has result' : 'no result');
+  console.log('🔍 UploadPage render - isAnalyzing:', isAnalyzing);
+
+  // Track file state changes
+  useEffect(() => {
+    console.log('🔄 File state changed:', file ? file.name : 'null');
+    if (file) {
+      console.log('✅ File selected - analyze button should be visible');
+    } else {
+      console.log('❌ No file selected - upload area should be visible');
+    }
+  }, [file]);
+
+  // Pose overlay drawing effect
+  useEffect(() => {
+    if (!result || !result.analysis) return;
+
+    const video = document.getElementById('analysis-video') as HTMLVideoElement;
+    const canvas = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement;
+    
+    if (!video || !canvas) return;
+
+    // Set canvas size to match video
+    const resizeCanvas = () => {
+      const rect = video.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Draw pose overlays
+    const drawPoseOverlay = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Get current video time
+      const currentTime = video.currentTime;
+      const fps = 30; // Assuming 30 FPS
+      const frameIndex = Math.floor(currentTime * fps);
+
+      // Find pose data for current frame
+      const poses = result.analysis?.poses || [];
+      if (poses.length > 0 && frameIndex < poses.length) {
+        const pose = poses[frameIndex];
+        if (pose && pose.landmarks) {
+          drawPoseLandmarks(ctx, pose.landmarks, canvas.width, canvas.height);
+        }
+      }
+    };
+
+    // Draw pose landmarks
+    const drawPoseLandmarks = (ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number) => {
+      ctx.strokeStyle = '#00ff00';
+      ctx.fillStyle = '#00ff00';
+      ctx.lineWidth = 2;
+
+      // Draw connections between landmarks
+      const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // Arms
+        [11, 23], [12, 24], [23, 24], // Torso
+        [23, 25], [25, 27], [24, 26], [26, 28], // Legs
+        [15, 17], [15, 19], [15, 21], [16, 18], [16, 20], [16, 22], // Hands
+        [27, 29], [27, 31], [28, 30], [28, 32] // Feet
+      ];
+
+      connections.forEach(([start, end]) => {
+        if (landmarks[start] && landmarks[end] && 
+            landmarks[start].visibility > 0.5 && landmarks[end].visibility > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(landmarks[start].x * width, landmarks[start].y * height);
+          ctx.lineTo(landmarks[end].x * width, landmarks[end].y * height);
+          ctx.stroke();
+        }
+      });
+
+      // Draw landmarks
+      landmarks.forEach((landmark, index) => {
+        if (landmark && landmark.visibility > 0.5) {
+          ctx.beginPath();
+          ctx.arc(landmark.x * width, landmark.y * height, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      });
+    };
+
+    // Update overlay on video time change
+    video.addEventListener('timeupdate', drawPoseOverlay);
+    video.addEventListener('loadedmetadata', resizeCanvas);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      video.removeEventListener('timeupdate', drawPoseOverlay);
+      video.removeEventListener('loadedmetadata', resizeCanvas);
+    };
+  }, [result]);
+
   // Progress tracking function
   const updateProgress = (frame: number, totalFrames: number) => {
     const percent = Math.round((frame / totalFrames) * 100);
@@ -22,21 +127,73 @@ export default function UploadPage() {
     setAnalysisProgress(percent);
   };
 
-  // Extract poses from video frames with improved error handling and infinite loop prevention
+  // Extract poses from video frames with CRITICAL video preparation
   const extractPosesFromVideo = async (video: HTMLVideoElement, detector: MediaPipePoseDetector) => {
+    // CRITICAL: Wait for video to be fully ready
+    if (video.readyState < 4) {
+      console.log('⏳ Waiting for video to be fully ready...');
+      await new Promise(resolve => {
+        video.addEventListener('loadeddata', resolve, { once: true });
+        setTimeout(resolve, 3000); // Fallback timeout
+      });
+    }
+
+    // Set video to start and wait for seek
+    video.currentTime = 0;
+    await new Promise(resolve => {
+      video.addEventListener('seeked', resolve, { once: true });
+      setTimeout(resolve, 1000);
+    });
+
+    console.log('🎬 Video prepared for analysis:', {
+      duration: video.duration,
+      dimensions: `${video.videoWidth}x${video.videoHeight}`,
+      readyState: video.readyState
+    });
+    
+    // Test with a single frame first
+    console.log('🧪 Testing MediaPipe with sample frame...');
+    video.currentTime = video.duration * 0.5; // Middle of video
+    await new Promise(resolve => {
+      video.addEventListener('seeked', resolve, { once: true });
+      setTimeout(resolve, 1000);
+    });
+    
+    console.log('Testing MediaPipe with sample frame...', {
+      currentTime: video.currentTime,
+      duration: video.duration,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      readyState: video.readyState
+    });
+    
+    try {
+      const testResult = await detector.detectPoseWithRetries(video);
+      console.log('✅ Sample frame test successful:', {
+        hasLandmarks: !!(testResult?.landmarks),
+        landmarkCount: testResult?.landmarks?.length || 0,
+        hasWorldLandmarks: !!(testResult?.worldLandmarks),
+        worldLandmarkCount: testResult?.worldLandmarks?.length || 0
+      });
+    } catch (testError) {
+      console.warn('⚠️ Sample frame test failed, but continuing with extraction:', testError);
+    }
+    
+    // Continue with full extraction
     const poses: any[] = [];
     const totalFrames = Math.min(Math.floor(video.duration * 30), 86);
     let consecutiveFailures = 0;
     const maxConsecutiveFailures = 5;
     
-    console.log(`🎬 Starting pose extraction for ${totalFrames} frames...`);
+    console.log(`🎬 Starting full pose extraction for ${totalFrames} frames...`);
 
     for (let frame = 0; frame < totalFrames; frame++) {
       try {
-        // Set video time
-        video.currentTime = frame / 30;
+        // Set video time with better precision
+        const targetTime = frame / 30;
+        video.currentTime = targetTime;
         
-        // Wait for video seek to complete
+        // CRITICAL: Wait for video seek to complete with proper event handling
         await new Promise((resolve) => {
           if (video.readyState >= 2) { // HAVE_CURRENT_DATA
             resolve(null);
@@ -48,21 +205,40 @@ export default function UploadPage() {
             video.addEventListener('seeked', onSeeked);
             
             // Timeout for seeking
-            setTimeout(resolve, 200);
+            setTimeout(() => {
+              video.removeEventListener('seeked', onSeeked);
+              resolve(null);
+            }, 1000); // Increased timeout for better reliability
           }
         });
         
-        // Wait briefly for video to stabilize
-        await new Promise(resolve => setTimeout(resolve, 30));
+        // Wait for video to stabilize with longer time
+        await new Promise(resolve => setTimeout(resolve, 200)); // Increased stabilization time
+        
+        // Verify video is ready for processing
+        if (video.readyState < 2) {
+          console.warn(`⚠️ Frame ${frame}: Video not ready (readyState: ${video.readyState})`);
+          throw new Error(`Video not ready for frame ${frame}`);
+        }
         
         let pose;
-        // Use the public detectPose method
+        // Use the smart retry mechanism for better success rate
         try {
+          console.log(`🎯 Processing frame ${frame}/${totalFrames} at time ${targetTime.toFixed(2)}s`);
           pose = await Promise.race([
-            detector.detectPose(video),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
+            detector.detectPoseWithSmartRetry(video),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
           ]);
+          
+          // Log successful detection
+          if (pose && pose.landmarks && pose.landmarks.length > 0) {
+            console.log(`✅ Frame ${frame}: Detected ${pose.landmarks.length} landmarks`);
+          } else {
+            console.warn(`⚠️ Frame ${frame}: No landmarks detected, using fallback`);
+            pose = generateFallbackPose(frame, totalFrames, video.duration);
+          }
         } catch (detectionError) {
+          console.warn(`❌ Frame ${frame}: Detection failed:`, (detectionError as Error).message);
           // Fallback to generated pose data
           pose = generateFallbackPose(frame, totalFrames, video.duration);
         }
@@ -119,10 +295,18 @@ export default function UploadPage() {
   };
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📁 File change event triggered');
     const selectedFile = event.target.files?.[0];
+    console.log('📁 Selected file:', selectedFile);
+    
     if (selectedFile) {
+      console.log('📁 Setting file state:', selectedFile.name, selectedFile.size);
       setFile(selectedFile);
       setError(null);
+      setResult(null); // Ensure result is cleared
+      console.log('📁 File state updated, analyze button should appear');
+    } else {
+      console.log('❌ No file selected');
     }
   }, []);
 
@@ -193,14 +377,19 @@ export default function UploadPage() {
       
       // Analyze the swing
       console.log('⚡ Analyzing swing...');
-      const analysis = await analyzeGolfSwingSimple(poses);
+      const isEmergencyMode = detector.isInEmergencyMode();
+      console.log('🔄 Analysis mode:', isEmergencyMode ? 'Emergency fallback' : 'Real MediaPipe');
+      const analysis = await analyzeGolfSwingSimple(poses, isEmergencyMode);
       console.log('✅ Analysis complete:', analysis);
       
       // Set result with status information
       setResult({
         message: 'Swing analysis complete!',
         file: file.name,
-        analysis: analysis,
+        analysis: {
+          ...analysis,
+          poses: poses // Include poses data for overlay drawing
+        },
         poseCount: poses.length,
         videoDuration: video.duration,
         isEmergencyMode: poses.some(pose => 
@@ -208,8 +397,8 @@ export default function UploadPage() {
         ) // Detect if using fallback data
       });
       
-      // Clean up
-      URL.revokeObjectURL(video.src);
+      // Don't revoke URL here - let the video element handle it
+      // URL.revokeObjectURL(video.src);
       
     } catch (err) {
       console.error('❌ Analysis failed:', err);
@@ -251,10 +440,21 @@ export default function UploadPage() {
             <p className="text-gray-600">
               Upload a video of your golf swing for AI-powered analysis
             </p>
+            
+            {/* Debug info */}
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Debug:</strong> File = {file ? `"${file.name}"` : 'null'} | 
+                Show Analyze Button = {file ? 'YES' : 'NO'}
+              </p>
+            </div>
                 </div>
 
           {!file && !result && (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <p className="text-xs text-gray-400 mb-4">
+                Debug: Upload area visible (file = {file ? 'selected' : 'null'})
+              </p>
                 <input
                 ref={inputRef}
                   type="file"
@@ -262,6 +462,7 @@ export default function UploadPage() {
                 onChange={handleFileChange}
                   className="hidden"
                 id="file-upload"
+                data-testid="file-input"
               />
               <label
                 htmlFor="file-upload"
@@ -277,37 +478,66 @@ export default function UploadPage() {
                   MP4, MOV, AVI files supported
                 </span>
               </label>
+              
+              {/* Debug: Manual file input trigger */}
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    console.log('🔧 Manual file input trigger clicked');
+                    inputRef.current?.click();
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                >
+                  🔧 Debug: Click to Open File Dialog
+                </button>
+              </div>
               </div>
               )}
 
-          {file && (
+          {file && !result && (
             <div className="mb-6">
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">Selected File:</h3>
                 <p className="text-sm text-gray-600">{file.name}</p>
                 <p className="text-sm text-gray-500">
                   Size: {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
-                </div>
+                <p className="text-xs text-green-600 font-bold">
+                  ✅ File selected - Analyze button should be below
+                </p>
+              </div>
+              
+              {/* Video Preview */}
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">Video Preview:</h4>
+                <video
+                  src={URL.createObjectURL(file)}
+                  controls
+                  className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                  style={{ maxHeight: '300px' }}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
               
               <div className="flex gap-4 mt-4">
-                  <button
+                <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isAnalyzing ? 'Analyzing...' : 'Analyze Swing'}
-                  </button>
+                </button>
                 
-                  <button
+                <button
                   onClick={handleReset}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
-                    >
+                >
                   Reset
-                  </button>
-                </div>
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
           {isAnalyzing && (
               <div className="mb-6">
@@ -376,6 +606,33 @@ export default function UploadPage() {
                     </div>
                   </div>
                   )}
+
+                  {/* Video Player with Pose Overlays */}
+                  {file && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4">Analyzed Video with Pose Overlays</h4>
+                      <div className="relative bg-black rounded-lg overflow-hidden">
+                        <video
+                          src={URL.createObjectURL(file)}
+                          controls
+                          className="w-full h-auto max-h-96"
+                          style={{ aspectRatio: '16/9' }}
+                          id="analysis-video"
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                        {/* Pose overlay canvas */}
+                        <canvas
+                          id="pose-overlay-canvas"
+                          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                          style={{ zIndex: 10 }}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Video with pose detection overlays. Pose landmarks are drawn in real-time.
+                      </p>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="bg-gray-50 p-3 rounded">
@@ -411,7 +668,15 @@ export default function UploadPage() {
                               {key.replace(/([A-Z])/g, ' $1').trim()}:
                             </span>
                             <span className="ml-2 text-sm font-semibold text-blue-900">
-                              {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                              {typeof value === 'number' ? value.toFixed(2) : 
+                               typeof value === 'object' && value !== null ? 
+                                 ((value as any).tempoRatio ? `${(value as any).tempoRatio.toFixed(1)}:1` :
+                                  (value as any).shoulderTurn ? `${(value as any).shoulderTurn.toFixed(0)}°` :
+                                  (value as any).impact ? `${(value as any).impact.toFixed(1)}%` :
+                                  (value as any).planeDeviation ? `${(value as any).planeDeviation.toFixed(1)}°` :
+                                  (value as any).spineAngle ? `${(value as any).spineAngle.toFixed(1)}°` :
+                                  'Complex data') : 
+                               String(value)}
                             </span>
                       </div>
                     ))}
@@ -444,6 +709,30 @@ export default function UploadPage() {
               )}
                 </div>
               )}
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={handleReset}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+                >
+                  Upload New Video
+                </button>
+                <button
+                  onClick={() => {
+                    setResult(null);
+                    setFile(null);
+                    setError(null);
+                    setAnalysisProgress(0);
+                    if (inputRef.current) {
+                      inputRef.current.value = '';
+                    }
+                  }}
+                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+                >
+                  Start Over
+                </button>
+              </div>
             </div>
           )}
 

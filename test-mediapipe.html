@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Test</title>
+</head>
+<body>
+    <h1>MediaPipe Test</h1>
+    <div id="status">Testing MediaPipe...</div>
+    <div id="results"></div>
+
+    <script type="module">
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        
+        async function testMediaPipe() {
+            try {
+                status.textContent = 'Loading MediaPipe with multiple strategies...';
+                
+                // Test 1: Try direct import
+                let Pose;
+                try {
+                    const { Pose: ImportedPose } = await import('@mediapipe/pose');
+                    Pose = ImportedPose;
+                    results.innerHTML += '<p>✅ MediaPipe module loaded via direct import</p>';
+                } catch (importError) {
+                    results.innerHTML += `<p>❌ Direct import failed: ${importError.message}</p>`;
+                    
+                    // Try global MediaPipe
+                    if (window.MediaPipePose && window.MediaPipePose.Pose) {
+                        Pose = window.MediaPipePose.Pose;
+                        results.innerHTML += '<p>✅ MediaPipe found globally</p>';
+                    } else {
+                        throw new Error('No MediaPipe available via import or global');
+                    }
+                }
+                
+                // Test 2: Create Pose instance with multiple CDN fallbacks
+                const pose = new Pose({
+                    locateFile: (file) => {
+                        const cdns = [
+                            `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+                            `https://unpkg.com/@mediapipe/pose/${file}`,
+                            `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+                        ];
+                        console.log(`Loading: ${file} from ${cdns[0]}`);
+                        return cdns[0];
+                    }
+                });
+                results.innerHTML += '<p>✅ Pose instance created with CDN fallbacks</p>';
+                
+                // Test 3: Set options
+                await pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                results.innerHTML += '<p>✅ Options set successfully</p>';
+                
+                // Test 4: Initialize with timeout
+                const initPromise = pose.initialize();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+                );
+                
+                await Promise.race([initPromise, timeoutPromise]);
+                results.innerHTML += '<p>✅ MediaPipe initialized successfully</p>';
+                
+                status.textContent = 'MediaPipe test PASSED!';
+                status.style.color = 'green';
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                results.innerHTML += `<p>❌ Stack: ${error.stack}</p>`;
+                status.textContent = 'MediaPipe test FAILED!';
+                status.style.color = 'red';
+            }
+        }
+        
+        testMediaPipe();
+    </script>
+</body>
+</html>

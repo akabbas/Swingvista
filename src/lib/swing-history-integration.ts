@@ -95,8 +95,9 @@ export class SafeSwingHistoryIntegration {
     }
 
     // Import here to avoid circular dependency
-    const { SwingHistoryStorage } = require('./swing-history-storage');
-    return SwingHistoryStorage.getSessionHistory(targetSessionId);
+    // const { SwingHistoryStorage } = require('./swing-history-storage'); // Disabled for browser compatibility
+    // return SwingHistoryStorage.getSessionHistory(targetSessionId);
+    return []; // Disabled for browser compatibility
   }
 }
 

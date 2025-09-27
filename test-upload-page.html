@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Page Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>Upload Page Test</h1>
+    <p>This page tests if the upload page is working correctly.</p>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function testUploadPage() {
+            addResult('🧪 Testing upload page...', 'info');
+            
+            try {
+                // Test 1: Check if upload page loads
+                const response = await fetch('/upload');
+                if (response.ok) {
+                    addResult('✅ Upload page loads successfully', 'success');
+                } else {
+                    addResult('❌ Upload page failed to load: ' + response.status, 'error');
+                    return;
+                }
+                
+                // Test 2: Check if the page contains expected elements
+                const html = await response.text();
+                
+                if (html.includes('file-upload')) {
+                    addResult('✅ File upload input found', 'success');
+                } else {
+                    addResult('❌ File upload input not found', 'error');
+                }
+                
+                if (html.includes('Analyze Swing')) {
+                    addResult('✅ Analyze Swing button found in HTML', 'success');
+                } else {
+                    addResult('❌ Analyze Swing button not found in HTML', 'error');
+                }
+                
+                if (html.includes('handleAnalyze')) {
+                    addResult('✅ handleAnalyze function found', 'success');
+                } else {
+                    addResult('❌ handleAnalyze function not found', 'error');
+                }
+                
+                // Test 3: Check for JavaScript errors
+                addResult('🔍 Check browser console for JavaScript errors', 'info');
+                addResult('📋 Look for errors related to:', 'info');
+                addResult('   • MediaPipe loading', 'info');
+                addResult('   • File upload handling', 'info');
+                addResult('   • React component rendering', 'info');
+                
+            } catch (error) {
+                addResult('❌ Test failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Run test
+        testUploadPage();
+    </script>
+</body>
+</html>

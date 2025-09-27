@@ -449,17 +449,15 @@ export default function UploadPage() {
       console.log('📊 Analyzing video:', state.file.name);
       
       // Simulate analysis process
-      const result = await analyzeGolfSwing(state.file, {
-        enableAI: true,
-        enableValidation: true,
-        enableDynamicAdvice: true
+      const result = await analyzeGolfSwing(state.file, (step: string, progress: number) => {
+        console.log(`Analysis step: ${step} (${progress}%)`);
       });
 
       console.log('✅ Analysis completed:', result);
       
       dispatch({ type: 'SET_RESULT', payload: result });
-      dispatch({ type: 'SET_POSES', payload: result.poses || [] });
-      dispatch({ type: 'SET_AI_ANALYSIS', payload: result.aiAnalysis || null });
+      dispatch({ type: 'SET_POSES', payload: [] });
+      dispatch({ type: 'SET_AI_ANALYSIS', payload: null });
       
     } catch (error) {
       console.error('❌ Analysis failed:', error);

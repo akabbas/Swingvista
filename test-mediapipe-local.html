@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Local Test</title>
+</head>
+<body>
+    <h1>MediaPipe Local Loading Test</h1>
+    <div id="status">Loading...</div>
+    <div id="logs"></div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            console.log(message);
+            logsDiv.innerHTML += '<div>' + message + '</div>';
+        }
+        
+        async function testMediaPipeLoading() {
+            try {
+                log('🔄 Testing local MediaPipe loading...');
+                
+                // Test if local files are accessible
+                const response = await fetch('/mediapipe/pose.js');
+                if (response.ok) {
+                    log('✅ Local MediaPipe files are accessible');
+                } else {
+                    log('❌ Local MediaPipe files not accessible');
+                    return;
+                }
+                
+                // Load MediaPipe script
+                const script = document.createElement('script');
+                script.src = '/mediapipe/pose.js';
+                
+                script.onload = () => {
+                    log('✅ MediaPipe script loaded successfully');
+                    
+                    // Check if Pose is available
+                    if (typeof window.Pose === 'function') {
+                        log('✅ Pose constructor found: ' + typeof window.Pose);
+                        statusDiv.innerHTML = '✅ MediaPipe loaded successfully from local files!';
+                        statusDiv.style.color = 'green';
+                        
+                        // Try to create a Pose instance
+                        try {
+                            const pose = new window.Pose({
+                                locateFile: (file) => {
+                                    log('📁 Loading file: ' + file);
+                                    return '/mediapipe/' + file;
+                                }
+                            });
+                            log('✅ Pose instance created successfully');
+                        } catch (error) {
+                            log('❌ Failed to create Pose instance: ' + error.message);
+                        }
+                    } else {
+                        log('❌ Pose constructor not found');
+                        statusDiv.innerHTML = '❌ MediaPipe failed to load';
+                        statusDiv.style.color = 'red';
+                    }
+                };
+                
+                script.onerror = (error) => {
+                    log('❌ Failed to load MediaPipe script: ' + error);
+                    statusDiv.innerHTML = '❌ MediaPipe script failed to load';
+                    statusDiv.style.color = 'red';
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                log('❌ Test failed: ' + error.message);
+                statusDiv.innerHTML = '❌ Test failed: ' + error.message;
+                statusDiv.style.color = 'red';
+            }
+        }
+        
+        // Start the test
+        testMediaPipeLoading();
+    </script>
+</body>
+</html>

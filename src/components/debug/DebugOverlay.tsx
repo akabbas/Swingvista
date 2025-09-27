@@ -299,7 +299,15 @@ const DebugComponentPanel: React.FC<DebugComponentPanelProps> = ({
               <div key={key} className="flex justify-between">
                 <span className="text-gray-400">{key}:</span>
                 <span className="text-white">
-                  {typeof value === 'number' ? value.toFixed(2) : String(value)}
+                  {typeof value === 'number' ? value.toFixed(2) : 
+                   typeof value === 'object' && value !== null ? 
+                     (value.tempoRatio ? `${value.tempoRatio.toFixed(1)}:1` :
+                      value.shoulderTurn ? `${value.shoulderTurn.toFixed(0)}°` :
+                      value.impact ? `${value.impact.toFixed(1)}%` :
+                      value.planeDeviation ? `${value.planeDeviation.toFixed(1)}°` :
+                      value.spineAngle ? `${value.spineAngle.toFixed(1)}°` :
+                      'Object data') : 
+                   String(value)}
                 </span>
               </div>
             ))}

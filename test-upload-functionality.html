@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .debug { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <h1>Upload Functionality Test</h1>
+    <p>This page tests the upload functionality step by step.</p>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function testUploadFunctionality() {
+            addResult('🧪 Testing upload functionality...', 'info');
+            
+            // Test 1: Check if upload page loads
+            addResult('📄 Step 1: Loading upload page...', 'info');
+            try {
+                const response = await fetch('/upload');
+                if (response.ok) {
+                    addResult('✅ Upload page loads successfully', 'success');
+                } else {
+                    addResult('❌ Upload page failed to load: ' + response.status, 'error');
+                    return;
+                }
+            } catch (error) {
+                addResult('❌ Failed to load upload page: ' + error.message, 'error');
+                return;
+            }
+            
+            // Test 2: Check for expected elements
+            addResult('🔍 Step 2: Checking for expected elements...', 'info');
+            try {
+                const response = await fetch('/upload');
+                const html = await response.text();
+                
+                const checks = [
+                    { name: 'File input element', pattern: 'id="file-upload"' },
+                    { name: 'File change handler', pattern: 'onChange={handleFileChange}' },
+                    { name: 'Analyze button', pattern: 'Analyze Swing' },
+                    { name: 'File state display', pattern: 'Selected File:' },
+                    { name: 'Debug info', pattern: 'Debug Info:' }
+                ];
+                
+                checks.forEach(check => {
+                    if (html.includes(check.pattern)) {
+                        addResult(`✅ ${check.name} found`, 'success');
+                    } else {
+                        addResult(`❌ ${check.name} not found`, 'error');
+                    }
+                });
+                
+            } catch (error) {
+                addResult('❌ Failed to check elements: ' + error.message, 'error');
+            }
+            
+            // Test 3: Instructions for manual testing
+            addResult('📋 Step 3: Manual testing instructions...', 'debug');
+            addResult('1. Open the upload page in your browser', 'debug');
+            addResult('2. Open browser console (F12 → Console)', 'debug');
+            addResult('3. Look for the yellow debug box showing file state', 'debug');
+            addResult('4. Try uploading a video file', 'debug');
+            addResult('5. Check console for file change messages', 'debug');
+            addResult('6. See if analyze button appears after file selection', 'debug');
+            
+            addResult('🎯 Expected behavior:', 'info');
+            addResult('• Before upload: Shows "File state = null"', 'info');
+            addResult('• After upload: Shows "File state = [filename]"', 'info');
+            addResult('• After upload: Analyze button should appear', 'info');
+            addResult('• Console should show file change messages', 'info');
+        }
+        
+        // Run test
+        testUploadFunctionality();
+    </script>
+</body>
+</html>

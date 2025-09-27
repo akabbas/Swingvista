@@ -253,7 +253,7 @@ export class HybridPhaseDetector {
    * Calculate rule-based weight
    */
   private calculateRuleWeight(confidence: number): number {
-    let weight = confidence;
+    const weight = confidence;
     
     // Rule-based is more reliable for certain phases
     const phaseReliability = {

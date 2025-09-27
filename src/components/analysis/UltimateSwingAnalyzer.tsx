@@ -13,7 +13,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { SwingAnalysis, analyzeGolfSwing } from '@/lib/swing-analysis';
+import { analyzeGolfSwingSimple, SimpleGolfAnalysis } from '@/lib/simple-golf-analysis';
 import { loadVideoWithFallbacks, diagnoseVideoLoading } from '@/lib/video-loading-fixes';
 import { PoseResult } from '@/lib/mediapipe';
 
@@ -28,9 +28,40 @@ interface UltimateSwingAnalyzerProps {
   enableDynamicAdvice?: boolean;
   enableSystemFeatures?: boolean;
   performanceMode?: 'fast' | 'balanced' | 'thorough';
-  onAnalysisComplete?: (analysis: SwingAnalysis) => void;
+  onAnalysisComplete?: (analysis: SimpleGolfAnalysis) => void;
   onError?: (error: Error) => void;
 }
+
+// 🎯 HELPER FUNCTIONS FOR SAFE DISPLAY
+const formatMetric = (value: number | undefined, unit: string = '', decimals: number = 1): string => {
+  if (value === undefined || value === null || isNaN(value)) return 'N/A';
+  return `${value.toFixed(decimals)}${unit}`;
+};
+
+const getGradeColor = (grade: string): string => {
+  switch(grade) {
+    case 'A+': return 'text-green-600';
+    case 'A': return 'text-green-600';
+    case 'A-': return 'text-green-500';
+    case 'B+': return 'text-blue-600';
+    case 'B': return 'text-blue-500';
+    case 'B-': return 'text-yellow-600';
+    case 'C+': return 'text-yellow-500';
+    case 'C': return 'text-orange-500';
+    case 'C-': return 'text-orange-600';
+    case 'D': return 'text-red-500';
+    case 'F': return 'text-red-600';
+    default: return 'text-gray-600';
+  }
+};
+
+const getScoreColor = (score: number): string => {
+  if (score >= 90) return 'text-green-600';
+  if (score >= 80) return 'text-blue-600';
+  if (score >= 70) return 'text-yellow-600';
+  if (score >= 60) return 'text-orange-600';
+  return 'text-red-600';
+};
 
 // 🚀 ULTIMATE SWING ANALYZER COMPONENT
 export default function UltimateSwingAnalyzer({
@@ -51,7 +82,7 @@ export default function UltimateSwingAnalyzer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any | null>(null);
+  const [analysis, setAnalysis] = useState<SimpleGolfAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [poses, setPoses] = useState<PoseResult[]>([]);
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -127,18 +158,8 @@ export default function UltimateSwingAnalyzer({
       
       setPoses(mockPoses);
       
-      // 🎯 ULTIMATE ANALYSIS
-      const analysisResult = await analyzeGolfSwing(
-        videoRef.current,
-        mockPoses,
-        {
-          enableAI,
-          enableValidation,
-          enableDynamicAdvice,
-          enableUltimateFeatures,
-          performanceMode
-        }
-      );
+      // 🎯 ULTIMATE ANALYSIS (using emergency mode for mock poses)
+      const analysisResult = await analyzeGolfSwingSimple(mockPoses, true);
       
       setAnalysis(analysisResult);
       setPerformanceMetrics({
@@ -164,7 +185,7 @@ export default function UltimateSwingAnalyzer({
     } finally {
       setIsAnalyzing(false);
     }
-  }, [videoLoaded, enableAI, enableValidation, enableDynamicAdvice, enableUltimateFeatures, performanceMode, onAnalysisComplete, onError]);
+  }, [videoLoaded, enableAI, enableValidation, enableDynamicAdvice, performanceMode, onAnalysisComplete, onError]);
   
   // 🎯 ULTIMATE RENDER
   return (
@@ -225,7 +246,7 @@ export default function UltimateSwingAnalyzer({
             {isAnalyzing ? (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Analyzing...
+                <span>Analyzing {poses.length} poses...</span>
               </div>
             ) : (
               '🚀 Start Ultimate Analysis'
@@ -283,28 +304,41 @@ export default function UltimateSwingAnalyzer({
       {/* 🎯 ULTIMATE ANALYSIS RESULTS */}
       {analysis && (
         <div className="ultimate-results">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6 mb-6">
             <h3 className="text-xl font-bold text-green-800 mb-4">
-              🎉 Ultimate Analysis Complete!
+              🎉 Analysis Complete!
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">
+                <div className={`text-4xl font-bold ${getScoreColor(analysis.overallScore)}`}>
                   {isNaN(analysis.overallScore) ? 'N/A' : Math.round(analysis.overallScore)}
                 </div>
-                <div className="text-sm text-green-700">Overall Score</div>
+                <div className="text-sm text-gray-600">Overall Score</div>
+                <div className="text-xs text-gray-500 mt-1">out of 100</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">
+                <div className={`text-4xl font-bold ${getGradeColor(analysis.letterGrade)}`}>
                   {analysis.letterGrade || 'N/A'}
                 </div>
-                <div className="text-sm text-green-700">Letter Grade</div>
+                <div className="text-sm text-gray-600">Letter Grade</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {analysis.letterGrade === 'A' && 'Excellent!'}
+                  {analysis.letterGrade === 'B' && 'Good work!'}
+                  {analysis.letterGrade === 'C' && 'Keep practicing!'}
+                  {analysis.letterGrade === 'D' && 'Room for improvement'}
+                  {analysis.letterGrade === 'F' && 'Focus on fundamentals'}
+                </div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">
+                <div className={`text-4xl font-bold ${analysis.confidence > 0.8 ? 'text-green-600' : analysis.confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'}`}>
                   {isNaN(analysis.confidence) ? 'N/A' : Math.round(analysis.confidence * 100)}%
                 </div>
-                <div className="text-sm text-green-700">Confidence</div>
+                <div className="text-sm text-gray-600">Confidence</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {analysis.confidence > 0.8 && 'High accuracy'}
+                  {analysis.confidence > 0.6 && 'Good accuracy'}
+                  {analysis.confidence <= 0.6 && 'Limited accuracy'}
+                </div>
               </div>
             </div>
           </div>
@@ -313,138 +347,168 @@ export default function UltimateSwingAnalyzer({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h4 className="font-bold text-gray-800 mb-3">📊 Enhanced Metrics</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Tempo:</span>
-                  <span className="font-medium">
-                    {isNaN(analysis.metrics.tempo) ? 'N/A' : analysis.metrics.tempo.toFixed(2)}
-                  </span>
+              <div className="space-y-3">
+                {/* Tempo Section */}
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <h5 className="font-semibold text-blue-800 mb-2">⏱️ Tempo Analysis</h5>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-blue-700">Tempo Ratio:</span>
+                      <span className={`font-medium ${getScoreColor(analysis.metrics?.tempo?.score || 0)}`}>
+                        {formatMetric(analysis.metrics?.tempo?.tempoRatio, ' : 1', 2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-blue-700">Backswing Time:</span>
+                      <span className="font-medium text-blue-600">
+                        {formatMetric(analysis.metrics?.tempo?.backswingTime, 's', 2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-blue-700">Downswing Time:</span>
+                      <span className="font-medium text-blue-600">
+                        {formatMetric(analysis.metrics?.tempo?.downswingTime, 's', 2)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Shoulder Turn:</span>
-                  <span className="font-medium">
-                    {isNaN(analysis.metrics.rotation.shoulderTurn) ? 'N/A' : analysis.metrics.rotation.shoulderTurn.toFixed(1)}°
-                  </span>
+
+                {/* Rotation Section */}
+                <div className="bg-green-50 rounded-lg p-3">
+                  <h5 className="font-semibold text-green-800 mb-2">🔄 Rotation Analysis</h5>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-green-700">Shoulder Turn:</span>
+                      <span className={`font-medium ${getScoreColor(analysis.metrics?.rotation?.score || 0)}`}>
+                        {formatMetric(analysis.metrics?.rotation?.shoulderTurn, '°', 1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-green-700">Hip Turn:</span>
+                      <span className="font-medium text-green-600">
+                        {formatMetric(analysis.metrics?.rotation?.hipTurn, '°', 1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-green-700">X-Factor:</span>
+                      <span className="font-medium text-green-600">
+                        {formatMetric(analysis.metrics?.rotation?.xFactor, '°', 1)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Weight Transfer:</span>
-                  <span className="font-medium">
-                    {isNaN(analysis.metrics.weightTransfer.impact) ? 'N/A' : analysis.metrics.weightTransfer.impact.toFixed(1)}%
-                  </span>
+
+                {/* Weight Transfer Section */}
+                <div className="bg-purple-50 rounded-lg p-3">
+                  <h5 className="font-semibold text-purple-800 mb-2">⚖️ Weight Transfer</h5>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-purple-700">Impact Weight:</span>
+                    <span className={`font-medium ${getScoreColor(analysis.metrics?.weightTransfer?.score || 0)}`}>
+                      {formatMetric(analysis.metrics?.weightTransfer?.impact, '%', 1)}
+                    </span>
+                  </div>
                 </div>
-            <div className="flex justify-between">
-              <span>Swing Plane:</span>
-              <span className="font-medium">
-                {isNaN(analysis.metrics.swingPlane.consistency) ? 'N/A' : analysis.metrics.swingPlane.consistency.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Power:</span>
-              <span className="font-medium">
-                {isNaN(analysis.metrics.power) ? 'N/A' : analysis.metrics.power.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Balance:</span>
-              <span className="font-medium">
-                {isNaN(analysis.metrics.balance) ? 'N/A' : analysis.metrics.balance.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Flexibility:</span>
-              <span className="font-medium">
-                {isNaN(analysis.metrics.flexibility) ? 'N/A' : analysis.metrics.flexibility.toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Swing Type:</span>
-              <span className="font-medium">
-                {analysis.metrics.swingType || 'N/A'}
-              </span>
-            </div>
+
+                {/* Swing Plane Section */}
+                <div className="bg-orange-50 rounded-lg p-3">
+                  <h5 className="font-semibold text-orange-800 mb-2">✈️ Swing Plane</h5>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-orange-700">Plane Deviation:</span>
+                    <span className={`font-medium ${getScoreColor(analysis.metrics?.swingPlane?.score || 0)}`}>
+                      {formatMetric(analysis.metrics?.swingPlane?.planeDeviation, '°', 1)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Body Alignment Section */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <h5 className="font-semibold text-gray-800 mb-2">🧍 Body Alignment</h5>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-700">Spine Angle:</span>
+                    <span className={`font-medium ${getScoreColor(analysis.metrics?.bodyAlignment?.score || 0)}`}>
+                      {formatMetric(analysis.metrics?.bodyAlignment?.spineAngle, '°', 1)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {analysis.enhancedValidation && (
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">🎯 Enhanced Validation</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Pose Quality:</span>
-                    <span className="font-medium">{(analysis.enhancedValidation.poseDataQuality?.confidence * 100 || 0).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Calculation Accuracy:</span>
-                    <span className="font-medium">{(analysis.enhancedValidation.calculationAccuracy?.confidence * 100 || 0).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Physical Possibility:</span>
-                    <span className="font-medium">{(analysis.enhancedValidation.physicalPossibility?.confidence * 100 || 0).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Video Consistency:</span>
-                    <span className="font-medium">{(analysis.enhancedValidation.videoConsistency?.confidence * 100 || 0).toFixed(1)}%</span>
-                  </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h4 className="font-bold text-gray-800 mb-3">📊 Analysis Details</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Impact Frame:</span>
+                  <span className="font-medium">{analysis.impactFrame || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Confidence:</span>
+                  <span className="font-medium">{analysis.confidence ? (analysis.confidence * 100).toFixed(1) + '%' : 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Poses Analyzed:</span>
+                  <span className="font-medium">{poses.length}</span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
           
           {/* 🎯 ULTIMATE FEEDBACK DISPLAY */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <h4 className="font-bold text-blue-800 mb-3">💬 Enhanced Feedback</h4>
+            <h4 className="font-bold text-blue-800 mb-3">💬 Swing Feedback</h4>
             <div className="space-y-3">
-              <div>
-                <strong>Overall Assessment:</strong>
-                <p className="text-blue-700">{analysis.feedback.overallAssessment}</p>
-              </div>
-              <div>
-                <strong>Key Tip:</strong>
-                <p className="text-blue-700">{analysis.feedback.keyTip}</p>
-              </div>
-              <div>
-                <strong>Professional Insight:</strong>
-                <p className="text-blue-700">{analysis.feedback.professionalInsight}</p>
-              </div>
+              {analysis.feedback && analysis.feedback.length > 0 ? (
+                analysis.feedback.map((feedback: string, index: number) => (
+                  <div key={index}>
+                    <p className="text-blue-700">{feedback}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-blue-700">No specific feedback available for this analysis.</p>
+              )}
             </div>
           </div>
           
-          {/* 🎯 ULTIMATE FEATURES DISPLAY */}
-          {analysis.ultimateFeatures && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-              <h4 className="font-bold text-purple-800 mb-3">🚀 Ultimate Features</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <strong>Performance:</strong>
-                  <p className="text-purple-700">
-                    {isNaN(analysis.ultimateFeatures.performanceMetrics.analysisTime) ? 'N/A' : analysis.ultimateFeatures.performanceMetrics.analysisTime.toFixed(0)}ms
-                  </p>
-                </div>
-                <div>
-                  <strong>Optimization:</strong>
-                  <p className="text-purple-700">
-                    {isNaN(analysis.ultimateFeatures.performanceMetrics.optimizationLevel) ? 'N/A' : analysis.ultimateFeatures.performanceMetrics.optimizationLevel}%
-                  </p>
-                </div>
-                <div>
-                  <strong>User Satisfaction:</strong>
-                  <p className="text-purple-700">
-                    {isNaN(analysis.ultimateFeatures.userExperience.userSatisfaction) ? 'N/A' : analysis.ultimateFeatures.userExperience.userSatisfaction}%
-                  </p>
-                </div>
+          {/* 🎯 KEY IMPROVEMENTS DISPLAY */}
+          {analysis.keyImprovements && analysis.keyImprovements.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+              <h4 className="font-bold text-yellow-800 mb-3">🎯 Key Improvements</h4>
+              <div className="space-y-3">
+                {analysis.keyImprovements.map((improvement: string, index: number) => (
+                  <div key={index}>
+                    <p className="text-yellow-700">{improvement}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
+          
         </div>
       )}
       
       {/* 🎯 ULTIMATE ERROR DISPLAY */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
+          <div className="flex items-center mb-2">
             <span className="text-red-500 mr-2">❌</span>
-            <p className="text-red-700">{error}</p>
+            <p className="text-red-700 font-medium">Analysis Error</p>
           </div>
+          <p className="text-red-600 mb-3">{error}</p>
+          {error.includes('emergency') && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+              <p className="text-yellow-800 text-sm">
+                <strong>Note:</strong> Using fallback analysis mode. Results may be less accurate but still provide valuable insights.
+              </p>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              setError(null);
+              setAnalysis(null);
+            }}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       )}
       

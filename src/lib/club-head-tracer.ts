@@ -68,7 +68,7 @@ export class ClubHeadTracer {
     const weights = this.calculateMethodWeights(methods, frameIndex);
     
     // Combine methods with weighted average
-    let finalPosition = { x: 0.5, y: 0.5, z: 0.5 };
+    const finalPosition = { x: 0.5, y: 0.5, z: 0.5 };
     let totalWeight = 0;
     let handedness: 'left' | 'right' = 'right';
     let clubLength = 0.3;

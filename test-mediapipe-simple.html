@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple MediaPipe Test</title>
+</head>
+<body>
+    <h1>MediaPipe Loading Test</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            console.log(message);
+            output.innerHTML += '<div>' + message + '</div>';
+        }
+        
+        async function testMediaPipe() {
+            log('🧪 Starting MediaPipe test...');
+            
+            try {
+                // Test 1: Import MediaPipe
+                log('📦 Importing MediaPipe...');
+                const mediaPipeModule = await import('@mediapipe/pose');
+                log('✅ MediaPipe module imported');
+                log('📦 Module keys: ' + Object.keys(mediaPipeModule).join(', '));
+                
+                // Test 2: Get Pose constructor
+                const Pose = mediaPipeModule.default?.Pose;
+                log('🔍 Pose constructor: ' + typeof Pose);
+                
+                if (!Pose || typeof Pose !== 'function') {
+                    throw new Error('Pose constructor not found');
+                }
+                
+                log('✅ Pose constructor found');
+                
+                // Test 3: Create Pose instance
+                log('🚀 Creating Pose instance...');
+                const pose = new Pose({
+                    locateFile: (file) => {
+                        log('📁 Loading file: ' + file);
+                        return '/mediapipe/' + file;
+                    }
+                });
+                
+                log('✅ Pose instance created');
+                
+                // Test 4: Set options
+                log('⚙️ Setting options...');
+                await pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                log('✅ Options set');
+                
+                // Test 5: Initialize
+                log('🚀 Initializing MediaPipe...');
+                await pose.initialize();
+                
+                log('🎉 MediaPipe initialized successfully!');
+                
+                // Clean up
+                if (pose.close) {
+                    pose.close();
+                    log('🔒 MediaPipe closed');
+                }
+                
+            } catch (error) {
+                log('❌ Error: ' + error.message);
+                log('📋 Stack: ' + error.stack);
+            }
+        }
+        
+        // Run test
+        testMediaPipe();
+    </script>
+</body>
+</html>

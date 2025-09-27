@@ -358,7 +358,16 @@ export default function VideoDebugger({ videoUrl, videoName, isSampleVideo = fal
             <div className="mb-4 p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold mb-2">Video Properties:</h4>
               {Object.entries(debugInfo).map(([key, value]) => (
-                <p key={key}><strong>{key}:</strong> {String(value)}</p>
+                <p key={key}><strong>{key}:</strong> {
+                  typeof value === 'object' && value !== null ? 
+                    ((value as any).tempoRatio ? `${(value as any).tempoRatio.toFixed(1)}:1` :
+                     (value as any).shoulderTurn ? `${(value as any).shoulderTurn.toFixed(0)}°` :
+                     (value as any).impact ? `${(value as any).impact.toFixed(1)}%` :
+                     (value as any).planeDeviation ? `${(value as any).planeDeviation.toFixed(1)}°` :
+                     (value as any).spineAngle ? `${(value as any).spineAngle.toFixed(1)}°` :
+                     'Object data') : 
+                    String(value)
+                }</p>
               ))}
             </div>
           )}

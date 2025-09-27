@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple MediaPipe Test</title>
+</head>
+<body>
+    <h1>Simple MediaPipe Test</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        async function testMediaPipe() {
+            const results = document.getElementById('results');
+            
+            try {
+                console.log('🔄 Testing MediaPipe import...');
+                const mediaPipeModule = await import('@mediapipe/pose');
+                console.log('📦 MediaPipe module loaded:', Object.keys(mediaPipeModule));
+                
+                const Pose = mediaPipeModule.Pose;
+                console.log('🔍 Pose constructor type:', typeof Pose);
+                
+                if (Pose && typeof Pose === 'function') {
+                    results.innerHTML = '<p style="color: green;">✅ MediaPipe loaded successfully! Pose constructor found.</p>';
+                    console.log('✅ MediaPipe test successful');
+                    
+                    // Try to create a Pose instance
+                    const pose = new Pose({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+                        }
+                    });
+                    
+                    console.log('✅ Pose instance created successfully');
+                    results.innerHTML += '<p style="color: green;">✅ Pose instance created successfully!</p>';
+                } else {
+                    results.innerHTML = '<p style="color: red;">❌ MediaPipe failed: Pose constructor not found</p>';
+                    console.log('❌ MediaPipe test failed: Pose constructor not found');
+                }
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">❌ MediaPipe import failed: ${error.message}</p>`;
+                console.error('❌ MediaPipe import failed:', error);
+            }
+        }
+        
+        testMediaPipe();
+    </script>
+</body>
+</html>

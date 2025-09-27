@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Debug Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .log { margin: 5px 0; padding: 5px; border-left: 3px solid #ccc; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .info { border-left-color: #17a2b8; background: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <h1>MediaPipe Debug Test</h1>
+    <div id="logs"></div>
+
+    <script type="module">
+        const logs = document.getElementById('logs');
+        
+        function addLog(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = new Date().toISOString() + ' - ' + message;
+            logs.appendChild(div);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        async function debugMediaPipe() {
+            addLog('🔍 Starting MediaPipe debug test...', 'info');
+            
+            // Test 1: Check browser capabilities
+            addLog('🌐 Browser: ' + navigator.userAgent, 'info');
+            addLog('🔧 WebAssembly: ' + (typeof WebAssembly !== 'undefined'), 'info');
+            addLog('🔧 SharedArrayBuffer: ' + (typeof SharedArrayBuffer !== 'undefined'), 'info');
+            addLog('🔧 OffscreenCanvas: ' + (typeof OffscreenCanvas !== 'undefined'), 'info');
+            
+            // Test 2: Check file accessibility
+            addLog('📁 Testing file accessibility...', 'info');
+            try {
+                const response = await fetch('/mediapipe/pose.js');
+                addLog('✅ pose.js accessible: ' + response.status, 'success');
+            } catch (error) {
+                addLog('❌ pose.js not accessible: ' + error.message, 'error');
+            }
+            
+            try {
+                const response = await fetch('/mediapipe/pose_solution_simd_wasm_bin.wasm');
+                addLog('✅ WASM file accessible: ' + response.status, 'success');
+            } catch (error) {
+                addLog('❌ WASM file not accessible: ' + error.message, 'error');
+            }
+            
+            // Test 3: Import MediaPipe
+            addLog('📦 Importing MediaPipe module...', 'info');
+            try {
+                const mediaPipeModule = await import('@mediapipe/pose');
+                addLog('✅ MediaPipe module imported', 'success');
+                addLog('📦 Module structure: ' + JSON.stringify(Object.keys(mediaPipeModule)), 'info');
+                
+                // Check default export
+                if (mediaPipeModule.default) {
+                    addLog('📦 Default export keys: ' + Object.keys(mediaPipeModule.default), 'info');
+                    
+                    const Pose = mediaPipeModule.default.Pose;
+                    addLog('🔍 Pose constructor: ' + typeof Pose, 'info');
+                    
+                    if (typeof Pose === 'function') {
+                        addLog('✅ Pose constructor found', 'success');
+                        
+                        // Test 4: Create Pose instance
+                        addLog('🚀 Creating Pose instance...', 'info');
+                        try {
+                            const pose = new Pose({
+                                locateFile: (file) => {
+                                    addLog('📁 locateFile called for: ' + file, 'info');
+                                    return '/mediapipe/' + file;
+                                }
+                            });
+                            
+                            addLog('✅ Pose instance created', 'success');
+                            
+                            // Test 5: Set options
+                            addLog('⚙️ Setting options...', 'info');
+                            await pose.setOptions({
+                                modelComplexity: 1,
+                                smoothLandmarks: true,
+                                minDetectionConfidence: 0.5,
+                                minTrackingConfidence: 0.5
+                            });
+                            
+                            addLog('✅ Options set successfully', 'success');
+                            
+                            // Test 6: Initialize
+                            addLog('🚀 Initializing MediaPipe...', 'info');
+                            await pose.initialize();
+                            
+                            addLog('🎉 MediaPipe initialized successfully!', 'success');
+                            
+                            // Clean up
+                            if (pose.close) {
+                                pose.close();
+                                addLog('🔒 MediaPipe closed', 'info');
+                            }
+                            
+                        } catch (error) {
+                            addLog('❌ Pose instance error: ' + error.message, 'error');
+                            addLog('📋 Stack: ' + error.stack, 'error');
+                        }
+                    } else {
+                        addLog('❌ Pose constructor not found in default export', 'error');
+                    }
+                } else {
+                    addLog('❌ No default export found', 'error');
+                }
+                
+            } catch (error) {
+                addLog('❌ MediaPipe import failed: ' + error.message, 'error');
+                addLog('📋 Stack: ' + error.stack, 'error');
+            }
+        }
+        
+        // Run debug test
+        debugMediaPipe();
+    </script>
+</body>
+</html>
