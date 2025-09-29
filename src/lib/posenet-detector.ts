@@ -41,6 +41,18 @@ export class PoseNetDetector {
     try {
       console.log('🤖 Initializing PoseNet...');
       
+      // Initialize TensorFlow.js backend first
+      await tf.ready();
+      console.log('✅ TensorFlow.js backend ready');
+      
+      // Try to set the best available backend
+      try {
+        await tf.setBackend('webgl');
+        console.log('✅ WebGL backend set');
+      } catch (error) {
+        console.log('⚠️ WebGL not available, using default backend');
+      }
+      
       // Create PoseNet detector with golf-optimized settings
       this.detector = await poseDetection.createDetector(
         poseDetection.SupportedModels.PoseNet,
