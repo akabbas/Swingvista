@@ -4,8 +4,8 @@ import path from "path";
 const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true,
-    outputFileTracingRoot: path.join(__dirname),
   },
+  outputFileTracingRoot: path.join(__dirname),
   // Ensure static files are properly configured
   trailingSlash: false,
   // Add asset prefix if needed for development
