@@ -19,6 +19,12 @@ export default function Footer() {
           >
             📤 Upload
           </Link>
+          <Link 
+            href="/test-debug" 
+            className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+          >
+            🛠️ Debug Test
+          </Link>
         </nav>
       </div>
     </footer>

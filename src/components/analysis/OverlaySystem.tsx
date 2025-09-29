@@ -400,7 +400,7 @@ export default function OverlaySystem({
 		const balanceCalculated = !!metrics.balance;
 		const metricsRange = (metrics.tempo.ratio > 0 && metrics.tempo.ratio < 10) ? 'valid' : 'invalid';
 		
-		debuggerInstance.updateComponentStatus('metricsCalculation',
+		debuggerInstance?.updateComponentStatus('metricsCalculation',
 			tempoCalculated && balanceCalculated ? 'ok' : 'warning',
 			{ tempoCalculated, balanceCalculated, metricsRange },
 			{ tempoCalculated, balanceCalculated, metricsRange }
@@ -618,7 +618,7 @@ export default function OverlaySystem({
 		const smoothness = calculatePathSmoothness(smoothedTrajectory);
 		const accuracy = calculatePathAccuracy(smoothedTrajectory);
 		
-		debuggerInstance.updateComponentStatus('clubPath',
+		debuggerInstance?.updateComponentStatus('clubPath',
 			pointsTracked > 10 && smoothness > 0.7 ? 'ok' : 'warning',
 			{ pointsTracked, smoothness, accuracy, processingTime },
 			{ pointsTracked, smoothness, accuracy, processingTime }
@@ -697,7 +697,7 @@ export default function OverlaySystem({
 		const currentPhase = phases.find(p => p.startFrame <= Math.floor((currentTime / 1000) * 30) && p.endFrame >= Math.floor((currentTime / 1000) * 30))?.name || 'unknown';
 		const phaseTiming = phases.length > 0 ? phases.reduce((sum, phase) => sum + (phase.endFrame - phase.startFrame), 0) / phases.length : 0;
 		
-		debuggerInstance.updateComponentStatus('phaseDetection',
+		debuggerInstance?.updateComponentStatus('phaseDetection',
 			phasesDetected >= 4 ? 'ok' : 'warning',
 			{ phasesDetected, phaseSequence, currentPhase, phaseTiming },
 			{ phasesDetected, phaseSequence, currentPhase, phaseTiming }
@@ -729,48 +729,48 @@ export default function OverlaySystem({
     return true;
   }, [isPlaying]);
 
-  // Create phase-accurate path segmentation
-  const createPhaseAccuratePath = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
-    const phaseSegments: Record<string, { points: any[]; color: string; width: number; opacity: number; showMarkers: boolean; markerInterval: number }> = {};
-    
-    const phaseConfig = {
-      address: { color: '#00FF00', width: 2, opacity: 0.8 },
-      backswing: { color: '#FFFF00', width: 3, opacity: 0.8 },
-      downswing: { color: '#FF0000', width: 4, opacity: 0.9 },
-      impact: { color: '#FF00FF', width: 6, opacity: 1.0 },
-      'follow-through': { color: '#0000FF', width: 3, opacity: 0.8 }
-    };
-    
-    Object.keys(phaseConfig).forEach(phaseKey => {
-      const phase = phases.find(p => p.name === phaseKey);
-      if (!phase) return;
-      
-      const start = Math.max(0, Math.min(phase.startFrame, trajectory.length - 1));
-      const end = Math.max(0, Math.min(phase.endFrame, trajectory.length - 1));
-      
-      if (end > start) {
-        const segment = trajectory.slice(start, end + 1);
-        const config = phaseConfig[phaseKey as keyof typeof phaseConfig];
-        
-        phaseSegments[phaseKey] = {
-          points: segment,
-          color: config.color,
-          width: config.width,
-          opacity: config.opacity,
-          showMarkers: true,
-          markerInterval: Math.max(1, Math.floor(segment.length / 10))
-        };
-      }
-    });
-    
-    return phaseSegments;
-  }, []);
+	// Create phase-accurate path segmentation
+	const createPhaseAccuratePath = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
+		const phaseSegments: Record<string, { points: any[]; color: string; width: number; opacity: number; showMarkers: boolean; markerInterval: number }> = {};
+		
+		const phaseConfig = {
+			address: { color: '#00FF00', width: 2, opacity: 0.8 },
+			backswing: { color: '#FFFF00', width: 3, opacity: 0.8 },
+			downswing: { color: '#FF0000', width: 4, opacity: 0.9 },
+			impact: { color: '#FF00FF', width: 6, opacity: 1.0 },
+			'follow-through': { color: '#0000FF', width: 3, opacity: 0.8 }
+		};
+		
+		Object.keys(phaseConfig).forEach(phaseKey => {
+			const phase = phases.find(p => p.name === phaseKey);
+			if (!phase) return;
+			
+			const start = Math.max(0, Math.min(phase.startFrame, trajectory.length - 1));
+			const end = Math.max(0, Math.min(phase.endFrame, trajectory.length - 1));
+			
+			if (end > start) {
+				const segment = trajectory.slice(start, end + 1);
+				const config = phaseConfig[phaseKey as keyof typeof phaseConfig];
+				
+				phaseSegments[phaseKey] = {
+					points: segment,
+					color: config.color,
+					width: config.width,
+					opacity: config.opacity,
+					showMarkers: true,
+					markerInterval: Math.max(1, Math.floor(segment.length / 10))
+				};
+			}
+		});
+		
+		return phaseSegments;
+	}, []);
 
   // Draw position markers for key swing positions
   const drawPositionMarkers = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
-    if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
-    const videoWidth = ctx.canvas.width;
-    const videoHeight = ctx.canvas.height;
+		if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
+		const videoWidth = ctx.canvas.width;
+		const videoHeight = ctx.canvas.height;
     const byName = (name: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === name);
     const address = byName('address');
     const backswing = byName('backswing');
@@ -788,15 +788,15 @@ export default function OverlaySystem({
 
     keyPoints.forEach((kp) => {
       const pt = trajectory[kp.idx];
-      const x = pt.x * videoWidth;
-      const y = pt.y * videoHeight;
+			const x = pt.x * videoWidth;
+			const y = pt.y * videoHeight;
       ctx.beginPath();
       ctx.arc(x, y, kp.size, 0, Math.PI * 2);
       ctx.fillStyle = kp.color;
       ctx.fill();
       ctx.strokeStyle = '#FFFFFF';
       ctx.lineWidth = 2;
-      ctx.stroke();
+		ctx.stroke();
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 18px Arial';
       ctx.fillText(kp.label, x + 20, y - 8);
@@ -813,7 +813,7 @@ export default function OverlaySystem({
     const consistency = calculateSwingPlaneConsistency(trajectory);
     const deviation = calculateSwingPlaneDeviation(trajectory);
     
-    debuggerInstance.updateComponentStatus('swingPlane',
+    debuggerInstance?.updateComponentStatus('swingPlane',
       planeCalculated && consistency > 0.7 ? 'ok' : 'warning',
       { planeCalculated, angle, consistency, deviation },
       { planeCalculated, angle, consistency, deviation }
@@ -836,7 +836,7 @@ export default function OverlaySystem({
     ctx.moveTo(s.x * videoWidth, s.y * videoHeight);
     ctx.lineTo(t.x * videoWidth, t.y * videoHeight);
     ctx.lineTo(i.x * videoWidth, i.y * videoHeight);
-    ctx.stroke();
+			ctx.stroke();
     ctx.setLineDash([]);
   }, []);
 
@@ -871,13 +871,13 @@ export default function OverlaySystem({
         const gripY = ((leftWrist.y + rightWrist.y) / 2) * videoHeight;
   
         // Draw grip marker
-        ctx.beginPath();
+			ctx.beginPath();
         ctx.arc(gripX, gripY, 6, 0, 2 * Math.PI);
         ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
         ctx.fill();
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 2;
-        ctx.stroke();
+			ctx.stroke();
         
         // Draw line from grip to club head
         const clubX = pt.x * videoWidth;
@@ -913,522 +913,117 @@ export default function OverlaySystem({
     ctx.fillText('CLUB HEAD', x + 10, y - 10);
   }, [poses, currentTime]);
 
-  const validateClubPath = useCallback((trajectory: { x: number; y: number }[], phaseList: EnhancedSwingPhase[]) => {
-    const errors: string[] = [];
-    if (!trajectory || trajectory.length < 50) errors.push('Insufficient trajectory data');
-    const get = (n: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === n);
-    const backswing = get('backswing');
-    const downswing = get('downswing');
-    const impact = get('impact');
-    if (downswing && backswing && downswing.startFrame < backswing.endFrame) {
-      errors.push('Invalid phase sequence: downswing before backswing completion');
-    }
-    if (impact && downswing && impact.startFrame < downswing.startFrame) {
-      errors.push('Impact occurs before downswing start');
-    }
-    return errors;
-  }, []);
-
-  // Draw complete club path with phase segmentation
-  const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
-    if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
-    const videoWidth = ctx.canvas.width;
-    const videoHeight = ctx.canvas.height;
-
-    console.log('🎯 Drawing precise club path with', trajectory.length, 'points');
-
-    // Create phase-accurate path segments
-    const phaseSegments = createPhaseAccuratePath(trajectory, phaseList);
-
-    // Draw the complete club path as a continuous line with varying thickness
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Base white path (lighter)
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    // Draw the main path
-    for (let i = 0; i < trajectory.length; i++) {
-      const pt = trajectory[i];
-      const x = pt.x * videoWidth;
-      const y = pt.y * videoHeight;
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-
-    // Draw phase-specific segments with enhanced visualization
-    Object.entries(phaseSegments).forEach(([phaseKey, segment]) => {
-      if (!segment.points.length) return;
-      
-      ctx.beginPath();
-      ctx.strokeStyle = segment.color + Math.floor(segment.opacity * 255).toString(16).padStart(2, '0');
-      ctx.lineWidth = segment.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
-      // Different line styles for different phases
-      if (phaseKey === 'address') {
-        ctx.setLineDash([8, 4]); // Dashed for address
-      } else if (phaseKey === 'impact') {
-        ctx.setLineDash([]); // Solid for impact
-      } else {
-        ctx.setLineDash([2, 2]); // Slightly dashed for other phases
-      }
-      
-      // Draw the phase segment
-      for (let i = 0; i < segment.points.length; i++) {
-        const pt = segment.points[i];
-        const x = pt.x * videoWidth;
-        const y = pt.y * videoHeight;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      ctx.stroke();
-      
-      // Add phase markers at intervals
-      if (segment.showMarkers) {
-        for (let i = 0; i < segment.points.length; i += segment.markerInterval) {
-          const pt = segment.points[i];
-          const x = pt.x * videoWidth;
-          const y = pt.y * videoHeight;
-          
-          ctx.beginPath();
-          ctx.arc(x, y, 3, 0, 2 * Math.PI);
-          ctx.fillStyle = segment.color;
-          ctx.fill();
-        }
-      }
-    });
-    
-    // Reset line dash
-    ctx.setLineDash([]);
-    
-    // Add club head direction indicators (small arrows) - less frequent for cleaner look
-    for (let i = 0; i < trajectory.length - 1; i += Math.max(1, Math.floor(trajectory.length / 15))) {
-      const current = trajectory[i];
-      const next = trajectory[i + 1];
-      const dx = next.x - current.x;
-      const dy = next.y - current.y;
-      const angle = Math.atan2(dy, dx);
-      
-      const x = current.x * videoWidth;
-      const y = current.y * videoHeight;
-      const arrowLength = 6;
-      
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.moveTo(x, y);
-      ctx.lineTo(
-        x + Math.cos(angle) * arrowLength,
-        y + Math.sin(angle) * arrowLength
-      );
-      ctx.stroke();
-    }
-  }, [createPhaseAccuratePath]);
-
-  // Draw skeleton connections
-  const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
-    console.log('=== DRAWING SKELETON ===');
-    console.log('Landmarks count:', landmarks?.length || 0);
-    
-    // Debug monitoring for stick figure
-    const landmarksDetected = landmarks?.length || 0;
-    const confidenceScore = landmarks ? landmarks.reduce((sum, landmark) => sum + (landmark.visibility || 0), 0) / landmarks.length : 0;
-    const renderingStatus = ctx ? 'ok' : 'error';
-    
-    debuggerInstance.updateComponentStatus('stickFigure', 
-      landmarksDetected > 0 && confidenceScore > 0.6 ? 'ok' : 'warning',
-      { landmarksDetected, confidenceScore, renderingStatus },
-      { landmarksDetected, confidenceScore, renderingStatus }
-    );
-    
-    if (!landmarks || landmarks.length === 0) {
-      console.error('No landmarks to draw skeleton');
+  // Fallback club path drawing for when main functions fail
+  const drawFallbackClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[]) => {
+    if (!trajectory || trajectory.length === 0) {
+      console.warn('No trajectory data for fallback drawing');
       return;
     }
     
-    const { width, height } = ctx.canvas;
-    console.log('Canvas dimensions for skeleton:', { width, height });
-    
-    const connections = [
-      // Head
-      [0, 1], [1, 2], [2, 3], [3, 7],
-      [0, 4], [4, 5], [5, 6], [6, 8],
-      // Torso
-      [11, 12], [11, 23], [12, 24], [23, 24],
-      // Arms
-      [11, 13], [13, 15], [12, 14], [14, 16],
-      // Legs
-      [23, 25], [25, 27], [24, 26], [26, 28]
-    ];
-
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-    ctx.lineWidth = 3;
-    
-    let connectionsDrawn = 0;
-    connections.forEach(([a, b]) => {
-      const pa = landmarks[a];
-      const pb = landmarks[b];
-      if (pa && pb && pa.visibility && pa.visibility > 0.5 && pb.visibility && pb.visibility > 0.5) {
-        ctx.beginPath();
-        ctx.moveTo(pa.x * width, pa.y * height);
-        ctx.lineTo(pb.x * width, pb.y * height);
-        ctx.stroke();
-        connectionsDrawn++;
-      }
-    });
-    
-    console.log('Skeleton connections drawn:', connectionsDrawn);
-  }, []);
-
-  // Helper function to find closest pose
-  const findClosestPose = useCallback((time: number): PoseResult | null => {
-    if (!poses || poses.length === 0) return null;
-    
-    const firstPose = poses[0];
-    if (!firstPose || firstPose.timestamp === undefined) return null;
-    
-    let closest = firstPose;
-    let minDiff = Math.abs(firstPose.timestamp - time);
-    
-    for (const pose of poses) {
-      if (pose.timestamp === undefined) continue;
-      const diff = Math.abs(pose.timestamp - time);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = pose;
-      }
-    }
-    
-    return closest;
-  }, [poses]);
-
-  // Draw minimal overlays for Analysis View
-  const drawMinimalOverlays = useCallback((ctx: CanvasRenderingContext2D) => {
-    const { width, height } = ctx.canvas;
-    
-    // Phase indicators (top and bottom bars)
-    if (config.phaseIndicators) {
-      const currentPhase = phases.find(phase => 
-        currentTime >= phase.startTime && currentTime <= phase.endTime
-      );
-      
-      if (currentPhase) {
-        // Top phase bar
-        ctx.fillStyle = `${currentPhase.color}80`;
-        ctx.fillRect(0, 0, width, 8);
-        
-        // Bottom phase bar
-        ctx.fillRect(0, height - 8, width, 8);
-        
-        // Phase name in corner
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(10, 10, 200, 40);
-        ctx.fillStyle = currentPhase.color;
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText(currentPhase.name.toUpperCase(), 20, 30);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '16px Arial';
-        ctx.fillText(`Grade: ${currentPhase.grade}`, 20, 45);
-      }
-    }
-
-    // Key position markers
-    if (config.keyPoints) {
-      const closestPose = findClosestPose(currentTime);
-      if (closestPose?.landmarks) {
-        const keyLandmarks = [0, 11, 12, 23, 24]; // Head, shoulders, hips
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
-        keyLandmarks.forEach(index => {
-          const landmark = closestPose.landmarks[index];
-          if (landmark && landmark.visibility && landmark.visibility > 0.5) {
-            ctx.beginPath();
-            ctx.arc(landmark.x * width, landmark.y * height, 6, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-        });
-      }
-    }
-
-		// Swing path + markers + plane
-    if (config.swingPath) {
-			try {
-				// Debugging logs
-				console.log('🎯 CLUB PATH DEBUG:');
-				console.log('Trajectory points:', trajectoryRef.current.length);
-				console.log('Phase frames:', phases.map(p => ({ name: p.name, start: p.startFrame, end: p.endFrame })));
-				console.log('Camera angle detected:', cameraAngleRef.current);
-				console.log('Drawing functions available:', {
-					drawCompleteClubPath: typeof drawCompleteClubPath,
-					drawPositionMarkers: typeof drawPositionMarkers,
-					drawSwingPlaneFromTrajectory: typeof drawSwingPlaneFromTrajectory,
-					drawRealtimeClubHeadMarker: typeof drawRealtimeClubHeadMarker
-				});
-
-				// Draw complete club path by phases
-				if (typeof drawCompleteClubPath === 'function') {
-					drawCompleteClubPath(ctx, trajectoryRef.current, phases);
-				} else {
-					console.error('drawCompleteClubPath function not available');
-				}
-				
-				// Key position markers
-				if (typeof drawPositionMarkers === 'function') {
-					drawPositionMarkers(ctx, trajectoryRef.current, phases);
-				} else {
-					console.error('drawPositionMarkers function not available');
-				}
-				
-				// Swing plane visualization
-				if (typeof drawSwingPlaneFromTrajectory === 'function') {
-					drawSwingPlaneFromTrajectory(ctx, trajectoryRef.current, phases);
-				} else {
-					console.error('drawSwingPlaneFromTrajectory function not available');
-				}
-				
-				// Real-time club head marker
-				if (typeof drawRealtimeClubHeadMarker === 'function') {
-					drawRealtimeClubHeadMarker(ctx, trajectoryRef.current);
-				} else {
-					console.error('drawRealtimeClubHeadMarker function not available');
-				}
-				
-				// Draw impact zone marker
-				const impactIndex = detectImpactZone(trajectoryRef.current, phases);
-				if (impactIndex !== null && impactIndex < trajectoryRef.current.length) {
-					const impactPoint = trajectoryRef.current[impactIndex];
-					const x = impactPoint.x * ctx.canvas.width;
-					const y = impactPoint.y * ctx.canvas.height;
-					
-					// Draw impact zone circle
-					ctx.beginPath();
-					ctx.arc(x, y, 12, 0, 2 * Math.PI);
-					ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
-					ctx.fill();
-					ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
-					ctx.lineWidth = 3;
-					ctx.stroke();
-					
-					// Draw impact label
-					ctx.fillStyle = '#FFFFFF';
-					ctx.font = 'bold 14px Arial';
-					ctx.fillText('IMPACT', x + 15, y - 10);
-				}
-
-				// Validate
-				if (typeof validateClubPath === 'function') {
-					const errors = validateClubPath(trajectoryRef.current, phases);
-					if (errors.length) console.warn('Club path validation:', errors);
-				}
-			} catch (e) {
-				console.error('Error drawing club path overlays:', e);
-				// Fallback: draw simple club path
-				console.log('Attempting fallback club path drawing...');
-				drawFallbackClubPath(ctx, trajectoryRef.current);
-			}
-		}
-
-    // Draw skeleton in analysis mode
-    if (config.skeleton) {
-      console.log('Drawing skeleton in analysis mode...');
-      const closestPose = findClosestPose(currentTime);
-      if (closestPose?.landmarks) {
-        drawSkeleton(ctx, closestPose.landmarks);
-        
-        // Analyze and draw weight distribution
-        const frameIndex = Math.floor((currentTime / 1000) * 30);
-        const weightDist = analyzeCurrentWeightDistribution(closestPose.landmarks, frameIndex);
-        
-        if (weightDist && weightDist.confidence > 0.5) {
-          drawWeightDistribution(ctx, weightDist);
-          drawBalanceIndicators(ctx, weightDist);
-        }
-      } else {
-        console.warn('No landmarks found for skeleton in analysis mode');
-      }
-    }
-
-    // Basic metrics display
-    if (config.metrics) {
-      drawBasicMetrics(ctx);
-    }
-
-    // Draw swing feedback if available
-    if (currentFeedbackRef.current) {
-      drawSwingFeedback(ctx, currentFeedbackRef.current);
-    }
-
-    // Draw club head tracer if available
-    if (clubHeadTrajectoryRef.current) {
-      drawClubHeadTracer(ctx, clubHeadTrajectoryRef.current, currentTime);
-    }
-
-    // Draw real-time club head marker
-    if (trajectoryRef.current) {
-      drawRealtimeClubHeadMarker(ctx, trajectoryRef.current);
-    }
-  }, [config, phases, currentTime, poses, findClosestPose, drawSkeleton, drawCompleteClubPath, drawPositionMarkers, drawSwingPlaneFromTrajectory, drawRealtimeClubHeadMarker, validateClubPath, drawFallbackClubPath, detectImpactZone, drawWeightDistribution, drawBalanceIndicators, drawSwingFeedback, analyzeCurrentWeightDistribution, generateSwingFeedback, analyzeSwingMetrics, drawClubHeadTracer, drawClubHeadPhaseMarkers, buildClubHeadTrajectory, getCurrentClubHeadPosition]);
-
-
-	// Create phase-accurate path segmentation
-
-	// --- COMPLETE CLUB PATH DRAWING ---
-
-	// Calculate swing plane angle
-	const calculateSwingPlaneAngle = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
-		if (trajectory.length < 3) return 0;
-		
-		const start = trajectory[0];
-		const mid = trajectory[Math.floor(trajectory.length / 2)];
-		const end = trajectory[trajectory.length - 1];
-		
-		const angle1 = Math.atan2(mid.y - start.y, mid.x - start.x);
-		const angle2 = Math.atan2(end.y - mid.y, end.x - mid.x);
-		
-		return Math.abs(angle2 - angle1) * 180 / Math.PI;
-	}, []);
-
-	// Calculate swing plane consistency
-	const calculateSwingPlaneConsistency = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
-		if (trajectory.length < 5) return 0;
-		
-		// Calculate how consistent the swing plane is
-		let totalDeviation = 0;
-		for (let i = 2; i < trajectory.length - 2; i++) {
-			const prev = trajectory[i - 1];
-			const curr = trajectory[i];
-			const next = trajectory[i + 1];
-			
-			const angle1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
-			const angle2 = Math.atan2(next.y - curr.y, next.x - curr.x);
-			
-			const deviation = Math.abs(angle2 - angle1);
-			totalDeviation += deviation;
-		}
-		
-		const avgDeviation = totalDeviation / (trajectory.length - 4);
-		return Math.max(0, 1 - (avgDeviation / Math.PI));
-	}, []);
-
-	// Calculate swing plane deviation
-	const calculateSwingPlaneDeviation = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
-		if (trajectory.length < 3) return 0;
-		
-		// Calculate the standard deviation of the swing plane
-		const angles = [];
-		for (let i = 1; i < trajectory.length; i++) {
-			const prev = trajectory[i - 1];
-			const curr = trajectory[i];
-			const angle = Math.atan2(curr.y - prev.y, curr.x - prev.x);
-			angles.push(angle);
-		}
-		
-		const mean = angles.reduce((sum, angle) => sum + angle, 0) / angles.length;
-		const variance = angles.reduce((sum, angle) => sum + Math.pow(angle - mean, 2), 0) / angles.length;
-		
-		return Math.sqrt(variance);
-	}, []);
-
-	// Draw club head tracer
-	const drawClubHeadTracer = useCallback((ctx: CanvasRenderingContext2D, trajectory: ClubHeadTrajectory, currentTime: number) => {
-		if (!trajectory || trajectory.positions.length === 0) return;
-		
+    console.log('Drawing fallback club path with', trajectory.length, 'points');
 		const videoWidth = ctx.canvas.width;
 		const videoHeight = ctx.canvas.height;
-		const currentFrame = Math.floor((currentTime / 1000) * 30); // Assuming 30fps
 		
-		// Draw complete trajectory up to current frame
+    // Draw simple white line for club path
 		ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Bright yellow for club head path
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
 		ctx.lineWidth = 4;
 		ctx.lineCap = 'round';
 		ctx.lineJoin = 'round';
 		
-		let hasStarted = false;
-		for (let i = 0; i < trajectory.positions.length && trajectory.positions[i].frame <= currentFrame; i++) {
-			const position = trajectory.positions[i];
-			const x = position.x * videoWidth;
-			const y = position.y * videoHeight;
-			
-			if (!hasStarted) {
+    for (let i = 0; i < trajectory.length; i++) {
+      const pt = trajectory[i];
+      const x = pt.x * videoWidth;
+      const y = pt.y * videoHeight;
+      
+      if (i === 0) {
 				ctx.moveTo(x, y);
-				hasStarted = true;
 			} else {
 				ctx.lineTo(x, y);
 			}
 		}
-		
-		if (hasStarted) {
 			ctx.stroke();
-		}
-		
-		// Draw current club head position
-		const currentPosition = trajectory.positions.find(p => p.frame === currentFrame);
-		if (currentPosition) {
-			const x = currentPosition.x * videoWidth;
-			const y = currentPosition.y * videoHeight;
-			
-			// Draw club head circle
+    
+    // Draw start and end markers
+    if (trajectory.length > 0) {
+      const start = trajectory[0];
+      const end = trajectory[trajectory.length - 1];
+      
+      // Start marker (green)
 			ctx.beginPath();
-			ctx.arc(x, y, 12, 0, 2 * Math.PI);
-			ctx.fillStyle = 'rgba(255, 0, 0, 0.9)'; // Red for current position
+      ctx.arc(start.x * videoWidth, start.y * videoHeight, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
 			ctx.fill();
 			ctx.strokeStyle = '#FFFFFF';
-			ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
 			ctx.stroke();
 			
-			// Draw club head info
-			ctx.fillStyle = '#FFFFFF';
-			ctx.font = 'bold 14px Arial';
-			ctx.textAlign = 'left';
-			ctx.fillText(`Club Head`, x + 20, y - 10);
-			ctx.font = '12px Arial';
-			ctx.fillText(`Frame: ${currentPosition.frame}`, x + 20, y + 5);
-			ctx.fillText(`Phase: ${currentPosition.swingPhase}`, x + 20, y + 20);
-			ctx.fillText(`Conf: ${(currentPosition.confidence * 100).toFixed(0)}%`, x + 20, y + 35);
-		}
-		
-		// Draw phase markers
-		drawClubHeadPhaseMarkers(ctx, trajectory, videoWidth, videoHeight);
-	}, [drawClubHeadPhaseMarkers]);
+      // End marker (red)
+      ctx.beginPath();
+      ctx.arc(end.x * videoWidth, end.y * videoHeight, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }, []);
 
-	// Draw club head phase markers
-	const drawClubHeadPhaseMarkers = useCallback((ctx: CanvasRenderingContext2D, trajectory: ClubHeadTrajectory, videoWidth: number, videoHeight: number) => {
-		const phases = ['address', 'top', 'impact', 'follow-through'];
-		const colors = ['#00FF00', '#FFFF00', '#FF0000', '#0000FF'];
-		
-		phases.forEach((phase, index) => {
-			const position = trajectory.positions.find(p => p.swingPhase === phase);
-			if (position) {
-				const x = position.x * videoWidth;
-				const y = position.y * videoHeight;
-				
-				// Draw phase marker
-				ctx.beginPath();
-				ctx.arc(x, y, 8, 0, 2 * Math.PI);
-				ctx.fillStyle = colors[index] + '80';
-				ctx.fill();
-				ctx.strokeStyle = colors[index];
-				ctx.lineWidth = 2;
-				ctx.stroke();
+  // Improved impact zone detection
+  const detectImpactZone = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
+    if (!trajectory || trajectory.length < 10) return null;
     
-				// Draw phase label
-				ctx.fillStyle = colors[index];
-				ctx.font = 'bold 12px Arial';
-				ctx.textAlign = 'center';
-				ctx.fillText(phase.toUpperCase(), x, y - 15);
-			}
-		});
+    // Method 1: Find lowest point in trajectory (club head closest to ground)
+    let lowestPoint = 0;
+    let lowestY = trajectory[0].y;
+    
+    for (let i = 1; i < trajectory.length; i++) {
+      if (trajectory[i].y > lowestY) {
+        lowestY = trajectory[i].y;
+        lowestPoint = i;
+      }
+    }
+    
+    // Method 2: Find point with maximum horizontal velocity (fastest swing)
+    let maxVelocityPoint = 0;
+    let maxVelocity = 0;
+    
+    for (let i = 1; i < trajectory.length - 1; i++) {
+      const prev = trajectory[i - 1];
+      const curr = trajectory[i];
+      const next = trajectory[i + 1];
+      
+      const velocityX = Math.abs(next.x - prev.x);
+      const velocityY = Math.abs(next.y - prev.y);
+      const totalVelocity = velocityX + velocityY;
+      
+      if (totalVelocity > maxVelocity) {
+        maxVelocity = totalVelocity;
+        maxVelocityPoint = i;
+      }
+    }
+    
+    // Method 3: Use phase-based detection
+    const impactPhase = phases.find(p => p.name === 'impact');
+    const impactFrame = impactPhase ? impactPhase.startFrame : null;
+    
+    // Take consensus of methods
+    const candidates = [lowestPoint, maxVelocityPoint];
+    if (impactFrame !== null) candidates.push(impactFrame);
+    
+    // Return median of valid candidates
+    candidates.sort((a, b) => a - b);
+    const impactIndex = candidates[Math.floor(candidates.length / 2)];
+    
+    console.log('🎯 Impact detection:', {
+      lowestPoint,
+      maxVelocityPoint,
+      impactFrame,
+      finalImpact: impactIndex
+    });
+    
+    return impactIndex;
 	}, []);
-
 
 	// Draw weight distribution visualization
 	const drawWeightDistribution = useCallback((ctx: CanvasRenderingContext2D, weightDist: WeightDistribution) => {
@@ -1588,66 +1183,532 @@ export default function OverlaySystem({
 				ctx.fillText(`• ${rec}`, 20, 50 + index * 20);
 			});
 		}
-	}, []);
+  }, []);
 
+  // Draw club head phase markers
+  const drawClubHeadPhaseMarkers = useCallback((ctx: CanvasRenderingContext2D, trajectory: ClubHeadTrajectory, videoWidth: number, videoHeight: number) => {
+    const phases = ['address', 'top', 'impact', 'follow-through'];
+    const colors = ['#00FF00', '#FFFF00', '#FF0000', '#0000FF'];
+    
+    phases.forEach((phase, index) => {
+      const position = trajectory.positions.find(p => p.swingPhase === phase);
+      if (position) {
+        const x = position.x * videoWidth;
+        const y = position.y * videoHeight;
+  
+        // Draw phase marker
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fillStyle = colors[index] + '80';
+        ctx.fill();
+        ctx.strokeStyle = colors[index];
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw phase label
+        ctx.fillStyle = colors[index];
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(phase.toUpperCase(), x, y - 15);
+      }
+    });
+  }, []);
 
+  // Draw club head tracer
+  const drawClubHeadTracer = useCallback((ctx: CanvasRenderingContext2D, trajectory: ClubHeadTrajectory, currentTime: number) => {
+    if (!trajectory || trajectory.positions.length === 0) return;
+    
+    const videoWidth = ctx.canvas.width;
+    const videoHeight = ctx.canvas.height;
+    const currentFrame = Math.floor((currentTime / 1000) * 30); // Assuming 30fps
+    
+    // Draw complete trajectory up to current frame
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Bright yellow for club head path
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    let hasStarted = false;
+    for (let i = 0; i < trajectory.positions.length && trajectory.positions[i].frame <= currentFrame; i++) {
+      const position = trajectory.positions[i];
+      const x = position.x * videoWidth;
+      const y = position.y * videoHeight;
+      
+      if (!hasStarted) {
+        ctx.moveTo(x, y);
+        hasStarted = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    if (hasStarted) {
+      ctx.stroke();
+    }
+    
+    // Draw current club head position
+    const currentPosition = trajectory.positions.find(p => p.frame === currentFrame);
+    if (currentPosition) {
+      const x = currentPosition.x * videoWidth;
+      const y = currentPosition.y * videoHeight;
+      
+      // Draw club head circle
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.9)'; // Red for current position
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      // Draw club head info
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(`Club Head`, x + 20, y - 10);
+      ctx.font = '12px Arial';
+      ctx.fillText(`Frame: ${currentPosition.frame}`, x + 20, y + 5);
+      ctx.fillText(`Phase: ${currentPosition.swingPhase}`, x + 20, y + 20);
+      ctx.fillText(`Conf: ${(currentPosition.confidence * 100).toFixed(0)}%`, x + 20, y + 35);
+    }
+    
+    // Draw phase markers
+    drawClubHeadPhaseMarkers(ctx, trajectory, videoWidth, videoHeight);
+  }, [drawClubHeadPhaseMarkers]);
 
+  const validateClubPath = useCallback((trajectory: { x: number; y: number }[], phaseList: EnhancedSwingPhase[]) => {
+    const errors: string[] = [];
+    if (!trajectory || trajectory.length < 50) errors.push('Insufficient trajectory data');
+    const get = (n: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === n);
+    const backswing = get('backswing');
+    const downswing = get('downswing');
+    const impact = get('impact');
+    if (downswing && backswing && downswing.startFrame < backswing.endFrame) {
+      errors.push('Invalid phase sequence: downswing before backswing completion');
+    }
+    if (impact && downswing && impact.startFrame < downswing.startFrame) {
+      errors.push('Impact occurs before downswing start');
+    }
+    return errors;
+  }, []);
 
-	// Fallback club path drawing for when main functions fail
-	const drawFallbackClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[]) => {
-		if (!trajectory || trajectory.length === 0) {
-			console.warn('No trajectory data for fallback drawing');
-			return;
-		}
-		
-		console.log('Drawing fallback club path with', trajectory.length, 'points');
+  // Draw complete club path with phase segmentation
+  const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
+		if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
 		const videoWidth = ctx.canvas.width;
 		const videoHeight = ctx.canvas.height;
-		
-		// Draw simple white line for club path
-		ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-		ctx.lineWidth = 4;
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		
-		for (let i = 0; i < trajectory.length; i++) {
-			const pt = trajectory[i];
+
+    console.log('🎯 Drawing precise club path with', trajectory.length, 'points');
+
+    // Create phase-accurate path segments
+    const phaseSegments = createPhaseAccuratePath(trajectory, phaseList);
+
+    // Draw the complete club path as a continuous line with varying thickness
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Base white path (lighter)
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw the main path
+    for (let i = 0; i < trajectory.length; i++) {
+      const pt = trajectory[i];
 			const x = pt.x * videoWidth;
 			const y = pt.y * videoHeight;
-			
-			if (i === 0) {
-				ctx.moveTo(x, y);
-			} else {
-				ctx.lineTo(x, y);
-			}
-		}
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // Draw phase-specific segments with enhanced visualization
+    Object.entries(phaseSegments).forEach(([phaseKey, segment]) => {
+      if (!segment.points.length) return;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = segment.color + Math.floor(segment.opacity * 255).toString(16).padStart(2, '0');
+      ctx.lineWidth = segment.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Different line styles for different phases
+      if (phaseKey === 'address') {
+        ctx.setLineDash([8, 4]); // Dashed for address
+      } else if (phaseKey === 'impact') {
+        ctx.setLineDash([]); // Solid for impact
+      } else {
+        ctx.setLineDash([2, 2]); // Slightly dashed for other phases
+      }
+      
+      // Draw the phase segment
+      for (let i = 0; i < segment.points.length; i++) {
+        const pt = segment.points[i];
+        const x = pt.x * videoWidth;
+        const y = pt.y * videoHeight;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+			ctx.stroke();
+      
+      // Add phase markers at intervals
+      if (segment.showMarkers) {
+        for (let i = 0; i < segment.points.length; i += segment.markerInterval) {
+          const pt = segment.points[i];
+          const x = pt.x * videoWidth;
+          const y = pt.y * videoHeight;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fillStyle = segment.color;
+          ctx.fill();
+        }
+      }
+    });
+    
+    // Reset line dash
+    ctx.setLineDash([]);
+    
+    // Add club head direction indicators (small arrows) - less frequent for cleaner look
+    for (let i = 0; i < trajectory.length - 1; i += Math.max(1, Math.floor(trajectory.length / 15))) {
+      const current = trajectory[i];
+      const next = trajectory[i + 1];
+      const dx = next.x - current.x;
+      const dy = next.y - current.y;
+      const angle = Math.atan2(dy, dx);
+      
+      const x = current.x * videoWidth;
+      const y = current.y * videoHeight;
+      const arrowLength = 6;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(x, y);
+      ctx.lineTo(
+        x + Math.cos(angle) * arrowLength,
+        y + Math.sin(angle) * arrowLength
+      );
+      ctx.stroke();
+    }
+  }, [createPhaseAccuratePath]);
+
+  // Draw skeleton connections
+  const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
+    console.log('=== DRAWING SKELETON ===');
+    console.log('Landmarks count:', landmarks?.length || 0);
+    
+    // Debug monitoring for stick figure
+    const landmarksDetected = landmarks?.length || 0;
+    const confidenceScore = landmarks ? landmarks.reduce((sum, landmark) => sum + (landmark.visibility || 0), 0) / landmarks.length : 0;
+    const renderingStatus = ctx ? 'ok' : 'error';
+    
+    debuggerInstance?.updateComponentStatus('stickFigure', 
+      landmarksDetected > 0 && confidenceScore > 0.6 ? 'ok' : 'warning',
+      { landmarksDetected, confidenceScore, renderingStatus },
+      { landmarksDetected, confidenceScore, renderingStatus }
+    );
+    
+    if (!landmarks || landmarks.length === 0) {
+      console.error('No landmarks to draw skeleton');
+      return;
+    }
+    
+    const { width, height } = ctx.canvas;
+    console.log('Canvas dimensions for skeleton:', { width, height });
+    
+    const connections = [
+      // Head
+      [0, 1], [1, 2], [2, 3], [3, 7],
+      [0, 4], [4, 5], [5, 6], [6, 8],
+      // Torso
+      [11, 12], [11, 23], [12, 24], [23, 24],
+      // Arms
+      [11, 13], [13, 15], [12, 14], [14, 16],
+      // Legs
+      [23, 25], [25, 27], [24, 26], [26, 28]
+    ];
+
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+		ctx.lineWidth = 3;
+    
+    let connectionsDrawn = 0;
+    connections.forEach(([a, b]) => {
+      const pa = landmarks[a];
+      const pb = landmarks[b];
+      if (pa && pb && pa.visibility && pa.visibility > 0.5 && pb.visibility && pb.visibility > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(pa.x * width, pa.y * height);
+        ctx.lineTo(pb.x * width, pb.y * height);
+		ctx.stroke();
+        connectionsDrawn++;
+      }
+    });
+    
+    console.log('Skeleton connections drawn:', connectionsDrawn);
+	}, []);
+
+  // Helper function to find closest pose
+  const findClosestPose = useCallback((time: number): PoseResult | null => {
+    if (!poses || poses.length === 0) return null;
+    
+    const firstPose = poses[0];
+    if (!firstPose || firstPose.timestamp === undefined) return null;
+    
+    let closest = firstPose;
+    let minDiff = Math.abs(firstPose.timestamp - time);
+    
+    for (const pose of poses) {
+      if (pose.timestamp === undefined) continue;
+      const diff = Math.abs(pose.timestamp - time);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = pose;
+      }
+    }
+    
+    return closest;
+  }, [poses]);
+
+  // Draw minimal overlays for Analysis View
+  const drawMinimalOverlays = useCallback((ctx: CanvasRenderingContext2D) => {
+    const { width, height } = ctx.canvas;
+    
+    // Phase indicators (top and bottom bars)
+    if (config.phaseIndicators) {
+      const currentPhase = phases.find(phase => 
+        currentTime >= phase.startTime && currentTime <= phase.endTime
+      );
+      
+      if (currentPhase) {
+        // Top phase bar
+        ctx.fillStyle = `${currentPhase.color}80`;
+        ctx.fillRect(0, 0, width, 8);
+        
+        // Bottom phase bar
+        ctx.fillRect(0, height - 8, width, 8);
+        
+        // Phase name in corner
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(10, 10, 200, 40);
+        ctx.fillStyle = currentPhase.color;
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText(currentPhase.name.toUpperCase(), 20, 30);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px Arial';
+        ctx.fillText(`Grade: ${currentPhase.grade}`, 20, 45);
+      }
+    }
+
+    // Key position markers
+    if (config.keyPoints) {
+      const closestPose = findClosestPose(currentTime);
+      if (closestPose?.landmarks) {
+        const keyLandmarks = [0, 11, 12, 23, 24]; // Head, shoulders, hips
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+        keyLandmarks.forEach(index => {
+          const landmark = closestPose.landmarks[index];
+          if (landmark && landmark.visibility && landmark.visibility > 0.5) {
+				ctx.beginPath();
+            ctx.arc(landmark.x * width, landmark.y * height, 6, 0, 2 * Math.PI);
+				ctx.fill();
+          }
+        });
+      }
+    }
+
+		// Swing path + markers + plane
+    if (config.swingPath) {
+			try {
+				// Debugging logs
+				console.log('🎯 CLUB PATH DEBUG:');
+				console.log('Trajectory points:', trajectoryRef.current.length);
+				console.log('Phase frames:', phases.map(p => ({ name: p.name, start: p.startFrame, end: p.endFrame })));
+				console.log('Camera angle detected:', cameraAngleRef.current);
+				console.log('Drawing functions available:', {
+					drawCompleteClubPath: typeof drawCompleteClubPath,
+					drawPositionMarkers: typeof drawPositionMarkers,
+					drawSwingPlaneFromTrajectory: typeof drawSwingPlaneFromTrajectory,
+					drawRealtimeClubHeadMarker: typeof drawRealtimeClubHeadMarker
+				});
+
+				// Draw complete club path by phases
+				if (typeof drawCompleteClubPath === 'function') {
+					drawCompleteClubPath(ctx, trajectoryRef.current, phases);
+				} else {
+					console.error('drawCompleteClubPath function not available');
+				}
+				
+				// Key position markers
+				if (typeof drawPositionMarkers === 'function') {
+					drawPositionMarkers(ctx, trajectoryRef.current, phases);
+				} else {
+					console.error('drawPositionMarkers function not available');
+				}
+				
+				// Swing plane visualization
+				if (typeof drawSwingPlaneFromTrajectory === 'function') {
+					drawSwingPlaneFromTrajectory(ctx, trajectoryRef.current, phases);
+				} else {
+					console.error('drawSwingPlaneFromTrajectory function not available');
+				}
+				
+				// Real-time club head marker
+				if (typeof drawRealtimeClubHeadMarker === 'function') {
+					drawRealtimeClubHeadMarker(ctx, trajectoryRef.current);
+				} else {
+					console.error('drawRealtimeClubHeadMarker function not available');
+				}
+				
+				// Draw impact zone marker
+				const impactIndex = detectImpactZone(trajectoryRef.current, phases);
+				if (impactIndex !== null && impactIndex < trajectoryRef.current.length) {
+					const impactPoint = trajectoryRef.current[impactIndex];
+					const x = impactPoint.x * ctx.canvas.width;
+					const y = impactPoint.y * ctx.canvas.height;
+					
+					// Draw impact zone circle
+		ctx.beginPath();
+					ctx.arc(x, y, 12, 0, 2 * Math.PI);
+					ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+		ctx.fill();
+					ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+					ctx.lineWidth = 3;
 		ctx.stroke();
 		
-		// Draw start and end markers
-		if (trajectory.length > 0) {
+					// Draw impact label
+		ctx.fillStyle = '#FFFFFF';
+					ctx.font = 'bold 14px Arial';
+					ctx.fillText('IMPACT', x + 15, y - 10);
+				}
+
+				// Validate
+				if (typeof validateClubPath === 'function') {
+					const errors = validateClubPath(trajectoryRef.current, phases);
+					if (errors.length) console.warn('Club path validation:', errors);
+				}
+			} catch (e) {
+				console.error('Error drawing club path overlays:', e);
+				// Fallback: draw simple club path
+				console.log('Attempting fallback club path drawing...');
+				drawFallbackClubPath(ctx, trajectoryRef.current);
+			}
+		}
+
+    // Draw skeleton in analysis mode
+    if (config.skeleton) {
+      console.log('Drawing skeleton in analysis mode...');
+      const closestPose = findClosestPose(currentTime);
+      if (closestPose?.landmarks) {
+        drawSkeleton(ctx, closestPose.landmarks);
+        
+        // Analyze and draw weight distribution
+        const frameIndex = Math.floor((currentTime / 1000) * 30);
+        const weightDist = analyzeCurrentWeightDistribution(closestPose.landmarks, frameIndex);
+        
+        if (weightDist && weightDist.confidence > 0.5) {
+          drawWeightDistribution(ctx, weightDist);
+          drawBalanceIndicators(ctx, weightDist);
+        }
+			} else {
+        console.warn('No landmarks found for skeleton in analysis mode');
+      }
+    }
+
+    // Basic metrics display
+    if (config.metrics) {
+      drawBasicMetrics(ctx);
+    }
+
+    // Draw swing feedback if available
+    if (currentFeedbackRef.current) {
+      drawSwingFeedback(ctx, currentFeedbackRef.current);
+    }
+
+    // Draw club head tracer if available
+    if (clubHeadTrajectoryRef.current) {
+      drawClubHeadTracer(ctx, clubHeadTrajectoryRef.current, currentTime);
+    }
+
+    // Draw real-time club head marker
+    if (trajectoryRef.current) {
+      drawRealtimeClubHeadMarker(ctx, trajectoryRef.current);
+    }
+  }, [config, phases, currentTime, poses, findClosestPose, drawSkeleton, drawCompleteClubPath, drawPositionMarkers, drawSwingPlaneFromTrajectory, drawRealtimeClubHeadMarker, validateClubPath, drawFallbackClubPath, detectImpactZone, drawWeightDistribution, drawBalanceIndicators, drawSwingFeedback, analyzeCurrentWeightDistribution, generateSwingFeedback, analyzeSwingMetrics, drawClubHeadTracer, drawClubHeadPhaseMarkers, buildClubHeadTrajectory, getCurrentClubHeadPosition]);
+
+
+	// Create phase-accurate path segmentation
+
+	// --- COMPLETE CLUB PATH DRAWING ---
+
+	// Calculate swing plane angle
+	const calculateSwingPlaneAngle = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
+		if (trajectory.length < 3) return 0;
+		
 			const start = trajectory[0];
+		const mid = trajectory[Math.floor(trajectory.length / 2)];
 			const end = trajectory[trajectory.length - 1];
 			
-			// Start marker (green)
-			ctx.beginPath();
-			ctx.arc(start.x * videoWidth, start.y * videoHeight, 8, 0, 2 * Math.PI);
-			ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-			ctx.fill();
-			ctx.strokeStyle = '#FFFFFF';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-			
-			// End marker (red)
-			ctx.beginPath();
-			ctx.arc(end.x * videoWidth, end.y * videoHeight, 8, 0, 2 * Math.PI);
-			ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-			ctx.fill();
-			ctx.strokeStyle = '#FFFFFF';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-		}
+		const angle1 = Math.atan2(mid.y - start.y, mid.x - start.x);
+		const angle2 = Math.atan2(end.y - mid.y, end.x - mid.x);
+		
+		return Math.abs(angle2 - angle1) * 180 / Math.PI;
 	}, []);
+
+	// Calculate swing plane consistency
+	const calculateSwingPlaneConsistency = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
+		if (trajectory.length < 5) return 0;
+		
+		// Calculate how consistent the swing plane is
+		let totalDeviation = 0;
+		for (let i = 2; i < trajectory.length - 2; i++) {
+			const prev = trajectory[i - 1];
+			const curr = trajectory[i];
+			const next = trajectory[i + 1];
+			
+			const angle1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
+			const angle2 = Math.atan2(next.y - curr.y, next.x - curr.x);
+			
+			const deviation = Math.abs(angle2 - angle1);
+			totalDeviation += deviation;
+		}
+		
+		const avgDeviation = totalDeviation / (trajectory.length - 4);
+		return Math.max(0, 1 - (avgDeviation / Math.PI));
+	}, []);
+
+	// Calculate swing plane deviation
+	const calculateSwingPlaneDeviation = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
+		if (trajectory.length < 3) return 0;
+		
+		// Calculate the standard deviation of the swing plane
+		const angles = [];
+		for (let i = 1; i < trajectory.length; i++) {
+			const prev = trajectory[i - 1];
+			const curr = trajectory[i];
+			const angle = Math.atan2(curr.y - prev.y, curr.x - prev.x);
+			angles.push(angle);
+		}
+		
+		const mean = angles.reduce((sum, angle) => sum + angle, 0) / angles.length;
+		const variance = angles.reduce((sum, angle) => sum + Math.pow(angle - mean, 2), 0) / angles.length;
+		
+		return Math.sqrt(variance);
+	}, []);
+
+
+
+
+
+
+
+
+
 
 	// Video-synchronized rendering with frame accuracy
 	const renderFrameAccurateClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], currentTime: number) => {
@@ -1703,61 +1764,6 @@ export default function OverlaySystem({
 	}, []);
 
 
-	// Improved impact zone detection
-	const detectImpactZone = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
-		if (!trajectory || trajectory.length < 10) return null;
-		
-		// Method 1: Find lowest point in trajectory (club head closest to ground)
-		let lowestPoint = 0;
-		let lowestY = trajectory[0].y;
-		
-		for (let i = 1; i < trajectory.length; i++) {
-			if (trajectory[i].y > lowestY) {
-				lowestY = trajectory[i].y;
-				lowestPoint = i;
-			}
-		}
-		
-		// Method 2: Find point with maximum horizontal velocity (fastest swing)
-		let maxVelocityPoint = 0;
-		let maxVelocity = 0;
-		
-		for (let i = 1; i < trajectory.length - 1; i++) {
-			const prev = trajectory[i - 1];
-			const curr = trajectory[i];
-			const next = trajectory[i + 1];
-			
-			const velocityX = Math.abs(next.x - prev.x);
-			const velocityY = Math.abs(next.y - prev.y);
-			const totalVelocity = velocityX + velocityY;
-			
-			if (totalVelocity > maxVelocity) {
-				maxVelocity = totalVelocity;
-				maxVelocityPoint = i;
-			}
-		}
-		
-		// Method 3: Use phase-based detection
-		const impactPhase = phases.find(p => p.name === 'impact');
-		const impactFrame = impactPhase ? impactPhase.startFrame : null;
-		
-		// Take consensus of methods
-		const candidates = [lowestPoint, maxVelocityPoint];
-		if (impactFrame !== null) candidates.push(impactFrame);
-		
-		// Return median of valid candidates
-		candidates.sort((a, b) => a - b);
-		const impactIndex = candidates[Math.floor(candidates.length / 2)];
-		
-		console.log('🎯 Impact detection:', {
-			lowestPoint,
-			maxVelocityPoint,
-			impactFrame,
-			finalImpact: impactIndex
-		});
-		
-		return impactIndex;
-	}, []);
 
 
   // Draw force vectors

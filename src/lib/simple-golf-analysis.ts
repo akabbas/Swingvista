@@ -210,7 +210,11 @@ function validatePoseDataQuality(poses: PoseResult[]): void {
   
   // Check pose data completeness
   let validPoses = 0;
-  poses.forEach((pose, index) => {
+  
+  // Ensure poses is always an array
+  const posesArray = Array.isArray(poses) ? poses : [poses];
+  
+  posesArray.forEach((pose, index) => {
     if (pose?.landmarks && pose.landmarks.length >= 33) {
       validPoses++;
     }
@@ -810,7 +814,10 @@ function calculateActualRotation(poses: PoseResult[]) {
   let maxHipTurn = 0;
   
   // Analyze each pose for maximum rotations
-  poses.forEach((pose, index) => {
+  // Ensure poses is always an array
+  const posesArray = Array.isArray(poses) ? poses : [poses];
+  
+  posesArray.forEach((pose, index) => {
     if (pose.landmarks && pose.landmarks.length >= 25) {
       const landmarks = pose.landmarks;
       

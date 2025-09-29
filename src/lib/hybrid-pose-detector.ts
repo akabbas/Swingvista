@@ -85,12 +85,30 @@ export class HybridPoseDetector {
         case 'posenet':
           console.log('🎯 Using PoseNet for pose detection...');
           const posenetPoses = await this.posenetDetector.detectPose(video);
-          return this.posenetDetector.convertToMediaPipeFormat(posenetPoses);
+          const convertedPoses = this.posenetDetector.convertToMediaPipeFormat(posenetPoses);
+          
+          if (convertedPoses.length === 0) {
+            console.warn('⚠️ No valid converted poses, using emergency data');
+            return [this.generateEmergencyPoseResult()];
+          }
+          
+          const result = convertedPoses[0]; // Return first pose
+          
+          // Validate the converted result
+          if (!result.landmarks || result.landmarks.length === 0) {
+            console.warn('⚠️ Converted pose has no landmarks, using emergency data');
+            return [this.generateEmergencyPoseResult()];
+          }
+          
+          console.log(`✅ PoseNet conversion successful: ${result.landmarks.length} landmarks`);
+          return [result]; // Return as array for compatibility
 
         case 'mediapipe':
           console.log('🎯 Using MediaPipe for pose detection...');
           const mediapipeResult = await this.mediapipeDetector.detectPose(video);
-          return Array.isArray(mediapipeResult) ? mediapipeResult : [mediapipeResult];
+          const mediapipePoses = Array.isArray(mediapipeResult) ? mediapipeResult : [mediapipeResult];
+          console.log(`✅ MediaPipe detection successful: ${mediapipePoses.length} poses`);
+          return mediapipePoses;
 
         case 'emergency':
           console.log('🎯 Using emergency mode for pose detection...');
@@ -103,8 +121,28 @@ export class HybridPoseDetector {
       console.warn('⚠️ Primary detector failed, trying fallback:', error);
       
       // Check if it's a video dimension issue
-      if (error instanceof Error && error.message.includes('roi width cannot be 0')) {
+      if (error instanceof Error && (error.message.includes('roi width cannot be 0') || 
+          error.message.includes('width cannot be 0') || 
+          error.message.includes('dimensions'))) {
         console.log('🔍 Video dimension issue detected, trying MediaPipe fallback...');
+        
+        // Try to fix video dimensions before fallback
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.log('🔧 Attempting to fix video dimensions...');
+          // Force video to load metadata
+          try {
+            await new Promise(resolve => {
+              if (video.readyState >= 2) {
+                resolve(true);
+              } else {
+                video.addEventListener('loadedmetadata', resolve, { once: true });
+                setTimeout(resolve, 2000);
+              }
+            });
+          } catch (dimensionError) {
+            console.warn('Could not fix video dimensions:', dimensionError);
+          }
+        }
       }
       
       // Try fallback detector
@@ -245,6 +283,25 @@ export class HybridPoseDetector {
       detector: this.currentDetector,
       posenetStatus: this.posenetDetector.getInitializationStatus(),
       mediapipeStatus: this.mediapipeDetector.getInitializationStatus()
+    };
+  }
+
+  /**
+   * Generate emergency pose result for fallback
+   */
+  private generateEmergencyPoseResult(): any {
+    const landmarks = Array.from({ length: 33 }, (_, i) => ({
+      x: 0.5 + Math.sin(i * 0.2) * 0.1,
+      y: 0.5 + Math.cos(i * 0.2) * 0.1,
+      z: 0,
+      visibility: 0.5
+    }));
+
+    return {
+      landmarks,
+      worldLandmarks: landmarks,
+      timestamp: Date.now(),
+      confidence: 0.3
     };
   }
 

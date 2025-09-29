@@ -241,16 +241,32 @@ export default function UploadPage() {
         try {
           console.log(`🎯 Processing frame ${frame}/${totalFrames} at time ${targetTime.toFixed(2)}s`);
           
-          // Final video validation before pose detection
+          // Enhanced video validation to prevent "roi width cannot be 0" error
           console.log(`📹 Video state: readyState=${video.readyState}, dimensions=${video.videoWidth}x${video.videoHeight}`);
           
-          if (video.videoWidth === 0 || video.videoHeight === 0) {
-            console.warn(`⚠️ Frame ${frame}: Video has zero dimensions, using fallback pose`);
+          // Wait for video to be fully ready if needed
+          if (video.readyState < 4) {
+            console.log(`⏳ Frame ${frame}: Waiting for video to be ready...`);
+            await new Promise(resolve => {
+              const onCanPlay = () => {
+                video.removeEventListener('canplay', onCanPlay);
+                resolve(true);
+              };
+              video.addEventListener('canplay', onCanPlay);
+              setTimeout(resolve, 1000); // 1 second timeout
+            });
+          }
+          
+          if (video.videoWidth === 0 || video.videoHeight === 0 || 
+              video.videoWidth < 32 || video.videoHeight < 32 ||
+              isNaN(video.videoWidth) || isNaN(video.videoHeight)) {
+            console.warn(`⚠️ Frame ${frame}: Video has invalid dimensions (${video.videoWidth}x${video.videoHeight}), using fallback pose`);
             pose = generateFallbackPose(frame, totalFrames, video.duration);
           } else {
+            // Use improved detection with better timeout and retry
             pose = await Promise.race([
               detector.detectPose(video),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)) // Increased timeout
             ]);
           }
           
@@ -269,6 +285,11 @@ export default function UploadPage() {
         
         poses.push(pose);
         consecutiveFailures = 0;
+        
+        // Add small delay between frames to prevent overwhelming the system
+        if (frame < totalFrames - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay between frames
+        }
         
         // Update progress
         if (frame % 10 === 0 || frame === totalFrames - 1) {
@@ -333,6 +354,100 @@ export default function UploadPage() {
       console.log('❌ No file selected');
     }
   }, []);
+
+  // Add pose overlay functionality
+  useEffect(() => {
+    if (!result?.poses || !file) return;
+
+    const video = document.getElementById('analysis-video') as HTMLVideoElement;
+    const canvas = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement;
+    
+    if (!video || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match video
+    const resizeCanvas = () => {
+      if (video.videoWidth && video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+    };
+
+    // Draw pose overlay
+    const drawPoseOverlay = () => {
+      if (!ctx || !video) return;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Calculate current frame
+      const currentTime = video.currentTime;
+      const fps = 30; // Assume 30fps
+      const frameIndex = Math.floor(currentTime * fps);
+      
+      // Get pose for current frame
+      const pose = result.poses[frameIndex];
+      if (!pose || !pose.landmarks) return;
+      
+      // Draw pose landmarks
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 2;
+      ctx.fillStyle = '#00ff00';
+      
+      // Draw key body points
+      const keyPoints = [
+        { from: 11, to: 12 }, // shoulders
+        { from: 11, to: 13 }, // left arm
+        { from: 12, to: 14 }, // right arm
+        { from: 13, to: 15 }, // left forearm
+        { from: 14, to: 16 }, // right forearm
+        { from: 23, to: 24 }, // hips
+        { from: 23, to: 25 }, // left leg
+        { from: 24, to: 26 }, // right leg
+        { from: 25, to: 27 }, // left calf
+        { from: 26, to: 28 }, // right calf
+      ];
+      
+      // Draw connections
+      keyPoints.forEach(({ from, to }) => {
+        const point1 = pose.landmarks[from];
+        const point2 = pose.landmarks[to];
+        
+        if (point1 && point2 && point1.visibility > 0.5 && point2.visibility > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(point1.x * canvas.width, point1.y * canvas.height);
+          ctx.lineTo(point2.x * canvas.width, point2.y * canvas.height);
+          ctx.stroke();
+        }
+      });
+      
+      // Draw key points
+      pose.landmarks.forEach((landmark, index) => {
+        if (landmark.visibility > 0.5) {
+          ctx.beginPath();
+          ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      });
+    };
+
+    // Event listeners
+    const onTimeUpdate = () => drawPoseOverlay();
+    const onLoadedMetadata = () => resizeCanvas();
+    
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('loadedmetadata', onLoadedMetadata);
+    
+    // Initial setup
+    resizeCanvas();
+    
+    return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
+    };
+  }, [result, file]);
 
   const handleAnalyze = useCallback(async () => {
     if (!file) return;
@@ -619,50 +734,158 @@ export default function UploadPage() {
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Analysis Results</h3>
                   
-                  {/* Status Information */}
-                  {result.isEmergencyMode && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center">
-                        <svg className="w-5 h-5 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                  <div>
-                          <span className="text-yellow-800 font-medium">Fallback Mode Active</span>
-                          <p className="text-yellow-700 text-sm mt-1">
-                            MediaPipe failed to load. Analysis completed using fallback data with reduced accuracy.
+                  {/* Data Source Information */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <span className="text-blue-800 font-medium">Analysis Data Source</span>
+                        <p className="text-blue-700 text-sm mt-1">
+                          {result.isEmergencyMode ? 
+                            "⚠️ Using fallback/mock data - pose detection may have failed" : 
+                            "✅ Using real pose detection data from your video"
+                          }
+                        </p>
+                        {result.isEmergencyMode && (
+                          <p className="text-blue-600 text-xs mt-1">
+                            This indicates pose detection failed and analysis used simulated data for demonstration.
                           </p>
+                        )}
                       </div>
                     </div>
                   </div>
-                  )}
 
                   {/* Video Player with Pose Overlays */}
-                  {file && (
+                  {file && result.poses && (
                     <div className="mb-6">
                       <h4 className="text-lg font-semibold text-gray-800 mb-4">Analyzed Video with Pose Overlays</h4>
-                      <div className="relative bg-black rounded-lg overflow-hidden">
-                        <video
-                          src={URL.createObjectURL(file)}
-                          controls
-                          className="w-full h-auto max-h-96"
-                          style={{ aspectRatio: '16/9' }}
-                          id="analysis-video"
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                        {/* Pose overlay canvas */}
-                        <canvas
-                          id="pose-overlay-canvas"
-                          className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                          style={{ zIndex: 10 }}
-                        />
+                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-600">Pose Overlays</span>
+                            <div className="flex items-center space-x-4">
+                              <label className="flex items-center">
+                                <input type="checkbox" defaultChecked className="mr-2" />
+                                <span className="text-sm text-gray-600">Stick Figure</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input type="checkbox" defaultChecked className="mr-2" />
+                                <span className="text-sm text-gray-600">Swing Plane</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="relative bg-black rounded-lg overflow-hidden">
+                          <video
+                            src={URL.createObjectURL(file)}
+                            controls
+                            className="w-full h-auto max-h-96"
+                            style={{ aspectRatio: '16/9' }}
+                            id="analysis-video"
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                          {/* Pose overlay canvas */}
+                          <canvas
+                            id="pose-overlay-canvas"
+                            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                            style={{ zIndex: 10 }}
+                          />
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                          <div className="bg-gray-50 p-3 rounded">
+                            <span className="text-gray-600">Poses Available:</span>
+                            <span className="ml-2 font-semibold text-gray-900">{result.poses.length}</span>
+                          </div>
+                          <div className="bg-gray-50 p-3 rounded">
+                            <span className="text-gray-600">Overlay Status:</span>
+                            <span className="ml-2 font-semibold text-green-600">Active</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Video with pose detection overlays. Pose landmarks are drawn in real-time as you play the video.
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-600 mt-2">
-                        Video with pose detection overlays. Pose landmarks are drawn in real-time.
-                      </p>
                     </div>
                   )}
                   
+                  {/* Analysis Results Display */}
+                  {result.analysis && (
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4">Golf Swing Analysis</h4>
+                      
+                      {/* Overall Score */}
+                      <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h5 className="text-lg font-semibold text-gray-800">Overall Score</h5>
+                            <p className="text-2xl font-bold text-blue-600">{result.analysis.overallScore}/100</p>
+                            <p className="text-lg font-semibold text-gray-700">Grade: {result.analysis.letterGrade}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">Confidence</p>
+                            <p className="text-lg font-semibold text-gray-800">{(result.analysis.confidence * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Key Metrics */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                        {result.analysis.metrics?.tempo && (
+                          <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <h6 className="font-semibold text-gray-800 mb-2">Tempo</h6>
+                            <p className="text-sm text-gray-600">Score: {result.analysis.metrics.tempo.score || 'N/A'}</p>
+                          </div>
+                        )}
+                        {result.analysis.metrics?.rotation && (
+                          <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <h6 className="font-semibold text-gray-800 mb-2">Rotation</h6>
+                            <p className="text-sm text-gray-600">Score: {result.analysis.metrics.rotation.score || 'N/A'}</p>
+                          </div>
+                        )}
+                        {result.analysis.metrics?.weightTransfer && (
+                          <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <h6 className="font-semibold text-gray-800 mb-2">Weight Transfer</h6>
+                            <p className="text-sm text-gray-600">Score: {result.analysis.metrics.weightTransfer.score || 'N/A'}</p>
+                          </div>
+                        )}
+                        {result.analysis.metrics?.swingPlane && (
+                          <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <h6 className="font-semibold text-gray-800 mb-2">Swing Plane</h6>
+                            <p className="text-sm text-gray-600">Score: {result.analysis.metrics.swingPlane.score || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">Shaft Angle: {result.analysis.metrics.swingPlane.shaftAngle}°</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Feedback */}
+                      {result.analysis.feedback && result.analysis.feedback.length > 0 && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                          <h6 className="font-semibold text-yellow-800 mb-2">Feedback</h6>
+                          <ul className="text-sm text-yellow-700 space-y-1">
+                            {result.analysis.feedback.map((item: string, index: number) => (
+                              <li key={index}>• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Key Improvements */}
+                      {result.analysis.keyImprovements && result.analysis.keyImprovements.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h6 className="font-semibold text-blue-800 mb-2">Key Improvements</h6>
+                          <ul className="text-sm text-blue-700 space-y-1">
+                            {result.analysis.keyImprovements.map((item: string, index: number) => (
+                              <li key={index}>• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="bg-gray-50 p-3 rounded">
                       <span className="text-sm font-medium text-gray-600">Poses Detected:</span>

@@ -11,7 +11,7 @@ export interface DebugOverlayProps {
 const DebugOverlay: React.FC<DebugOverlayProps> = ({ debugger: debuggerInstance, className = '' }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [components, setComponents] = useState<Map<string, DebugComponent>>(new Map());
-  const [performanceMetrics, setPerformanceMetrics] = useState(debuggerInstance.getPerformanceMetrics());
+  const [performanceMetrics, setPerformanceMetrics] = useState(debuggerInstance?.getPerformanceMetrics() || {});
   const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -33,9 +33,9 @@ const DebugOverlay: React.FC<DebugOverlayProps> = ({ debugger: debuggerInstance,
 
   // Update components data
   const updateComponents = useCallback(() => {
-    setComponents(debuggerInstance.getAllComponents());
-    setPerformanceMetrics(debuggerInstance.getPerformanceMetrics());
-    setValidationResults(debuggerInstance.getValidationResults());
+    setComponents(debuggerInstance?.getAllComponents() || new Map());
+    setPerformanceMetrics(debuggerInstance?.getPerformanceMetrics() || {});
+    setValidationResults(debuggerInstance?.getValidationResults() || []);
   }, [debuggerInstance]);
 
   // Auto-refresh effect
@@ -50,22 +50,22 @@ const DebugOverlay: React.FC<DebugOverlayProps> = ({ debugger: debuggerInstance,
   const toggleVisibility = useCallback(() => {
     const newVisibility = !isVisible;
     setIsVisible(newVisibility);
-    debuggerInstance.setVisibility(newVisibility);
+    debuggerInstance?.setVisibility(newVisibility);
   }, [isVisible, debuggerInstance]);
 
   // Run validation suite
   const runValidation = useCallback(async () => {
-    const results = await debuggerInstance.runValidationSuite();
+    const results = await debuggerInstance?.runValidationSuite() || [];
     setValidationResults(results);
   }, [debuggerInstance]);
 
   // Export debug data
   const exportData = useCallback(() => {
-    debuggerInstance.downloadDebugData();
+    debuggerInstance?.downloadDebugData();
   }, [debuggerInstance]);
 
   // Get debug summary
-  const summary = debuggerInstance.getDebugSummary();
+  const summary = debuggerInstance?.getDebugSummary() || {};
 
   if (!isVisible) {
     return (

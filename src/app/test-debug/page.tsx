@@ -8,23 +8,81 @@ import OverlaySystem from '@/components/analysis/OverlaySystem';
 import { PoseResult } from '@/lib/mediapipe';
 import { EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
 
-// Mock data for testing
-const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => ({
-  landmarks: Array.from({ length: 33 }, (_, j) => ({
-    x: 0.5 + Math.sin(i * 0.1) * 0.2,
-    y: 0.5 + Math.cos(i * 0.1) * 0.2,
-    z: 0,
-    visibility: 0.8 + Math.random() * 0.2
-  })),
-  worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
-    x: 0.5 + Math.sin(i * 0.1) * 0.2,
-    y: 0.5 + Math.cos(i * 0.1) * 0.2,
-    z: 0,
-    visibility: 0.8 + Math.random() * 0.2
-  })),
-  timestamp: i * 33.33,
-  confidence: 0.8 + Math.random() * 0.2
-}));
+// Enhanced mock data for testing with realistic club path
+const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => {
+  // Create realistic swing motion
+  const swingProgress = i / 100;
+  const backswingPhase = swingProgress < 0.4;
+  const downswingPhase = swingProgress >= 0.4 && swingProgress < 0.8;
+  const followThroughPhase = swingProgress >= 0.8;
+  
+  // Calculate realistic club head position
+  let clubHeadX = 0.5;
+  let clubHeadY = 0.7;
+  
+  if (backswingPhase) {
+    // Club moves back and up during backswing
+    const backswingProgress = swingProgress / 0.4;
+    clubHeadX = 0.5 - (backswingProgress * 0.3);
+    clubHeadY = 0.7 - (backswingProgress * 0.4);
+  } else if (downswingPhase) {
+    // Club moves down and through during downswing
+    const downswingProgress = (swingProgress - 0.4) / 0.4;
+    clubHeadX = 0.2 + (downswingProgress * 0.4);
+    clubHeadY = 0.3 + (downswingProgress * 0.2);
+  } else {
+    // Follow through
+    const followThroughProgress = (swingProgress - 0.8) / 0.2;
+    clubHeadX = 0.6 + (followThroughProgress * 0.2);
+    clubHeadY = 0.5 + (followThroughProgress * 0.1);
+  }
+  
+  return {
+    landmarks: Array.from({ length: 33 }, (_, j) => {
+      // Create more realistic pose landmarks
+      let x = 0.5;
+      let y = 0.5;
+      
+      // Key landmarks for golf swing
+      if (j === 11 || j === 12) { // Left/Right shoulder
+        x = 0.5 + (j === 11 ? -0.1 : 0.1);
+        y = 0.3;
+      } else if (j === 15 || j === 16) { // Left/Right wrist
+        x = clubHeadX + (j === 15 ? -0.05 : 0.05);
+        y = clubHeadY;
+      } else if (j === 23 || j === 24) { // Left/Right hip
+        x = 0.5 + (j === 23 ? -0.08 : 0.08);
+        y = 0.6;
+      } else {
+        // Other landmarks with slight variation
+        x = 0.5 + (Math.random() - 0.5) * 0.1;
+        y = 0.5 + (Math.random() - 0.5) * 0.1;
+      }
+      
+      return {
+        x,
+        y,
+        z: 0,
+        visibility: 0.8 + Math.random() * 0.2
+      };
+    }),
+    worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+      x: 0.5 + Math.sin(i * 0.1) * 0.2,
+      y: 0.5 + Math.cos(i * 0.1) * 0.2,
+      z: 0,
+      visibility: 0.8 + Math.random() * 0.2
+    })),
+    timestamp: i * 33.33,
+    confidence: 0.8 + Math.random() * 0.2,
+    // Add club trajectory data
+    clubTrajectory: {
+      x: clubHeadX,
+      y: clubHeadY,
+      confidence: 0.9,
+      frame: i
+    }
+  };
+});
 
 const mockPhases: EnhancedSwingPhase[] = [
   { 
@@ -37,7 +95,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 0.33,
     color: '#10b981',
     description: 'Address position',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -52,7 +117,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 1.33,
     color: '#10b981',
     description: 'Backswing motion',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -67,7 +139,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 1.5,
     color: '#f59e0b',
     description: 'Top of backswing',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -82,7 +161,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 2.33,
     color: '#ef4444',
     description: 'Downswing motion',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -97,7 +183,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 2.5,
     color: '#dc2626',
     description: 'Impact with ball',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -112,7 +205,14 @@ const mockPhases: EnhancedSwingPhase[] = [
     endTime: 3.33,
     color: '#8b5cf6',
     description: 'Follow-through motion',
-    metrics: { spineAngle: 0, kneeFlex: 0, posture: 0, weightDistribution: { left: 50, right: 50 } },
+    metrics: { 
+      spineAngle: 0, 
+      kneeFlex: 15, 
+      posture: 0.8, 
+      weightDistribution: { left: 50, right: 50 },
+      clubSpeed: 0,
+      tempo: 1.0
+    },
     grade: 'B',
     professionalBenchmark: { idealDuration: 1.0, keyPositions: [], commonMistakes: [] },
     recommendations: []
@@ -124,9 +224,15 @@ const TestDebugContent: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [overlayMode, setOverlayMode] = useState<'clean' | 'analysis' | 'technical'>('analysis');
+  const [isClient, setIsClient] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Set client-side flag
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Simulate video playback
   useEffect(() => {
@@ -150,8 +256,10 @@ const TestDebugContent: React.FC = () => {
     };
   }, [isPlaying]);
 
-  // Simulate pose analysis updates
+  // Simulate pose analysis updates (only on client side)
   useEffect(() => {
+    if (!isClient) return;
+    
     const interval = setInterval(() => {
       // Simulate different component statuses
       const statuses = ['ok', 'warning', 'error'] as const;
@@ -165,7 +273,7 @@ const TestDebugContent: React.FC = () => {
           dataQuality: Math.random() * 100
         };
         
-        debuggerInstance.updateComponentStatus(component, status, { 
+        debuggerInstance?.updateComponentStatus(component, status, { 
           lastUpdate: Date.now(),
           randomValue: Math.random()
         }, metrics);
@@ -173,7 +281,7 @@ const TestDebugContent: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [debuggerInstance]);
+  }, [debuggerInstance, isClient]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -216,7 +324,7 @@ const TestDebugContent: React.FC = () => {
             </select>
             
             <button
-              onClick={() => debuggerInstance.runValidationSuite()}
+              onClick={() => debuggerInstance?.runValidationSuite()}
               className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold"
             >
               🔍 Validate All
@@ -243,23 +351,28 @@ const TestDebugContent: React.FC = () => {
             />
             
             {/* Mock video element */}
-            <video
-              ref={videoRef}
-              className="hidden"
-              width={800}
-              height={600}
-            />
+            <div style={{ display: 'none' }}>
+              <video
+                ref={videoRef}
+                width={800}
+                height={600}
+                style={{ display: 'none' }}
+                suppressHydrationWarning={true}
+              />
+            </div>
             
             {/* Overlay System */}
-            <OverlaySystem
-              canvasRef={canvasRef}
-              videoRef={videoRef}
-              poses={mockPoses}
-              phases={mockPhases}
-              currentTime={currentTime}
-              overlayMode={overlayMode}
-              isPlaying={isPlaying}
-            />
+            {isClient && (
+              <OverlaySystem
+                canvasRef={canvasRef}
+                videoRef={videoRef}
+                poses={mockPoses}
+                phases={mockPhases}
+                currentTime={currentTime}
+                overlayMode={overlayMode}
+                isPlaying={isPlaying}
+              />
+            )}
           </div>
         </div>
 
@@ -321,8 +434,12 @@ const TestDebugContent: React.FC = () => {
       </div>
       
       {/* Debug Overlay and Controls */}
-      <DebugOverlay debugger={debuggerInstance} />
-      <DebugControls debugger={debuggerInstance} />
+      {isClient && (
+        <>
+          <DebugOverlay debugger={debuggerInstance} />
+          <DebugControls debugger={debuggerInstance} />
+        </>
+      )}
     </div>
   );
 };

@@ -738,6 +738,10 @@ export class MediaPipePoseDetector {
           image.onload = resolve;
           image.onerror = () => reject(new Error('Image loading failed'));
         });
+        
+        // Cleanup canvas immediately after use
+        canvas.width = 0;
+        canvas.height = 0;
 
         console.log('🎯 Sending frame to MediaPipe:', {
           width: image.width,
@@ -746,13 +750,31 @@ export class MediaPipePoseDetector {
           videoDims: `${video.videoWidth}x${video.videoHeight}`
         });
 
-        // 5. SEND TO MEDIAPIPE WITH TIMEOUT
+        // 5. SEND TO MEDIAPIPE WITH IMPROVED TIMEOUT AND RETRY
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('MediaPipe timeout')), 5000)
+          setTimeout(() => reject(new Error('MediaPipe timeout')), 10000) // Increased to 10 seconds
         );
 
-        const posePromise = this.pose.send({ image });
-        const result = await Promise.race([posePromise, timeoutPromise]);
+        // Add retry mechanism for better reliability
+        let result;
+        let retryCount = 0;
+        const maxRetries = 2;
+        
+        while (retryCount <= maxRetries) {
+          try {
+            const posePromise = this.pose.send({ image });
+            result = await Promise.race([posePromise, timeoutPromise]);
+            break; // Success, exit retry loop
+          } catch (error) {
+            retryCount++;
+            if (retryCount > maxRetries) {
+              throw error; // Final attempt failed
+            }
+            console.log(`🔄 MediaPipe retry ${retryCount}/${maxRetries} for frame`);
+            // Small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
 
         // 6. VALIDATE RESULT THOROUGHLY
         if (!result) {
@@ -791,6 +813,19 @@ export class MediaPipePoseDetector {
         console.error('❌ MediaPipe detection failed:', error);
         // Generate emergency pose data as fallback
         resolve(this.generateEmergencyPoseData());
+      } finally {
+        // Cleanup resources to prevent memory leaks
+        try {
+          if (image && image.src) {
+            image.src = '';
+          }
+          if (canvas) {
+            canvas.width = 0;
+            canvas.height = 0;
+          }
+        } catch (cleanupError) {
+          console.warn('Cleanup error (non-critical):', cleanupError);
+        }
       }
     });
   }
