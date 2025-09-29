@@ -840,6 +840,79 @@ export default function OverlaySystem({
     ctx.setLineDash([]);
   }, []);
 
+  // Draw real-time club head marker
+  const drawRealtimeClubHeadMarker = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number; t?: number }[]) => {
+    if (!trajectory || trajectory.length === 0) return;
+    
+    // Find closest pose index to currentTime
+    let closestIndex = 0;
+    let minDiff = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < poses.length; i++) {
+      const ts = poses[i]?.timestamp;
+      if (ts === undefined) continue;
+      const d = Math.abs(ts - currentTime);
+      if (d < minDiff) { minDiff = d; closestIndex = i; }
+    }
+    
+    const idx = Math.max(0, Math.min(closestIndex, trajectory.length - 1));
+    const pt = trajectory[idx];
+    const videoWidth = ctx.canvas.width;
+    const videoHeight = ctx.canvas.height;
+    
+    // Get current pose for grip visualization
+    const currentPose = poses[closestIndex];
+    if (currentPose?.landmarks) {
+      const leftWrist = currentPose.landmarks[15];
+      const rightWrist = currentPose.landmarks[16];
+      
+      if (leftWrist && rightWrist) {
+        // Draw grip position (where hands hold the club)
+        const gripX = ((leftWrist.x + rightWrist.x) / 2) * videoWidth;
+        const gripY = ((leftWrist.y + rightWrist.y) / 2) * videoHeight;
+  
+        // Draw grip marker
+        ctx.beginPath();
+        ctx.arc(gripX, gripY, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw line from grip to club head
+        const clubX = pt.x * videoWidth;
+        const clubY = pt.y * videoHeight;
+        ctx.beginPath();
+        ctx.moveTo(gripX, gripY);
+        ctx.lineTo(clubX, clubY);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+  
+        // Draw grip label
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText('GRIP', gripX + 10, gripY - 10);
+      }
+    }
+    
+    // Draw club head marker
+    const x = pt.x * videoWidth;
+    const y = pt.y * videoHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Draw club head label
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('CLUB HEAD', x + 10, y - 10);
+  }, [poses, currentTime]);
+
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
     if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
@@ -1503,77 +1576,6 @@ export default function OverlaySystem({
 
 
 
-	const drawRealtimeClubHeadMarker = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number; t?: number }[]) => {
-		if (!trajectory || trajectory.length === 0) return;
-		
-		// Find closest pose index to currentTime
-		let closestIndex = 0;
-		let minDiff = Number.POSITIVE_INFINITY;
-		for (let i = 0; i < poses.length; i++) {
-			const ts = poses[i]?.timestamp;
-			if (ts === undefined) continue;
-			const d = Math.abs(ts - currentTime);
-			if (d < minDiff) { minDiff = d; closestIndex = i; }
-		}
-		
-		const idx = Math.max(0, Math.min(closestIndex, trajectory.length - 1));
-		const pt = trajectory[idx];
-		const videoWidth = ctx.canvas.width;
-		const videoHeight = ctx.canvas.height;
-		
-		// Get current pose for grip visualization
-		const currentPose = poses[closestIndex];
-		if (currentPose?.landmarks) {
-			const leftWrist = currentPose.landmarks[15];
-			const rightWrist = currentPose.landmarks[16];
-			
-			if (leftWrist && rightWrist) {
-				// Draw grip position (where hands hold the club)
-				const gripX = ((leftWrist.x + rightWrist.x) / 2) * videoWidth;
-				const gripY = ((leftWrist.y + rightWrist.y) / 2) * videoHeight;
-    
-				// Draw grip marker
-				ctx.beginPath();
-				ctx.arc(gripX, gripY, 6, 0, 2 * Math.PI);
-				ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-				ctx.fill();
-				ctx.strokeStyle = '#FFFFFF';
-				ctx.lineWidth = 2;
-      ctx.stroke();
-				
-				// Draw line from grip to club head
-				const clubX = pt.x * videoWidth;
-				const clubY = pt.y * videoHeight;
-				ctx.beginPath();
-				ctx.moveTo(gripX, gripY);
-				ctx.lineTo(clubX, clubY);
-				ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-				ctx.lineWidth = 3;
-				ctx.stroke();
-    
-				// Draw grip label
-				ctx.fillStyle = '#FFFFFF';
-				ctx.font = 'bold 12px Arial';
-				ctx.fillText('GRIP', gripX + 10, gripY - 10);
-			}
-		}
-		
-		// Draw club head marker
-		const x = pt.x * videoWidth;
-		const y = pt.y * videoHeight;
-		ctx.beginPath();
-		ctx.arc(x, y, 8, 0, Math.PI * 2);
-		ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-		ctx.fill();
-		ctx.strokeStyle = '#FFFFFF';
-		ctx.lineWidth = 2;
-		ctx.stroke();
-		
-		// Draw club head label
-		ctx.fillStyle = '#FFFFFF';
-		ctx.font = 'bold 12px Arial';
-		ctx.fillText('CLUB HEAD', x + 10, y - 10);
-	}, [poses, currentTime]);
 
 	// Fallback club path drawing for when main functions fail
 	const drawFallbackClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[]) => {
