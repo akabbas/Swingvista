@@ -2,8 +2,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { MediaPipePoseDetector } from '@/lib/mediapipe';
+import { HybridPoseDetector } from '@/lib/hybrid-pose-detector';
 import { EnhancedPhaseDetector } from '@/lib/enhanced-phase-detector';
-import { analyzeGolfSwingSimple } from '@/lib/simple-golf-analysis';
+import { analyzeGolfSwingSimple, analyzeGolfSwingHybrid } from '@/lib/simple-golf-analysis';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -226,7 +227,7 @@ export default function UploadPage() {
         try {
           console.log(`🎯 Processing frame ${frame}/${totalFrames} at time ${targetTime.toFixed(2)}s`);
           pose = await Promise.race([
-            detector.detectPoseWithSmartRetry(video),
+            detector.detectPose(video),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
           ]);
           
@@ -345,20 +346,22 @@ export default function UploadPage() {
       
       console.log('📹 Video loaded, duration:', video.duration, 'seconds');
       
-      // Initialize MediaPipe pose detector with timeout
-      console.log('🤖 Initializing MediaPipe pose detector...');
-      const detector = MediaPipePoseDetector.getInstance();
+      // Initialize Hybrid pose detector (PoseNet + MediaPipe)
+      console.log('🤖 Initializing Hybrid pose detector...');
+      const detector = HybridPoseDetector.getInstance();
       
-      // Add timeout for MediaPipe initialization
-      const mediaPipeTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('MediaPipe initialization timeout - using fallback mode')), 15000);
+      // Add timeout for hybrid detector initialization
+      const hybridTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Hybrid detector initialization timeout - using fallback mode')), 15000);
       });
       
       try {
-        await Promise.race([detector.initialize(), mediaPipeTimeout]);
-        console.log('✅ MediaPipe initialized successfully');
-      } catch (mediaPipeError) {
-        console.warn('⚠️ MediaPipe initialization failed, using fallback mode:', mediaPipeError);
+        await Promise.race([detector.initialize(), hybridTimeout]);
+        const status = detector.getDetectorStatus();
+        console.log(`✅ Hybrid detector initialized successfully (${status.detector})`);
+        console.log(`📊 Detector status: PoseNet=${status.posenetStatus}, MediaPipe=${status.mediapipeStatus}`);
+      } catch (hybridError) {
+        console.warn('⚠️ Hybrid detector initialization failed, using fallback mode:', hybridError);
         // Continue with fallback - the detector will use emergency mode
       }
       
@@ -375,11 +378,14 @@ export default function UploadPage() {
         throw new Error('No poses detected in video. Please ensure the video shows a clear view of a person performing a golf swing.');
       }
       
-      // Analyze the swing
-      console.log('⚡ Analyzing swing...');
-      const isEmergencyMode = detector.isInEmergencyMode();
-      console.log('🔄 Analysis mode:', isEmergencyMode ? 'Emergency fallback' : 'Real MediaPipe');
-      const analysis = await analyzeGolfSwingSimple(poses, isEmergencyMode);
+      // Analyze the swing using hybrid detector
+      console.log('⚡ Analyzing swing with hybrid detector...');
+      const status = detector.getDetectorStatus();
+      const isEmergencyMode = status.detector === 'emergency';
+      console.log(`🔄 Analysis mode: ${status.detector} (PoseNet: ${status.posenetStatus}, MediaPipe: ${status.mediapipeStatus})`);
+      
+      // Use hybrid analysis function
+      const analysis = await analyzeGolfSwingHybrid(video);
       console.log('✅ Analysis complete:', analysis);
       
       // Set result with status information
