@@ -913,6 +913,21 @@ export default function OverlaySystem({
     ctx.fillText('CLUB HEAD', x + 10, y - 10);
   }, [poses, currentTime]);
 
+  const validateClubPath = useCallback((trajectory: { x: number; y: number }[], phaseList: EnhancedSwingPhase[]) => {
+    const errors: string[] = [];
+    if (!trajectory || trajectory.length < 50) errors.push('Insufficient trajectory data');
+    const get = (n: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === n);
+    const backswing = get('backswing');
+    const downswing = get('downswing');
+    const impact = get('impact');
+    if (downswing && backswing && downswing.startFrame < backswing.endFrame) {
+      errors.push('Invalid phase sequence: downswing before backswing completion');
+    }
+    if (impact && downswing && impact.startFrame < downswing.startFrame) {
+      errors.push('Impact occurs before downswing start');
+    }
+    return errors;
+  }, []);
 
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
@@ -1744,21 +1759,6 @@ export default function OverlaySystem({
 		return impactIndex;
 	}, []);
 
-	const validateClubPath = useCallback((trajectory: { x: number; y: number }[], phaseList: EnhancedSwingPhase[]) => {
-		const errors: string[] = [];
-		if (!trajectory || trajectory.length < 50) errors.push('Insufficient trajectory data');
-		const get = (n: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === n);
-		const backswing = get('backswing');
-		const downswing = get('downswing');
-		const impact = get('impact');
-		if (downswing && backswing && downswing.startFrame < backswing.endFrame) {
-			errors.push('Invalid phase sequence: downswing before backswing completion');
-		}
-		if (impact && downswing && impact.startFrame < downswing.startFrame) {
-			errors.push('Impact occurs before downswing start');
-		}
-		return errors;
-	}, []);
 
   // Draw force vectors
   const drawForceVectors = useCallback((ctx: CanvasRenderingContext2D) => {
