@@ -1,7 +1,7 @@
 import { PoseLandmark, TrajectoryPoint, SwingTrajectory } from './mediapipe';
 
 export interface EnhancedSwingPhase {
-  name: 'address' | 'backswing' | 'top' | 'downswing' | 'impact' | 'follow-through';
+  name: 'address' | 'backswing' | 'top' | 'downswing' | 'impact' | 'follow-through' | 'transition';
   startFrame: number;
   endFrame: number;
   startTime: number;
@@ -13,6 +13,7 @@ export interface EnhancedSwingPhase {
   grade: 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'D-' | 'F';
   metrics: PhaseMetrics;
   recommendations: string[];
+  keyPoints?: number[];
   professionalBenchmark: {
     idealDuration: number;
     keyPositions: any[];

@@ -12,6 +12,7 @@ export interface PoseResult {
   landmarks: PoseLandmark[];
   worldLandmarks: PoseLandmark[];
   timestamp?: number;
+  confidence?: number;
 }
 
 export interface TrajectoryPoint {
