@@ -913,6 +913,7 @@ export default function OverlaySystem({
     ctx.fillText('CLUB HEAD', x + 10, y - 10);
   }, [poses, currentTime]);
 
+
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
     if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
