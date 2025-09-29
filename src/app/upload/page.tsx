@@ -222,6 +222,12 @@ export default function UploadPage() {
           throw new Error(`Video not ready for frame ${frame}`);
         }
         
+        // Verify video has valid dimensions
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.warn(`⚠️ Frame ${frame}: Video has invalid dimensions (${video.videoWidth}x${video.videoHeight})`);
+          throw new Error(`Video has invalid dimensions for frame ${frame}`);
+        }
+        
         let pose;
         // Use the smart retry mechanism for better success rate
         try {

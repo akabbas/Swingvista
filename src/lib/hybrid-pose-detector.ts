@@ -102,12 +102,18 @@ export class HybridPoseDetector {
     } catch (error: unknown) {
       console.warn('⚠️ Primary detector failed, trying fallback:', error);
       
+      // Check if it's a video dimension issue
+      if (error instanceof Error && error.message.includes('roi width cannot be 0')) {
+        console.log('🔍 Video dimension issue detected, trying MediaPipe fallback...');
+      }
+      
       // Try fallback detector
       if (this.currentDetector === 'posenet') {
         try {
           console.log('🔄 Trying MediaPipe fallback...');
           const mediapipePoses = await this.mediapipeDetector.detectPose(video);
           this.currentDetector = 'mediapipe';
+          console.log('✅ MediaPipe fallback successful');
           return Array.isArray(mediapipePoses) ? mediapipePoses : [mediapipePoses];
         } catch (fallbackError: unknown) {
           console.warn('⚠️ MediaPipe fallback also failed:', fallbackError);

@@ -87,11 +87,24 @@ export class PoseNetDetector {
       return this.generateEmergencyPoses();
     }
 
+    // Validate video dimensions
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      console.warn('⚠️ Video has invalid dimensions, using emergency poses');
+      return this.generateEmergencyPoses();
+    }
+
+    // Check if video is ready
+    if (video.readyState < 2) {
+      console.warn('⚠️ Video not ready, using emergency poses');
+      return this.generateEmergencyPoses();
+    }
+
     try {
       if (!this.detector) {
         throw new Error('PoseNet detector not available');
       }
 
+      console.log(`🎯 PoseNet processing video: ${video.videoWidth}x${video.videoHeight}`);
       const poses = await this.detector.estimatePoses(video);
       console.log(`🎯 PoseNet detected ${poses.length} poses`);
       return poses;
