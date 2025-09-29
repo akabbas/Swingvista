@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { runComprehensiveTests, TestSuite, TestResult } from '@/lib/test-implementation';
+import { PoseNetDetector } from '@/lib/posenet-detector';
+import { HybridPoseDetector } from '@/lib/hybrid-pose-detector';
 
 export default function TestImplementationPage() {
   const [testResults, setTestResults] = useState<TestSuite | null>(null);
@@ -9,6 +11,8 @@ export default function TestImplementationPage() {
   const [currentTest, setCurrentTest] = useState<string>('');
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
+  const [posenetStatus, setPoseNetStatus] = useState<any>(null);
+  const [hybridStatus, setHybridStatus] = useState<any>(null);
 
   // Capture console logs
   useEffect(() => {
@@ -36,6 +40,89 @@ export default function TestImplementationPage() {
       console.error = originalError;
       console.warn = originalWarn;
     };
+  }, []);
+
+  // Test PoseNet specifically
+  const testPoseNet = useCallback(async () => {
+    console.log('🎯 Testing PoseNet specifically...');
+    setCurrentTest('PoseNet Configuration');
+    
+    try {
+      const detector = PoseNetDetector.getInstance();
+      await detector.initialize();
+      
+      const status = {
+        initialized: detector.getInitializationStatus(),
+        emergency: detector.getEmergencyModeStatus(),
+        timestamp: new Date().toISOString()
+      };
+      
+      setPoseNetStatus(status);
+      console.log('✅ PoseNet test completed:', status);
+      
+    } catch (error) {
+      console.error('❌ PoseNet test failed:', error);
+      setPoseNetStatus({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }, []);
+
+  // Test Hybrid Detector specifically
+  const testHybridDetector = useCallback(async () => {
+    console.log('🔄 Testing Hybrid Detector specifically...');
+    setCurrentTest('Hybrid Detector');
+    
+    try {
+      const detector = HybridPoseDetector.getInstance();
+      await detector.initialize();
+      
+      const status = detector.getDetectorStatus();
+      setHybridStatus(status);
+      console.log('✅ Hybrid Detector test completed:', status);
+      
+    } catch (error) {
+      console.error('❌ Hybrid Detector test failed:', error);
+      setHybridStatus({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }, []);
+
+  // Test PoseNet vs MediaPipe comparison
+  const testDetectorComparison = useCallback(async () => {
+    console.log('⚖️ Testing PoseNet vs MediaPipe comparison...');
+    setCurrentTest('Detector Comparison');
+    
+    try {
+      // Test PoseNet
+      const posenetDetector = PoseNetDetector.getInstance();
+      const posenetStart = Date.now();
+      await posenetDetector.initialize();
+      const posenetTime = Date.now() - posenetStart;
+      
+      // Test MediaPipe
+      const { MediaPipePoseDetector } = await import('@/lib/mediapipe');
+      const mediapipeDetector = MediaPipePoseDetector.getInstance();
+      const mediapipeStart = Date.now();
+      await mediapipeDetector.initialize();
+      const mediapipeTime = Date.now() - mediapipeStart;
+      
+      const comparison = {
+        posenet: {
+          time: posenetTime,
+          initialized: posenetDetector.getInitializationStatus(),
+          emergency: posenetDetector.getEmergencyModeStatus()
+        },
+        mediapipe: {
+          time: mediapipeTime,
+          initialized: mediapipeDetector.getInitializationStatus(),
+          emergency: mediapipeDetector.getEmergencyModeStatus()
+        },
+        winner: posenetTime < mediapipeTime ? 'PoseNet' : 'MediaPipe'
+      };
+      
+      console.log('📊 Detector Comparison Results:', comparison);
+      
+    } catch (error) {
+      console.error('❌ Detector comparison failed:', error);
+    }
   }, []);
 
   // Run comprehensive tests
@@ -166,6 +253,34 @@ export default function TestImplementationPage() {
                   </button>
                 </div>
                 
+                {/* PoseNet Specific Tests */}
+                <div className="border-t border-gray-700 pt-4">
+                  <h3 className="text-lg font-semibold mb-3 text-green-400">🎯 PoseNet Tests</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={testPoseNet}
+                      disabled={isRunning}
+                      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      Test PoseNet
+                    </button>
+                    <button
+                      onClick={testHybridDetector}
+                      disabled={isRunning}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Test Hybrid
+                    </button>
+                    <button
+                      onClick={testDetectorComparison}
+                      disabled={isRunning}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 col-span-2"
+                    >
+                      Compare PoseNet vs MediaPipe
+                    </button>
+                  </div>
+                </div>
+                
                 <button
                   onClick={clearResults}
                   className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -236,6 +351,74 @@ export default function TestImplementationPage() {
                 )}
               </div>
             </div>
+
+            {/* PoseNet Status */}
+            {posenetStatus && (
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 text-green-400">🎯 PoseNet Status</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Initialized:</span>
+                    <span className={posenetStatus.initialized ? 'text-green-400' : 'text-red-400'}>
+                      {posenetStatus.initialized ? '✅ Yes' : '❌ No'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Emergency Mode:</span>
+                    <span className={posenetStatus.emergency ? 'text-yellow-400' : 'text-green-400'}>
+                      {posenetStatus.emergency ? '⚠️ Yes' : '✅ No'}
+                    </span>
+                  </div>
+                  {posenetStatus.timestamp && (
+                    <div className="flex justify-between">
+                      <span>Tested:</span>
+                      <span className="text-blue-400">{new Date(posenetStatus.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                  {posenetStatus.error && (
+                    <div className="text-red-400 text-sm">
+                      Error: {posenetStatus.error}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Hybrid Detector Status */}
+            {hybridStatus && (
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 text-blue-400">🔄 Hybrid Detector Status</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Initialized:</span>
+                    <span className={hybridStatus.initialized ? 'text-green-400' : 'text-red-400'}>
+                      {hybridStatus.initialized ? '✅ Yes' : '❌ No'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Current Detector:</span>
+                    <span className="text-blue-400">{hybridStatus.detector}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>PoseNet Status:</span>
+                    <span className={hybridStatus.posenetStatus ? 'text-green-400' : 'text-red-400'}>
+                      {hybridStatus.posenetStatus ? '✅ Available' : '❌ Failed'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>MediaPipe Status:</span>
+                    <span className={hybridStatus.mediapipeStatus ? 'text-green-400' : 'text-red-400'}>
+                      {hybridStatus.mediapipeStatus ? '✅ Available' : '❌ Failed'}
+                    </span>
+                  </div>
+                  {hybridStatus.error && (
+                    <div className="text-red-400 text-sm">
+                      Error: {hybridStatus.error}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Test Report */}
             <div className="bg-gray-800 rounded-lg p-6">
