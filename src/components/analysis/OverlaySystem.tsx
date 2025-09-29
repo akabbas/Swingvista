@@ -459,6 +459,56 @@ export default function OverlaySystem({
 		}
 	}, []);
 
+	// Validate trajectory quality and log issues
+	const validateTrajectoryQuality = useCallback((trajectory: { x: number; y: number; frame: number; confidence?: number }[]) => {
+		if (trajectory.length < 10) {
+			console.warn('⚠️ Insufficient trajectory data:', trajectory.length, 'points');
+			return;
+		}
+		
+		// Check for gaps in trajectory
+		const gaps = [];
+		for (let i = 1; i < trajectory.length; i++) {
+			if (trajectory[i].frame - trajectory[i-1].frame > 1) {
+				gaps.push({ from: trajectory[i-1].frame, to: trajectory[i].frame });
+			}
+		}
+		
+		if (gaps.length > 0) {
+			console.warn('⚠️ Trajectory gaps detected:', gaps);
+		}
+		
+		// Check confidence levels
+		const avgConfidence = trajectory.reduce((sum, p) => sum + (p.confidence || 0), 0) / trajectory.length;
+		if (avgConfidence < 0.5) {
+			console.warn('⚠️ Low average confidence:', avgConfidence.toFixed(2));
+		}
+		
+		// Check for extreme movements (potential squiggles)
+		let extremeMovements = 0;
+		for (let i = 1; i < trajectory.length; i++) {
+			const prev = trajectory[i - 1];
+			const curr = trajectory[i];
+			const distance = Math.sqrt(
+				Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
+			);
+			if (distance > 0.3) { // More than 30% of screen width
+				extremeMovements++;
+			}
+		}
+		
+		if (extremeMovements > trajectory.length * 0.1) {
+			console.warn('⚠️ Many extreme movements detected:', extremeMovements);
+		}
+		
+		console.log('✅ Trajectory quality check complete:', {
+			points: trajectory.length,
+			gaps: gaps.length,
+			avgConfidence: avgConfidence.toFixed(2),
+			extremeMovements
+		});
+	}, []);
+
 	// Calculate smooth club trajectory with precise frame-by-frame detection
 	const calculateSmoothClubTrajectory = useCallback((poses: PoseResult[]) => {
 		console.log('🎯 Building precise club trajectory from', poses.length, 'poses...');
@@ -565,55 +615,6 @@ export default function OverlaySystem({
 		return hasMovement ? avgConfidence : 0;
 	}, []);
 
-	// Validate trajectory quality and log issues
-	const validateTrajectoryQuality = useCallback((trajectory: { x: number; y: number; frame: number; confidence?: number }[]) => {
-		if (trajectory.length < 10) {
-			console.warn('⚠️ Insufficient trajectory data:', trajectory.length, 'points');
-			return;
-		}
-		
-		// Check for gaps in trajectory
-		const gaps = [];
-		for (let i = 1; i < trajectory.length; i++) {
-			if (trajectory[i].frame - trajectory[i-1].frame > 1) {
-				gaps.push({ from: trajectory[i-1].frame, to: trajectory[i].frame });
-			}
-		}
-		
-		if (gaps.length > 0) {
-			console.warn('⚠️ Trajectory gaps detected:', gaps);
-		}
-		
-		// Check confidence levels
-		const avgConfidence = trajectory.reduce((sum, p) => sum + (p.confidence || 0), 0) / trajectory.length;
-		if (avgConfidence < 0.5) {
-			console.warn('⚠️ Low average confidence:', avgConfidence.toFixed(2));
-		}
-		
-		// Check for extreme movements (potential squiggles)
-		let extremeMovements = 0;
-		for (let i = 1; i < trajectory.length; i++) {
-			const prev = trajectory[i - 1];
-			const curr = trajectory[i];
-			const distance = Math.sqrt(
-				Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
-			);
-			if (distance > 0.3) { // More than 30% of screen width
-				extremeMovements++;
-			}
-		}
-		
-		if (extremeMovements > trajectory.length * 0.1) {
-			console.warn('⚠️ Many extreme movements detected:', extremeMovements);
-		}
-		
-		console.log('✅ Trajectory quality check complete:', {
-			points: trajectory.length,
-			gaps: gaps.length,
-			avgConfidence: avgConfidence.toFixed(2),
-			extremeMovements
-		});
-	}, []);
 
 	// Build full trajectory once when poses change
 	useEffect(() => {
