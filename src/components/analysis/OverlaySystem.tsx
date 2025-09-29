@@ -766,6 +766,43 @@ export default function OverlaySystem({
     return phaseSegments;
   }, []);
 
+  // Draw position markers for key swing positions
+  const drawPositionMarkers = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
+    if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
+    const videoWidth = ctx.canvas.width;
+    const videoHeight = ctx.canvas.height;
+    const byName = (name: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === name);
+    const address = byName('address');
+    const backswing = byName('backswing');
+    const top = byName('top');
+    const impact = byName('impact');
+    const followThrough = byName('follow-through');
+
+    const clampIndex = (idx: number | undefined) => Math.max(0, Math.min((idx ?? 0), trajectory.length - 1));
+
+    const keyPoints: { label: string; idx: number; color: string; size: number }[] = [];
+    if (address) keyPoints.push({ label: 'ADDRESS', idx: clampIndex(address.startFrame), color: '#00FF00', size: 8 });
+    if (top) keyPoints.push({ label: 'TOP', idx: clampIndex(Math.floor((top.startFrame + top.endFrame) / 2)), color: '#FFFF00', size: 12 });
+    if (impact) keyPoints.push({ label: 'IMPACT', idx: clampIndex(impact.startFrame), color: '#FF00FF', size: 15 });
+    if (followThrough) keyPoints.push({ label: 'FINISH', idx: clampIndex(followThrough.endFrame), color: '#0000FF', size: 10 });
+
+    keyPoints.forEach((kp) => {
+      const pt = trajectory[kp.idx];
+      const x = pt.x * videoWidth;
+      const y = pt.y * videoHeight;
+      ctx.beginPath();
+      ctx.arc(x, y, kp.size, 0, Math.PI * 2);
+      ctx.fillStyle = kp.color;
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(kp.label, x + 20, y - 8);
+    });
+  }, []);
+
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
     if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
@@ -1427,41 +1464,6 @@ export default function OverlaySystem({
 		}
 	}, []);
 
-	const drawPositionMarkers = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
-		if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
-		const videoWidth = ctx.canvas.width;
-		const videoHeight = ctx.canvas.height;
-		const byName = (name: EnhancedSwingPhase['name']) => phaseList.find(p => p.name === name);
-		const address = byName('address');
-		const backswing = byName('backswing');
-		const top = byName('top');
-		const impact = byName('impact');
-		const followThrough = byName('follow-through');
-
-		const clampIndex = (idx: number | undefined) => Math.max(0, Math.min((idx ?? 0), trajectory.length - 1));
-
-		const keyPoints: { label: string; idx: number; color: string; size: number }[] = [];
-		if (address) keyPoints.push({ label: 'ADDRESS', idx: clampIndex(address.startFrame), color: '#00FF00', size: 8 });
-		if (top) keyPoints.push({ label: 'TOP', idx: clampIndex(Math.floor((top.startFrame + top.endFrame) / 2)), color: '#FFFF00', size: 12 });
-		if (impact) keyPoints.push({ label: 'IMPACT', idx: clampIndex(impact.startFrame), color: '#FF00FF', size: 15 });
-		if (followThrough) keyPoints.push({ label: 'FINISH', idx: clampIndex(followThrough.endFrame), color: '#0000FF', size: 10 });
-
-		keyPoints.forEach((kp) => {
-			const pt = trajectory[kp.idx];
-			const x = pt.x * videoWidth;
-			const y = pt.y * videoHeight;
-      ctx.beginPath();
-			ctx.arc(x, y, kp.size, 0, Math.PI * 2);
-			ctx.fillStyle = kp.color;
-			ctx.fill();
-			ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 2;
-			ctx.stroke();
-			ctx.fillStyle = '#FFFFFF';
-			ctx.font = 'bold 18px Arial';
-			ctx.fillText(kp.label, x + 20, y - 8);
-		});
-	}, []);
 
 	const drawSwingPlaneFromTrajectory = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
 		if (!trajectory || trajectory.length < 10) return;
