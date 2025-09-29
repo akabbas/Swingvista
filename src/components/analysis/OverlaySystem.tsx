@@ -509,6 +509,59 @@ export default function OverlaySystem({
 		});
 	}, []);
 
+	// Validate path against video content
+	const validatePathAgainstVideo = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
+		console.log('🎯 CLUB PATH VALIDATION:');
+		
+		// Sample key frames and compare with expected positions
+		const validationFrames = [
+			{ frame: 0, expected: 'address position', phase: 'address' },
+			{ frame: phases.find(p => p.name === 'backswing')?.endFrame || 0, expected: 'top of backswing', phase: 'backswing' },
+			{ frame: phases.find(p => p.name === 'impact')?.startFrame || 0, expected: 'impact', phase: 'impact' },
+			{ frame: phases.find(p => p.name === 'follow-through')?.endFrame || trajectory.length - 1, expected: 'finish', phase: 'follow-through' }
+		];
+		
+		validationFrames.forEach(({ frame, expected, phase }) => {
+			if (frame >= 0 && frame < trajectory.length) {
+				const position = trajectory[frame];
+				console.log(`Frame ${frame} (${expected}):`, {
+					x: position.x.toFixed(3),
+					y: position.y.toFixed(3),
+					phase: phase
+				});
+			}
+		});
+		
+		// Check for realistic swing path characteristics
+		const startY = trajectory[0]?.y || 0;
+		const endY = trajectory[trajectory.length - 1]?.y || 0;
+		const maxY = Math.max(...trajectory.map(p => p.y));
+		const minY = Math.min(...trajectory.map(p => p.y));
+		
+		console.log('Swing path characteristics:', {
+			startHeight: startY.toFixed(3),
+			endHeight: endY.toFixed(3),
+			maxHeight: maxY.toFixed(3),
+			minHeight: minY.toFixed(3),
+			heightRange: (maxY - minY).toFixed(3)
+		});
+		
+		// Validate phase transitions
+		const phaseTransitions = [];
+		for (let i = 1; i < trajectory.length; i++) {
+			const prev = trajectory[i - 1];
+			const curr = trajectory[i];
+			const distance = Math.sqrt(
+				Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
+			);
+			if (distance > 0.1) { // Significant movement
+				phaseTransitions.push({ frame: i, distance: distance.toFixed(3) });
+			}
+		}
+		
+		console.log('Phase transitions detected:', phaseTransitions.length);
+	}, []);
+
 	// Calculate smooth club trajectory with precise frame-by-frame detection
 	const calculateSmoothClubTrajectory = useCallback((poses: PoseResult[]) => {
 		console.log('🎯 Building precise club trajectory from', poses.length, 'poses...');
@@ -1622,58 +1675,6 @@ export default function OverlaySystem({
 		}
 	}, []);
 
-	// Validate path against video content
-	const validatePathAgainstVideo = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
-		console.log('🎯 CLUB PATH VALIDATION:');
-		
-		// Sample key frames and compare with expected positions
-		const validationFrames = [
-			{ frame: 0, expected: 'address position', phase: 'address' },
-			{ frame: phases.find(p => p.name === 'backswing')?.endFrame || 0, expected: 'top of backswing', phase: 'backswing' },
-			{ frame: phases.find(p => p.name === 'impact')?.startFrame || 0, expected: 'impact', phase: 'impact' },
-			{ frame: phases.find(p => p.name === 'follow-through')?.endFrame || trajectory.length - 1, expected: 'finish', phase: 'follow-through' }
-		];
-		
-		validationFrames.forEach(({ frame, expected, phase }) => {
-			if (frame >= 0 && frame < trajectory.length) {
-				const position = trajectory[frame];
-				console.log(`Frame ${frame} (${expected}):`, {
-					x: position.x.toFixed(3),
-					y: position.y.toFixed(3),
-					phase: phase
-				});
-			}
-		});
-		
-		// Check for realistic swing path characteristics
-		const startY = trajectory[0]?.y || 0;
-		const endY = trajectory[trajectory.length - 1]?.y || 0;
-		const maxY = Math.max(...trajectory.map(p => p.y));
-		const minY = Math.min(...trajectory.map(p => p.y));
-		
-		console.log('Swing path characteristics:', {
-			startHeight: startY.toFixed(3),
-			endHeight: endY.toFixed(3),
-			maxHeight: maxY.toFixed(3),
-			minHeight: minY.toFixed(3),
-			heightRange: (maxY - minY).toFixed(3)
-		});
-		
-		// Validate phase transitions
-		const phaseTransitions = [];
-		for (let i = 1; i < trajectory.length; i++) {
-			const prev = trajectory[i - 1];
-			const curr = trajectory[i];
-			const distance = Math.sqrt(
-				Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
-			);
-			if (distance > 0.1) { // Significant movement
-				phaseTransitions.push({ frame: i, distance: distance.toFixed(3) });
-			}
-		}
-		
-		console.log('Phase transitions detected:', phaseTransitions.length);
-	}, []);
 
 	// Improved impact zone detection
 	const detectImpactZone = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
