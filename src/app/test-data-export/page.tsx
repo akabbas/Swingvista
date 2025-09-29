@@ -176,6 +176,12 @@ export default function TestDataExportPage() {
         y: 0.5 + Math.cos(i * 0.1) * 0.1,
         visibility: 0.9
       })),
+      worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+        x: 0.5 + Math.sin(i * 0.1) * 0.1,
+        y: 0.5 + Math.cos(i * 0.1) * 0.1,
+        z: 0.1,
+        visibility: 0.9
+      })),
       timestamp: i / 30,
       confidence: 0.9
     }));

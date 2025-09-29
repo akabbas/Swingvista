@@ -10,7 +10,7 @@ export interface EnhancedSwingPhase {
   color: string;
   description: string;
   confidence: number;
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'D-' | 'F';
   metrics: PhaseMetrics;
   recommendations: string[];
   professionalBenchmark: {
@@ -41,6 +41,7 @@ export interface PhaseMetrics {
   
   // Downswing Phase Metrics
   tempoRatio?: number;
+  tempo?: number; // Alias for tempoRatio
   sequencing?: number;
   lag?: number;
   path?: number;
