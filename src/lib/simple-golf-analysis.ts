@@ -6,6 +6,7 @@
  */
 
 import { PoseResult } from './mediapipe';
+import { HybridPoseDetector } from './hybrid-pose-detector';
 
 /**
  * Safe number formatting helper to prevent errors with undefined/null/NaN values
@@ -1359,6 +1360,35 @@ function validateMetricsBeforeUse(metrics: any) {
  * Main analysis function - 100% video-based golf swing analysis
  * NO HARD-CODED VALUES - All metrics calculated from actual pose data
  */
+/**
+ * Analyze golf swing using hybrid pose detector (PoseNet + MediaPipe)
+ */
+export async function analyzeGolfSwingHybrid(video: HTMLVideoElement): Promise<SimpleGolfAnalysis> {
+  console.log('🏌️ HYBRID ANALYSIS: Starting hybrid golf analysis...');
+  
+  try {
+    // Initialize hybrid detector
+    const hybridDetector = HybridPoseDetector.getInstance();
+    await hybridDetector.initialize();
+    
+    // Detect poses using hybrid detector
+    const poses = await hybridDetector.detectPose(video);
+    console.log(`🎯 Hybrid detector found ${poses.length} poses`);
+    
+    // Get detector status
+    const status = hybridDetector.getDetectorStatus();
+    console.log(`📊 Detector status: ${status.detector} (PoseNet: ${status.posenetStatus}, MediaPipe: ${status.mediapipeStatus})`);
+    
+    // Analyze poses
+    const isEmergencyMode = status.detector === 'emergency';
+    return await analyzeGolfSwingSimple(poses, isEmergencyMode);
+    
+  } catch (error: unknown) {
+    console.error('❌ Hybrid analysis failed:', error);
+    throw new Error('Hybrid golf analysis failed');
+  }
+}
+
 export async function analyzeGolfSwingSimple(poses: PoseResult[], isEmergencyMode: boolean = false): Promise<SimpleGolfAnalysis> {
   console.log('🏌️ VIDEO-BASED ANALYSIS: Starting real golf analysis...');
   console.log('🏌️ VIDEO-BASED ANALYSIS: Poses count:', poses.length);

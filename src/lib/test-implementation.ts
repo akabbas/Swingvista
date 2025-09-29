@@ -5,7 +5,9 @@
  */
 
 import { MediaPipePoseDetector } from './mediapipe';
-import { analyzeGolfSwingSimple } from './simple-golf-analysis';
+import { PoseNetDetector } from './posenet-detector';
+import { HybridPoseDetector } from './hybrid-pose-detector';
+import { analyzeGolfSwingSimple, analyzeGolfSwingHybrid } from './simple-golf-analysis';
 import { PoseResult } from './mediapipe';
 
 export interface TestResult {
@@ -66,6 +68,14 @@ export function runComprehensiveTests(): Promise<TestSuite> {
       // Test 8: Performance Benchmarks
       const test8 = await testPerformanceBenchmarks();
       results.push(test8);
+      
+      // Test 9: PoseNet Configuration
+      const test9 = await testPoseNetConfig();
+      results.push(test9);
+      
+      // Test 10: Hybrid Detector
+      const test10 = await testHybridDetector();
+      results.push(test10);
       
       const endTime = Date.now();
       const duration = endTime - startTime;
@@ -722,6 +732,76 @@ function generateTestReport(suite: TestSuite): void {
     console.log('1. Fix failed tests');
     console.log('2. Re-run test suite');
     console.log('3. Verify fixes before production');
+  }
+}
+
+async function testPoseNetConfig(): Promise<TestResult> {
+  console.log('🎯 Testing PoseNet configuration...');
+  const startTime = Date.now();
+  
+  try {
+    const detector = PoseNetDetector.getInstance();
+    await detector.initialize();
+    
+    const initialized = detector.getInitializationStatus();
+    const emergency = detector.getEmergencyModeStatus();
+    
+    const successRate = initialized ? 100 : 0;
+    const status = successRate >= 100 ? 'PASS' : 'FAIL';
+    const details = `Initialized: ${initialized}, Emergency: ${emergency}, Success Rate: ${successRate.toFixed(1)}%`;
+    
+    console.log(`✅ PoseNet configuration test: ${status}`);
+    
+    return {
+      testName: 'PoseNet Configuration',
+      status,
+      duration: Date.now() - startTime,
+      details
+    };
+    
+  } catch (error) {
+    console.log(`❌ PoseNet configuration test failed: ${error}`);
+    return {
+      testName: 'PoseNet Configuration',
+      status: 'ERROR',
+      duration: Date.now() - startTime,
+      details: 'PoseNet configuration test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+async function testHybridDetector(): Promise<TestResult> {
+  console.log('🔄 Testing hybrid detector...');
+  const startTime = Date.now();
+  
+  try {
+    const detector = HybridPoseDetector.getInstance();
+    await detector.initialize();
+    
+    const status = detector.getDetectorStatus();
+    const successRate = status.initialized ? 100 : 0;
+    const testStatus = successRate >= 100 ? 'PASS' : 'FAIL';
+    const details = `Initialized: ${status.initialized}, Detector: ${status.detector}, PoseNet: ${status.posenetStatus}, MediaPipe: ${status.mediapipeStatus}`;
+    
+    console.log(`✅ Hybrid detector test: ${testStatus}`);
+    
+    return {
+      testName: 'Hybrid Detector',
+      status: testStatus,
+      duration: Date.now() - startTime,
+      details
+    };
+    
+  } catch (error) {
+    console.log(`❌ Hybrid detector test failed: ${error}`);
+    return {
+      testName: 'Hybrid Detector',
+      status: 'ERROR',
+      duration: Date.now() - startTime,
+      details: 'Hybrid detector test failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 }
 
