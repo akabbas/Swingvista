@@ -186,6 +186,14 @@ export default function UploadPage() {
     let consecutiveFailures = 0;
     const maxConsecutiveFailures = 5;
     
+    // Comprehensive video validation
+    console.log(`📹 Video validation: duration=${video.duration}s, dimensions=${video.videoWidth}x${video.videoHeight}, readyState=${video.readyState}`);
+    
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('❌ Video has zero dimensions, cannot proceed with analysis');
+      throw new Error('Video has zero dimensions. Please ensure the video file is valid and properly loaded.');
+    }
+    
     console.log(`🎬 Starting full pose extraction for ${totalFrames} frames...`);
 
     for (let frame = 0; frame < totalFrames; frame++) {
@@ -232,14 +240,23 @@ export default function UploadPage() {
         // Use the smart retry mechanism for better success rate
         try {
           console.log(`🎯 Processing frame ${frame}/${totalFrames} at time ${targetTime.toFixed(2)}s`);
-          pose = await Promise.race([
-            detector.detectPose(video),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-          ]);
+          
+          // Final video validation before pose detection
+          console.log(`📹 Video state: readyState=${video.readyState}, dimensions=${video.videoWidth}x${video.videoHeight}`);
+          
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.warn(`⚠️ Frame ${frame}: Video has zero dimensions, using fallback pose`);
+            pose = generateFallbackPose(frame, totalFrames, video.duration);
+          } else {
+            pose = await Promise.race([
+              detector.detectPose(video),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+          }
           
           // Log successful detection
-          if (pose && pose.landmarks && pose.landmarks.length > 0) {
-            console.log(`✅ Frame ${frame}: Detected ${pose.landmarks.length} landmarks`);
+          if (pose && (pose as any).landmarks && (pose as any).landmarks.length > 0) {
+            console.log(`✅ Frame ${frame}: Detected ${(pose as any).landmarks.length} landmarks`);
           } else {
             console.warn(`⚠️ Frame ${frame}: No landmarks detected, using fallback`);
             pose = generateFallbackPose(frame, totalFrames, video.duration);
@@ -377,7 +394,7 @@ export default function UploadPage() {
       
       // Extract poses from video
       console.log('🎬 Extracting poses from video...');
-      const poses = await extractPosesFromVideo(video, detector);
+      const poses = await extractPosesFromVideo(video, detector as any);
       console.log('✅ Extracted', poses.length, 'poses');
       
       if (poses.length === 0) {
