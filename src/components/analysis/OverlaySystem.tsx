@@ -729,6 +729,43 @@ export default function OverlaySystem({
     return true;
   }, [isPlaying]);
 
+  // Create phase-accurate path segmentation
+  const createPhaseAccuratePath = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
+    const phaseSegments: Record<string, { points: any[]; color: string; width: number; opacity: number; showMarkers: boolean; markerInterval: number }> = {};
+    
+    const phaseConfig = {
+      address: { color: '#00FF00', width: 2, opacity: 0.8 },
+      backswing: { color: '#FFFF00', width: 3, opacity: 0.8 },
+      downswing: { color: '#FF0000', width: 4, opacity: 0.9 },
+      impact: { color: '#FF00FF', width: 6, opacity: 1.0 },
+      'follow-through': { color: '#0000FF', width: 3, opacity: 0.8 }
+    };
+    
+    Object.keys(phaseConfig).forEach(phaseKey => {
+      const phase = phases.find(p => p.name === phaseKey);
+      if (!phase) return;
+      
+      const start = Math.max(0, Math.min(phase.startFrame, trajectory.length - 1));
+      const end = Math.max(0, Math.min(phase.endFrame, trajectory.length - 1));
+      
+      if (end > start) {
+        const segment = trajectory.slice(start, end + 1);
+        const config = phaseConfig[phaseKey as keyof typeof phaseConfig];
+        
+        phaseSegments[phaseKey] = {
+          points: segment,
+          color: config.color,
+          width: config.width,
+          opacity: config.opacity,
+          showMarkers: true,
+          markerInterval: Math.max(1, Math.floor(segment.length / 10))
+        };
+      }
+    });
+    
+    return phaseSegments;
+  }, []);
+
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
     if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
@@ -1079,41 +1116,6 @@ export default function OverlaySystem({
 
 
 	// Create phase-accurate path segmentation
-	const createPhaseAccuratePath = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
-		const phaseSegments: Record<string, { points: any[]; color: string; width: number; opacity: number; showMarkers: boolean; markerInterval: number }> = {};
-		
-		const phaseConfig = {
-			address: { color: '#00FF00', width: 2, opacity: 0.8 },
-			backswing: { color: '#FFFF00', width: 3, opacity: 0.8 },
-			downswing: { color: '#FF0000', width: 4, opacity: 0.9 },
-			impact: { color: '#FF00FF', width: 6, opacity: 1.0 },
-			'follow-through': { color: '#0000FF', width: 3, opacity: 0.8 }
-		};
-		
-		Object.keys(phaseConfig).forEach(phaseKey => {
-			const phase = phases.find(p => p.name === phaseKey);
-			if (!phase) return;
-			
-			const start = Math.max(0, Math.min(phase.startFrame, trajectory.length - 1));
-			const end = Math.max(0, Math.min(phase.endFrame, trajectory.length - 1));
-			
-			if (end > start) {
-				const segment = trajectory.slice(start, end + 1);
-				const config = phaseConfig[phaseKey as keyof typeof phaseConfig];
-				
-				phaseSegments[phaseKey] = {
-					points: segment,
-					color: config.color,
-					width: config.width,
-					opacity: config.opacity,
-					showMarkers: true,
-					markerInterval: Math.max(1, Math.floor(segment.length / 10))
-				};
-			}
-		});
-		
-		return phaseSegments;
-	}, []);
 
 	// --- COMPLETE CLUB PATH DRAWING ---
 
