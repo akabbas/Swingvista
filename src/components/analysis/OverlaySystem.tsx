@@ -729,6 +729,61 @@ export default function OverlaySystem({
     return true;
   }, [isPlaying]);
 
+  // Draw skeleton connections
+  const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
+    console.log('=== DRAWING SKELETON ===');
+    console.log('Landmarks count:', landmarks?.length || 0);
+    
+    // Debug monitoring for stick figure
+    const landmarksDetected = landmarks?.length || 0;
+    const confidenceScore = landmarks ? landmarks.reduce((sum, landmark) => sum + (landmark.visibility || 0), 0) / landmarks.length : 0;
+    const renderingStatus = ctx ? 'ok' : 'error';
+    
+    debuggerInstance.updateComponentStatus('stickFigure', 
+      landmarksDetected > 0 && confidenceScore > 0.6 ? 'ok' : 'warning',
+      { landmarksDetected, confidenceScore, renderingStatus },
+      { landmarksDetected, confidenceScore, renderingStatus }
+    );
+    
+    if (!landmarks || landmarks.length === 0) {
+      console.error('No landmarks to draw skeleton');
+      return;
+    }
+    
+    const { width, height } = ctx.canvas;
+    console.log('Canvas dimensions for skeleton:', { width, height });
+    
+    const connections = [
+      // Head
+      [0, 1], [1, 2], [2, 3], [3, 7],
+      [0, 4], [4, 5], [5, 6], [6, 8],
+      // Torso
+      [11, 12], [11, 23], [12, 24], [23, 24],
+      // Arms
+      [11, 13], [13, 15], [12, 14], [14, 16],
+      // Legs
+      [23, 25], [25, 27], [24, 26], [26, 28]
+    ];
+
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.lineWidth = 3;
+    
+    let connectionsDrawn = 0;
+    connections.forEach(([a, b]) => {
+      const pa = landmarks[a];
+      const pb = landmarks[b];
+      if (pa && pb && pa.visibility && pa.visibility > 0.5 && pb.visibility && pb.visibility > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(pa.x * width, pa.y * height);
+        ctx.lineTo(pb.x * width, pb.y * height);
+        ctx.stroke();
+        connectionsDrawn++;
+      }
+    });
+    
+    console.log('Skeleton connections drawn:', connectionsDrawn);
+  }, []);
+
   // Helper function to find closest pose
   const findClosestPose = useCallback((time: number): PoseResult | null => {
     if (!poses || poses.length === 0) return null;
@@ -917,60 +972,6 @@ export default function OverlaySystem({
     }
   }, [config, phases, currentTime, poses, findClosestPose, drawSkeleton, drawCompleteClubPath, drawPositionMarkers, drawSwingPlaneFromTrajectory, drawRealtimeClubHeadMarker, validateClubPath, drawFallbackClubPath, detectImpactZone, drawWeightDistribution, drawBalanceIndicators, drawSwingFeedback, analyzeCurrentWeightDistribution, generateSwingFeedback, analyzeSwingMetrics, drawClubHeadTracer, drawClubHeadPhaseMarkers, buildClubHeadTrajectory, getCurrentClubHeadPosition]);
 
-  // Draw skeleton connections
-  const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
-    console.log('=== DRAWING SKELETON ===');
-    console.log('Landmarks count:', landmarks?.length || 0);
-    
-    // Debug monitoring for stick figure
-    const landmarksDetected = landmarks?.length || 0;
-    const confidenceScore = landmarks ? landmarks.reduce((sum, landmark) => sum + (landmark.visibility || 0), 0) / landmarks.length : 0;
-    const renderingStatus = ctx ? 'ok' : 'error';
-    
-    debuggerInstance.updateComponentStatus('stickFigure', 
-      landmarksDetected > 0 && confidenceScore > 0.6 ? 'ok' : 'warning',
-      { landmarksDetected, confidenceScore, renderingStatus },
-      { landmarksDetected, confidenceScore, renderingStatus }
-    );
-    
-    if (!landmarks || landmarks.length === 0) {
-      console.error('No landmarks to draw skeleton');
-      return;
-    }
-    
-    const { width, height } = ctx.canvas;
-    console.log('Canvas dimensions for skeleton:', { width, height });
-    
-    const connections = [
-      // Head
-      [0, 1], [1, 2], [2, 3], [3, 7],
-      [0, 4], [4, 5], [5, 6], [6, 8],
-      // Torso
-      [11, 12], [11, 23], [12, 24], [23, 24],
-      // Arms
-      [11, 13], [13, 15], [12, 14], [14, 16],
-      // Legs
-      [23, 25], [25, 27], [24, 26], [26, 28]
-    ];
-
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-    ctx.lineWidth = 3;
-    
-    let connectionsDrawn = 0;
-    connections.forEach(([a, b]) => {
-      const pa = landmarks[a];
-      const pb = landmarks[b];
-      if (pa && pb && pa.visibility && pa.visibility > 0.5 && pb.visibility && pb.visibility > 0.5) {
-        ctx.beginPath();
-        ctx.moveTo(pa.x * width, pa.y * height);
-        ctx.lineTo(pb.x * width, pb.y * height);
-        ctx.stroke();
-        connectionsDrawn++;
-      }
-    });
-    
-    console.log('Skeleton connections drawn:', connectionsDrawn);
-  }, []);
 
 	// Create phase-accurate path segmentation
 	const createPhaseAccuratePath = useCallback((trajectory: { x: number; y: number; frame: number }[], phases: EnhancedSwingPhase[]) => {
@@ -1251,7 +1252,7 @@ export default function OverlaySystem({
 				ctx.strokeStyle = colors[index];
 				ctx.lineWidth = 2;
 				ctx.stroke();
-				
+    
 				// Draw phase label
 				ctx.fillStyle = colors[index];
 				ctx.font = 'bold 12px Arial';
