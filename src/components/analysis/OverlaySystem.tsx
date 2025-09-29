@@ -729,6 +729,111 @@ export default function OverlaySystem({
     return true;
   }, [isPlaying]);
 
+  // Draw complete club path with phase segmentation
+  const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
+    if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
+    const videoWidth = ctx.canvas.width;
+    const videoHeight = ctx.canvas.height;
+
+    console.log('🎯 Drawing precise club path with', trajectory.length, 'points');
+
+    // Create phase-accurate path segments
+    const phaseSegments = createPhaseAccuratePath(trajectory, phaseList);
+
+    // Draw the complete club path as a continuous line with varying thickness
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Base white path (lighter)
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw the main path
+    for (let i = 0; i < trajectory.length; i++) {
+      const pt = trajectory[i];
+      const x = pt.x * videoWidth;
+      const y = pt.y * videoHeight;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // Draw phase-specific segments with enhanced visualization
+    Object.entries(phaseSegments).forEach(([phaseKey, segment]) => {
+      if (!segment.points.length) return;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = segment.color + Math.floor(segment.opacity * 255).toString(16).padStart(2, '0');
+      ctx.lineWidth = segment.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Different line styles for different phases
+      if (phaseKey === 'address') {
+        ctx.setLineDash([8, 4]); // Dashed for address
+      } else if (phaseKey === 'impact') {
+        ctx.setLineDash([]); // Solid for impact
+      } else {
+        ctx.setLineDash([2, 2]); // Slightly dashed for other phases
+      }
+      
+      // Draw the phase segment
+      for (let i = 0; i < segment.points.length; i++) {
+        const pt = segment.points[i];
+        const x = pt.x * videoWidth;
+        const y = pt.y * videoHeight;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+      
+      // Add phase markers at intervals
+      if (segment.showMarkers) {
+        for (let i = 0; i < segment.points.length; i += segment.markerInterval) {
+          const pt = segment.points[i];
+          const x = pt.x * videoWidth;
+          const y = pt.y * videoHeight;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fillStyle = segment.color;
+          ctx.fill();
+        }
+      }
+    });
+    
+    // Reset line dash
+    ctx.setLineDash([]);
+    
+    // Add club head direction indicators (small arrows) - less frequent for cleaner look
+    for (let i = 0; i < trajectory.length - 1; i += Math.max(1, Math.floor(trajectory.length / 15))) {
+      const current = trajectory[i];
+      const next = trajectory[i + 1];
+      const dx = next.x - current.x;
+      const dy = next.y - current.y;
+      const angle = Math.atan2(dy, dx);
+      
+      const x = current.x * videoWidth;
+      const y = current.y * videoHeight;
+      const arrowLength = 6;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(x, y);
+      ctx.lineTo(
+        x + Math.cos(angle) * arrowLength,
+        y + Math.sin(angle) * arrowLength
+      );
+      ctx.stroke();
+    }
+  }, [createPhaseAccuratePath]);
+
   // Draw skeleton connections
   const drawSkeleton = useCallback((ctx: CanvasRenderingContext2D, landmarks: any[]) => {
     console.log('=== DRAWING SKELETON ===');
@@ -1011,109 +1116,6 @@ export default function OverlaySystem({
 	}, []);
 
 	// --- COMPLETE CLUB PATH DRAWING ---
-	const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
-		if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
-		const videoWidth = ctx.canvas.width;
-		const videoHeight = ctx.canvas.height;
-
-		console.log('🎯 Drawing precise club path with', trajectory.length, 'points');
-
-		// Create phase-accurate path segments
-		const phaseSegments = createPhaseAccuratePath(trajectory, phaseList);
-
-		// Draw the complete club path as a continuous line with varying thickness
-		ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Base white path (lighter)
-		ctx.lineWidth = 4;
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		
-		// Draw the main path
-		for (let i = 0; i < trajectory.length; i++) {
-			const pt = trajectory[i];
-			const x = pt.x * videoWidth;
-			const y = pt.y * videoHeight;
-			if (i === 0) {
-				ctx.moveTo(x, y);
-			} else {
-				ctx.lineTo(x, y);
-			}
-		}
-		ctx.stroke();
-
-		// Draw phase-specific segments with enhanced visualization
-		Object.entries(phaseSegments).forEach(([phaseKey, segment]) => {
-			if (!segment.points.length) return;
-			
-			ctx.beginPath();
-			ctx.strokeStyle = segment.color + Math.floor(segment.opacity * 255).toString(16).padStart(2, '0');
-			ctx.lineWidth = segment.width;
-			ctx.lineCap = 'round';
-			ctx.lineJoin = 'round';
-			
-			// Different line styles for different phases
-			if (phaseKey === 'address') {
-				ctx.setLineDash([8, 4]); // Dashed for address
-			} else if (phaseKey === 'impact') {
-				ctx.setLineDash([]); // Solid for impact
-			} else {
-				ctx.setLineDash([2, 2]); // Slightly dashed for other phases
-			}
-			
-			// Draw the phase segment
-			for (let i = 0; i < segment.points.length; i++) {
-				const pt = segment.points[i];
-				const x = pt.x * videoWidth;
-				const y = pt.y * videoHeight;
-				if (i === 0) {
-					ctx.moveTo(x, y);
-				} else {
-					ctx.lineTo(x, y);
-				}
-			}
-			ctx.stroke();
-			
-			// Add phase markers at intervals
-			if (segment.showMarkers) {
-				for (let i = 0; i < segment.points.length; i += segment.markerInterval) {
-					const pt = segment.points[i];
-					const x = pt.x * videoWidth;
-					const y = pt.y * videoHeight;
-					
-					ctx.beginPath();
-					ctx.arc(x, y, 3, 0, 2 * Math.PI);
-					ctx.fillStyle = segment.color;
-					ctx.fill();
-				}
-			}
-		});
-		
-		// Reset line dash
-		ctx.setLineDash([]);
-		
-		// Add club head direction indicators (small arrows) - less frequent for cleaner look
-		for (let i = 0; i < trajectory.length - 1; i += Math.max(1, Math.floor(trajectory.length / 15))) {
-			const current = trajectory[i];
-			const next = trajectory[i + 1];
-			const dx = next.x - current.x;
-			const dy = next.y - current.y;
-			const angle = Math.atan2(dy, dx);
-			
-			const x = current.x * videoWidth;
-			const y = current.y * videoHeight;
-			const arrowLength = 6;
-			
-			ctx.beginPath();
-			ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-			ctx.lineWidth = 1.5;
-			ctx.moveTo(x, y);
-			ctx.lineTo(
-				x + Math.cos(angle) * arrowLength,
-				y + Math.sin(angle) * arrowLength
-			);
-			ctx.stroke();
-		}
-  }, [createPhaseAccuratePath]);
 
 	// Calculate swing plane angle
 	const calculateSwingPlaneAngle = useCallback((trajectory: { x: number; y: number; frame: number }[]) => {
