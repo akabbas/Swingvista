@@ -89,7 +89,8 @@ export class HybridPoseDetector {
 
         case 'mediapipe':
           console.log('🎯 Using MediaPipe for pose detection...');
-          return await this.mediapipeDetector.detectPose(video);
+          const mediapipeResult = await this.mediapipeDetector.detectPose(video);
+          return Array.isArray(mediapipeResult) ? mediapipeResult : [mediapipeResult];
 
         case 'emergency':
           console.log('🎯 Using emergency mode for pose detection...');
@@ -107,7 +108,7 @@ export class HybridPoseDetector {
           console.log('🔄 Trying MediaPipe fallback...');
           const mediapipePoses = await this.mediapipeDetector.detectPose(video);
           this.currentDetector = 'mediapipe';
-          return mediapipePoses;
+          return Array.isArray(mediapipePoses) ? mediapipePoses : [mediapipePoses];
         } catch (fallbackError: unknown) {
           console.warn('⚠️ MediaPipe fallback also failed:', fallbackError);
         }
@@ -137,7 +138,9 @@ export class HybridPoseDetector {
 
         case 'mediapipe':
           console.log('🎯 Using MediaPipe for image pose detection...');
-          return await this.mediapipeDetector.detectPose(image);
+          // MediaPipe doesn't support image detection, use emergency mode
+          console.log('⚠️ MediaPipe doesn\'t support image detection, using emergency mode');
+          return this.generateEmergencyPoses();
 
         case 'emergency':
           console.log('🎯 Using emergency mode for image pose detection...');
