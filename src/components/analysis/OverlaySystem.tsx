@@ -803,6 +803,43 @@ export default function OverlaySystem({
     });
   }, []);
 
+  // Draw swing plane from trajectory
+  const drawSwingPlaneFromTrajectory = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
+    if (!trajectory || trajectory.length < 10) return;
+    
+    // Debug monitoring for swing plane
+    const planeCalculated = trajectory.length >= 10;
+    const angle = calculateSwingPlaneAngle(trajectory);
+    const consistency = calculateSwingPlaneConsistency(trajectory);
+    const deviation = calculateSwingPlaneDeviation(trajectory);
+    
+    debuggerInstance.updateComponentStatus('swingPlane',
+      planeCalculated && consistency > 0.7 ? 'ok' : 'warning',
+      { planeCalculated, angle, consistency, deviation },
+      { planeCalculated, angle, consistency, deviation }
+    );
+    
+    const videoWidth = ctx.canvas.width;
+    const videoHeight = ctx.canvas.height;
+    const startIdx = 0;
+    const topPhase = phaseList.find(p => p.name === 'top');
+    const impactPhase = phaseList.find(p => p.name === 'impact');
+    const topIdx = topPhase ? Math.floor((topPhase.startFrame + topPhase.endFrame) / 2) : Math.floor(trajectory.length * 0.3);
+    const impactIdx = impactPhase ? impactPhase.startFrame : Math.floor(trajectory.length * 0.7);
+    const s = trajectory[Math.max(0, Math.min(startIdx, trajectory.length - 1))];
+    const t = trajectory[Math.max(0, Math.min(topIdx, trajectory.length - 1))];
+    const i = trajectory[Math.max(0, Math.min(impactIdx, trajectory.length - 1))];
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 165, 0, 0.7)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 3]);
+    ctx.moveTo(s.x * videoWidth, s.y * videoHeight);
+    ctx.lineTo(t.x * videoWidth, t.y * videoHeight);
+    ctx.lineTo(i.x * videoWidth, i.y * videoHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }, []);
+
   // Draw complete club path with phase segmentation
   const drawCompleteClubPath = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
     if (!trajectory || trajectory.length === 0 || !phaseList || phaseList.length === 0) return;
@@ -1465,41 +1502,6 @@ export default function OverlaySystem({
 	}, []);
 
 
-	const drawSwingPlaneFromTrajectory = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number }[], phaseList: EnhancedSwingPhase[]) => {
-		if (!trajectory || trajectory.length < 10) return;
-		
-		// Debug monitoring for swing plane
-		const planeCalculated = trajectory.length >= 10;
-		const angle = calculateSwingPlaneAngle(trajectory);
-		const consistency = calculateSwingPlaneConsistency(trajectory);
-		const deviation = calculateSwingPlaneDeviation(trajectory);
-		
-		debuggerInstance.updateComponentStatus('swingPlane',
-			planeCalculated && consistency > 0.7 ? 'ok' : 'warning',
-			{ planeCalculated, angle, consistency, deviation },
-			{ planeCalculated, angle, consistency, deviation }
-		);
-		
-		const videoWidth = ctx.canvas.width;
-		const videoHeight = ctx.canvas.height;
-		const startIdx = 0;
-		const topPhase = phaseList.find(p => p.name === 'top');
-		const impactPhase = phaseList.find(p => p.name === 'impact');
-		const topIdx = topPhase ? Math.floor((topPhase.startFrame + topPhase.endFrame) / 2) : Math.floor(trajectory.length * 0.3);
-		const impactIdx = impactPhase ? impactPhase.startFrame : Math.floor(trajectory.length * 0.7);
-		const s = trajectory[Math.max(0, Math.min(startIdx, trajectory.length - 1))];
-		const t = trajectory[Math.max(0, Math.min(topIdx, trajectory.length - 1))];
-		const i = trajectory[Math.max(0, Math.min(impactIdx, trajectory.length - 1))];
-      ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 165, 0, 0.7)';
-		ctx.lineWidth = 3;
-		ctx.setLineDash([5, 3]);
-		ctx.moveTo(s.x * videoWidth, s.y * videoHeight);
-		ctx.lineTo(t.x * videoWidth, t.y * videoHeight);
-		ctx.lineTo(i.x * videoWidth, i.y * videoHeight);
-		ctx.stroke();
-		ctx.setLineDash([]);
-	}, []);
 
 	const drawRealtimeClubHeadMarker = useCallback((ctx: CanvasRenderingContext2D, trajectory: { x: number; y: number; frame: number; t?: number }[]) => {
 		if (!trajectory || trajectory.length === 0) return;
