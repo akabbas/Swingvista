@@ -264,10 +264,13 @@ export default function UploadPage() {
             pose = generateFallbackPose(frame, totalFrames, video.duration);
           } else {
             // Use improved detection with better timeout and retry
-            pose = await Promise.race([
+            const detectedPoses = await Promise.race([
               detector.detectPose(video),
               new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)) // Increased timeout
             ]);
+            
+            // Extract the first pose from the array
+            pose = Array.isArray(detectedPoses) ? detectedPoses[0] : detectedPoses;
           }
           
           // Log successful detection
