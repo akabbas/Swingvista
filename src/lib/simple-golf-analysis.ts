@@ -634,17 +634,42 @@ function calculateActualSwingMetrics(poses: PoseResult[], isEmergencyMode: boole
  * Validate tempo ratio for realistic golf swing parameters
  */
 // REALISTIC tempo validation for golf swings
+let tempoWarnedOnce = false;
+let tempoInfoLoggedOnce = false;
+let tempoClampInfoLoggedOnce = false;
 function validateTempoRatio(ratio: number, isEmergencyMode: boolean = false): boolean {
-  // Golf-specific tempo ratios: 2.0:1 to 3.5:1 are ideal
-  const minRatio = isEmergencyMode ? 1.5 : 2.0;
+  // Accept 1.5 as valid in normal mode; target range remains tighter than critical bounds
+  const minRatio = 1.5; // normal mode lower bound adjusted from 2.0 → 1.5
   const maxRatio = isEmergencyMode ? 4.0 : 3.5;
   
-  const isValid = ratio >= minRatio && ratio <= maxRatio && !isNaN(ratio) && isFinite(ratio);
+  const isNumber = typeof ratio === 'number' && !isNaN(ratio) && isFinite(ratio);
+  if (!isNumber) {
+    if (!tempoWarnedOnce) {
+      console.warn('⚠️ Tempo ratio is not a valid number');
+      tempoWarnedOnce = true;
+    }
+    return false;
+  }
+
+  const isValid = ratio >= minRatio && ratio <= maxRatio;
+  const isCritical = ratio < 1.0 || ratio > 5.0; // only show critical warnings for truly unrealistic values
   
-  if (!isValid) {
-    console.warn(`⚠️ Tempo ratio ${ratio.toFixed(2)} outside golf range [${minRatio}-${maxRatio}]`);
-  } else {
+  if (isValid) {
     console.log(`✅ Tempo ratio: ${ratio.toFixed(1)}:1 (valid golf tempo)`);
+  } else {
+    if (isCritical) {
+      if (!tempoWarnedOnce) {
+        console.warn(`⚠️ Tempo ratio ${ratio.toFixed(2)} is unrealistic (<1.0 or >5.0)`);
+        tempoWarnedOnce = true;
+      } else {
+        console.info(`Tempo ratio ${ratio.toFixed(2)} remains outside critical bounds (<1.0 or >5.0)`);
+      }
+    } else {
+      if (!tempoInfoLoggedOnce) {
+        console.info(`Tempo ratio ${ratio.toFixed(2)} outside target range [${minRatio}-${maxRatio}]`);
+        tempoInfoLoggedOnce = true;
+      }
+    }
   }
   
   return isValid;
@@ -701,7 +726,10 @@ function calculateTempo(poses: any[], impactFrame: number, isEmergencyMode: bool
   
   // Validate and clamp tempo ratio instead of using defaults
   if (!validateTempoRatio(tempoRatio, isEmergencyMode)) {
-    console.warn('⚠️ Tempo ratio invalid, clamping to realistic range');
+    if (!tempoClampInfoLoggedOnce) {
+      console.info('Tempo ratio outside target range, clamping to realistic band');
+      tempoClampInfoLoggedOnce = true;
+    }
     tempoRatio = clampTempoRatio(tempoRatio);
   }
   
@@ -1044,8 +1072,21 @@ function gradeTempo(tempo: any, isEmergencyMode: boolean = false): number {
   
   // Use improved validation
   if (!validateTempoRatio(ratio, isEmergencyMode)) {
-    console.warn('⚠️ TEMPO VALIDATION: Ratio', ratio, 'outside realistic range');
-    return 40; // Poor score for unrealistic ratios
+    const isCritical = ratio < 1.0 || ratio > 5.0;
+    if (isCritical) {
+      if (!tempoWarnedOnce) {
+        console.warn('⚠️ TEMPO VALIDATION: Ratio', ratio, 'unrealistic');
+        tempoWarnedOnce = true;
+      } else {
+        console.info('Tempo ratio remains unrealistic; scoring conservatively');
+      }
+    } else {
+      if (!tempoInfoLoggedOnce) {
+        console.info('Tempo ratio outside target range; scoring lower accordingly');
+        tempoInfoLoggedOnce = true;
+      }
+    }
+    return 40; // Poor score for out-of-target/critical ratios
   }
   
   const idealRatio = 3.0;
