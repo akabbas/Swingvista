@@ -522,8 +522,25 @@ export default function UploadPage() {
       // Analyze the swing using extracted poses
       console.log('⚡ Analyzing swing with extracted poses...');
       const status = detector.getDetectorStatus();
-      const isEmergencyMode = status.detector === 'emergency';
-      console.log(`🔄 Analysis mode: ${status.detector} (PoseNet: ${status.posenetStatus}, MediaPipe: ${status.mediapipeStatus})`);
+      // Determine emergency mode based on pose quality rather than detector name
+      const sufficientFrames = poses.length >= 20;
+      const avgVisible = (() => {
+        try {
+          const sampleSize = Math.min(poses.length, 50);
+          const startIndex = Math.max(0, Math.floor((poses.length - sampleSize) / 2));
+          let totalVisible = 0;
+          for (let i = 0; i < sampleSize; i++) {
+            const lm = poses[startIndex + i]?.landmarks || [];
+            totalVisible += lm.filter((p: any) => (p?.visibility ?? 0) > 0.5).length;
+          }
+          return totalVisible / Math.max(sampleSize, 1);
+        } catch {
+          return 0;
+        }
+      })();
+      const isPoseQualityLow = !sufficientFrames || avgVisible < 12; // require ~12+ visible landmarks on average
+      const isEmergencyMode = isPoseQualityLow || status.detector === 'emergency';
+      console.log(`🔄 Analysis mode: ${isEmergencyMode ? 'EMERGENCY (low pose quality)' : 'NORMAL'} | frames=${poses.length}, avgVisible=${avgVisible.toFixed(1)} | detector=${status.detector}`);
       console.log(`📊 Analyzing ${poses.length} poses from video frames`);
       
       // Use simple analysis function with extracted poses
