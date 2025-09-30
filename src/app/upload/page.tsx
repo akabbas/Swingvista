@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { MediaPipePoseDetector } from '@/lib/mediapipe';
 import { HybridPoseDetector } from '@/lib/hybrid-pose-detector';
 import { EnhancedPhaseDetector } from '@/lib/enhanced-phase-detector';
-import { analyzeGolfSwingSimple, analyzeGolfSwingHybrid } from '@/lib/simple-golf-analysis';
+import { analyzeGolfSwingSimple } from '@/lib/simple-golf-analysis';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -519,14 +519,15 @@ export default function UploadPage() {
         throw new Error('No poses detected in video. Please ensure the video shows a clear view of a person performing a golf swing.');
       }
       
-      // Analyze the swing using hybrid detector
-      console.log('⚡ Analyzing swing with hybrid detector...');
+      // Analyze the swing using extracted poses
+      console.log('⚡ Analyzing swing with extracted poses...');
       const status = detector.getDetectorStatus();
       const isEmergencyMode = status.detector === 'emergency';
       console.log(`🔄 Analysis mode: ${status.detector} (PoseNet: ${status.posenetStatus}, MediaPipe: ${status.mediapipeStatus})`);
+      console.log(`📊 Analyzing ${poses.length} poses from video frames`);
       
-      // Use hybrid analysis function
-      const analysis = await analyzeGolfSwingHybrid(video);
+      // Use simple analysis function with extracted poses
+      const analysis = await analyzeGolfSwingSimple(poses, isEmergencyMode);
       console.log('✅ Analysis complete:', analysis);
       
       // Set result with status information
