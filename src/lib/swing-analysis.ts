@@ -445,7 +445,11 @@ function generateErrorRecovery(error: any, analysisId: string, startTime: number
     impactFrame: 0,
     metrics: {
       tempo: 0,
-      rotation: { shoulderTurn: 0, hipTurn: 0, xFactor: 0 },
+      rotation: { shoulderTurn: 0, hipTurn: 0, xFactor: 0,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) })) },
       weightTransfer: { backswing: 0, downswing: 0, impact: 0 },
       swingPlane: { consistency: 0, deviation: 0 },
       bodyAlignment: { spineAngle: 0, headMovement: 0, kneeFlex: 0 }

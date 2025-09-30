@@ -429,7 +429,11 @@ export class PoseNetDetector {
         landmarks: fullLandmarks,
         worldLandmarks,
         timestamp: Date.now(),
-        confidence: pose.score || 0.8
+        confidence: pose.score || 0.8,
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
       };
     });
   }

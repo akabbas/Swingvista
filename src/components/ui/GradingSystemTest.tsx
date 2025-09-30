@@ -161,7 +161,11 @@ const GradingSystemTest: React.FC<GradingSystemTestProps> = ({ className = "" })
         color: '#3B82F6',
         description: 'Setup position',
         confidence: 0.9,
-        keyMetrics: {}
+        keyMetrics: {
+          tempo: 1.0,
+          balance: 0.8,
+          posture: 0.9
+        }
       },
       { 
         name: 'backswing' as const, 

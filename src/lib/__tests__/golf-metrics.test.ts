@@ -24,7 +24,11 @@ const samplePhases: SwingPhase[] = [
     startFrame: 0,
     endFrame: 10,
     duration: 0.5,
-    confidence: 0.9
+    confidence: 0.9,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
   },
   {
     name: 'backswing',

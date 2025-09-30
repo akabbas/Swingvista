@@ -32,6 +32,7 @@ export default function TestAdvancedAnalysisPage() {
       
       mockPoses.push({
         landmarks,
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })),
         timestamp: time,
         confidence: 0.9
       });
@@ -52,13 +53,31 @@ export default function TestAdvancedAnalysisPage() {
         confidence: 0.95,
         grade: 'A',
         color: '#00ff00',
+        description: 'Setup position with proper stance and grip',
         keyPoints: [0],
         metrics: {
           tempo: 0.8,
           balance: 0.9,
           posture: 0.85
         },
-        recommendations: ['Maintain steady posture']
+        recommendations: ['Maintain steady posture'],
+        professionalBenchmark: {
+          idealDuration: 1.0,
+          keyPositions: [],
+          commonMistakes: [],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
+        }
       },
       {
         name: 'backswing',
@@ -76,7 +95,19 @@ export default function TestAdvancedAnalysisPage() {
           balance: 0.8,
           posture: 0.75
         },
-        recommendations: ['Smooth tempo transition']
+        recommendations: ['Smooth tempo transition'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'transition',
@@ -94,7 +125,19 @@ export default function TestAdvancedAnalysisPage() {
           balance: 0.85,
           posture: 0.8
         },
-        recommendations: ['Excellent transition timing']
+        recommendations: ['Excellent transition timing'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'downswing',
@@ -112,7 +155,19 @@ export default function TestAdvancedAnalysisPage() {
           balance: 0.9,
           posture: 0.88
         },
-        recommendations: ['Great power generation']
+        recommendations: ['Great power generation'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'impact',
@@ -130,7 +185,19 @@ export default function TestAdvancedAnalysisPage() {
           balance: 0.95,
           posture: 0.92
         },
-        recommendations: ['Perfect impact position']
+        recommendations: ['Perfect impact position'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'follow-through',
@@ -148,7 +215,19 @@ export default function TestAdvancedAnalysisPage() {
           balance: 0.85,
           posture: 0.82
         },
-        recommendations: ['Hold finish position longer']
+        recommendations: ['Hold finish position longer'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       }
     ];
     

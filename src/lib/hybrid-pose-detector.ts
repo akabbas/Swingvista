@@ -301,7 +301,9 @@ export class HybridPoseDetector {
       landmarks,
       worldLandmarks: landmarks,
       timestamp: Date.now(),
-      confidence: 0.3
+      confidence: 0.3,
+ worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+ worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
     };
   }
 

@@ -2058,7 +2058,11 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
         confidence: 0.5,
         generatedAt: Date.now(),
         model: 'emergency',
-        cost: 0
+        cost: 0,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
       };
     }
   }

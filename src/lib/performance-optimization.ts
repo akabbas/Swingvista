@@ -446,7 +446,11 @@ export class BackgroundProcessor {
         visibility: 0.9
       })),
       timestamp: frameIndex / 30,
-      confidence: 0.9
+      confidence: 0.9,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
     };
   }
 
@@ -467,7 +471,19 @@ export class BackgroundProcessor {
         color: '#00ff00',
         keyPoints: [0],
         metrics: { tempo: 0.8, balance: 0.9, posture: 0.85 },
-        recommendations: ['Maintain steady posture']
+        recommendations: ['Maintain steady posture'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       }
     ];
   }

@@ -157,7 +157,11 @@ export class MultiCamera3DReconstruction {
           processingTime,
           camerasUsed: poses2D.size,
           confidence: pose3D.confidence,
-          errors: []
+          errors: [],
+
+  worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+  worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
         }
       };
       

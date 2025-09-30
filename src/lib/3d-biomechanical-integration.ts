@@ -429,7 +429,11 @@ export async function setupMultiCamera3DReconstruction() {
   // Example: Reconstruct 3D pose from multiple views
   const poses2D = new Map([
     ['camera1', { landmarks: [], confidence: 0.9, timestamp: Date.now() }],
-    ['camera2', { landmarks: [], confidence: 0.9, timestamp: Date.now() }],
+    ['camera2', { landmarks: [], confidence: 0.9, timestamp: Date.now(),
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) })) }],
     ['camera3', { landmarks: [], confidence: 0.9, timestamp: Date.now() }]
   ]);
   

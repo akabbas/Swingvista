@@ -138,7 +138,11 @@ export default function TestClubPathPage() {
       z: clubHead.z,
       confidence: confidence,
       frame: frameIndex,
-      handedness: isRightHanded ? 'right' : 'left'
+      handedness: isRightHanded ? 'right' : 'left',
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
     };
   }, []);
 

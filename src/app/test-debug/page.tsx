@@ -79,7 +79,11 @@ const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => {
       x: clubHeadX,
       y: clubHeadY,
       confidence: 0.9,
-      frame: i
+      frame: i,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
     }
   };
 });

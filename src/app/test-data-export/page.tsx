@@ -183,7 +183,11 @@ export default function TestDataExportPage() {
         visibility: 0.9
       })),
       timestamp: i / 30,
-      confidence: 0.9
+      confidence: 0.9,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
+
+      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
     }));
 
     // Generate mock phases
@@ -200,7 +204,19 @@ export default function TestDataExportPage() {
         color: '#00ff00',
         keyPoints: [0],
         metrics: { tempo: 0.8, balance: 0.9, posture: 0.85 },
-        recommendations: ['Maintain steady posture']
+        recommendations: ['Maintain steady posture'],
+
+            description: "Phase description",
+
+            professionalBenchmark: {
+
+              idealDuration: 1.0,
+
+              keyPositions: [],
+
+              commonMistakes: []
+
+            }
       },
       {
         name: 'backswing',
@@ -214,7 +230,19 @@ export default function TestDataExportPage() {
         color: '#ffff00',
         keyPoints: [45],
         metrics: { tempo: 0.7, balance: 0.8, posture: 0.75 },
-        recommendations: ['Smooth tempo transition']
+        recommendations: ['Smooth tempo transition'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'downswing',
@@ -228,7 +256,19 @@ export default function TestDataExportPage() {
         color: '#ff0000',
         keyPoints: [105],
         metrics: { tempo: 0.85, balance: 0.9, posture: 0.88 },
-        recommendations: ['Great power generation']
+        recommendations: ['Great power generation'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       },
       {
         name: 'follow-through',
@@ -242,7 +282,19 @@ export default function TestDataExportPage() {
         color: '#00ffff',
         keyPoints: [135],
         metrics: { tempo: 0.8, balance: 0.85, posture: 0.82 },
-        recommendations: ['Hold finish position longer']
+        recommendations: ['Hold finish position longer'],
+
+        description: "Phase description",
+
+        professionalBenchmark: {
+
+          idealDuration: 1.0,
+
+          keyPositions: [],
+
+          commonMistakes: []
+
+        }
       }
     ];
 
