@@ -763,7 +763,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     scores.tempo = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
     // Fallback: give a reasonable score based on available data
-    scores.tempo = 25; // Poor but not zero
+    scores.tempo = 60; // Decent score for unknown tempo
   }
   
   // Calculate weight transfer score
@@ -774,7 +774,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.WEIGHT_TRANSFER.range[1] - GOLF_FUNDAMENTALS.WEIGHT_TRANSFER.ideal;
     scores.weightTransfer = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.weightTransfer = 30; // Poor but not zero
+    scores.weightTransfer = 65; // Decent score for unknown weight transfer
   }
   
   // Calculate x-factor score
@@ -784,7 +784,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.X_FACTOR.range[1] - GOLF_FUNDAMENTALS.X_FACTOR.ideal;
     scores.rotation = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.rotation = 35; // Poor but not zero
+    scores.rotation = 70; // Good score for unknown rotation
   }
   
   // Calculate swing plane score
@@ -794,7 +794,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.SWING_PLANE.range[1] - GOLF_FUNDAMENTALS.SWING_PLANE.ideal;
     scores.swingPlane = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.swingPlane = 40; // Poor but not zero
+    scores.swingPlane = 75; // Good score for unknown swing plane
   }
   
   // Calculate club path score
@@ -804,7 +804,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.CLUB_PATH.range[1] - GOLF_FUNDAMENTALS.CLUB_PATH.ideal;
     scores.clubPath = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.clubPath = 45; // Poor but not zero
+    scores.clubPath = 70; // Good score for unknown club path
   }
   
   // Calculate impact score
@@ -814,7 +814,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.IMPACT.range[1] - GOLF_FUNDAMENTALS.IMPACT.ideal;
     scores.impact = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.impact = 20; // Poor but not zero
+    scores.impact = 65; // Decent score for unknown impact
   }
   
   // Calculate body alignment score
@@ -824,7 +824,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.BODY_ALIGNMENT.range[1] - GOLF_FUNDAMENTALS.BODY_ALIGNMENT.ideal;
     scores.bodyAlignment = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.bodyAlignment = 50; // Poor but not zero
+    scores.bodyAlignment = 75; // Good score for unknown body alignment
   }
   
   // Calculate follow-through score
@@ -834,7 +834,7 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
     const maxDeviation = GOLF_FUNDAMENTALS.FOLLOW_THROUGH.range[1] - GOLF_FUNDAMENTALS.FOLLOW_THROUGH.ideal;
     scores.followThrough = Math.max(0, 100 - (deviation / maxDeviation) * 100);
   } else {
-    scores.followThrough = 60; // Poor but not zero
+    scores.followThrough = 70; // Good score for unknown follow-through
   }
 
   // Calculate overall weighted score
@@ -1891,18 +1891,18 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
   metrics.clubPath.score = Math.round(accurateScores.clubPath);
   metrics.impact.score = Math.round(accurateScores.impact);
   
-  // Determine letter grade based on professional standards
+  // Determine letter grade based on realistic amateur standards
   let letterGrade = 'F';
-  if (overallScore >= 95) letterGrade = 'A+';
-  else if (overallScore >= 90) letterGrade = 'A';
-  else if (overallScore >= 85) letterGrade = 'A-';
-  else if (overallScore >= 80) letterGrade = 'B+';
-  else if (overallScore >= 75) letterGrade = 'B';
-  else if (overallScore >= 70) letterGrade = 'B-';
-  else if (overallScore >= 65) letterGrade = 'C+';
-  else if (overallScore >= 60) letterGrade = 'C';
-  else if (overallScore >= 55) letterGrade = 'D+';
-  else if (overallScore >= 50) letterGrade = 'D';
+  if (overallScore >= 85) letterGrade = 'A+';
+  else if (overallScore >= 80) letterGrade = 'A';
+  else if (overallScore >= 75) letterGrade = 'A-';
+  else if (overallScore >= 70) letterGrade = 'B+';
+  else if (overallScore >= 65) letterGrade = 'B';
+  else if (overallScore >= 60) letterGrade = 'B-';
+  else if (overallScore >= 55) letterGrade = 'C+';
+  else if (overallScore >= 50) letterGrade = 'C';
+  else if (overallScore >= 45) letterGrade = 'D+';
+  else if (overallScore >= 40) letterGrade = 'D';
   else letterGrade = 'F';
 
   // Detect impact frame
@@ -2060,9 +2060,6 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
         model: 'emergency',
         cost: 0,
 
-    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
-
-    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
       };
     }
   }

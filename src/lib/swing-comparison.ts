@@ -1,3 +1,50 @@
+import { PoseResult } from './mediapipe';
+import { RealGolfAnalysis } from './real-golf-analysis';
+
+export interface ComparisonInput {
+	fileLeft: File;
+	fileRight: File;
+	posesLeft?: PoseResult[];
+	posesRight?: PoseResult[];
+	analysisLeft?: RealGolfAnalysis;
+	analysisRight?: RealGolfAnalysis;
+}
+
+export class SwingComparison {
+	async createComparisonView(input: ComparisonInput): Promise<HTMLDivElement> {
+		const container = document.createElement('div');
+		container.style.display = 'grid';
+		container.style.gridTemplateColumns = '1fr 1fr';
+		container.style.gap = '8px';
+
+		const leftVideo = document.createElement('video');
+		leftVideo.src = URL.createObjectURL(input.fileLeft);
+		leftVideo.controls = true;
+		leftVideo.playsInline = true as any;
+		leftVideo.style.width = '100%';
+
+		const rightVideo = document.createElement('video');
+		rightVideo.src = URL.createObjectURL(input.fileRight);
+		rightVideo.controls = true;
+		rightVideo.playsInline = true as any;
+		rightVideo.style.width = '100%';
+
+		// Sync playback
+		const sync = (from: HTMLVideoElement, to: HTMLVideoElement) => {
+			to.currentTime = (from.currentTime / from.duration) * to.duration;
+			if (!to.paused && from.paused) to.pause();
+			if (to.paused && !from.paused) to.play().catch(() => {});
+		};
+
+		leftVideo.addEventListener('timeupdate', () => sync(leftVideo, rightVideo));
+		rightVideo.addEventListener('timeupdate', () => sync(rightVideo, leftVideo));
+
+		container.appendChild(leftVideo);
+		container.appendChild(rightVideo);
+		return container;
+	}
+}
+
 import type { PoseResult } from './mediapipe';
 import type { EnhancedSwingPhase } from './enhanced-swing-phases';
 import type { ProfessionalGolfMetrics } from './professional-golf-metrics';

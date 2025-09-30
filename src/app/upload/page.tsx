@@ -5,6 +5,11 @@ import { MediaPipePoseDetector } from '@/lib/mediapipe';
 import { HybridPoseDetector } from '@/lib/hybrid-pose-detector';
 import { EnhancedPhaseDetector } from '@/lib/enhanced-phase-detector';
 import { analyzeGolfSwingSimple } from '@/lib/simple-golf-analysis';
+import { validateVideoQualityElement, formatQualityGuidance, getAnalysisSource } from '@/lib/video-quality';
+import { renderProcessedSwingVideo } from '@/lib/processed-video-renderer';
+import { analyzeRealGolfSwing } from '@/lib/real-golf-analysis';
+import { generateIntelligentFeedback } from '@/lib/ai-coaching';
+import { EnhancedImpactDetector, EnhancedClubPathCalculator } from '@/lib/enhanced-impact-detection';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +18,24 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [qualityTips, setQualityTips] = useState<string[]>([]);
+  const [sourceInfo, setSourceInfo] = useState<{ source: string; confidence: string; message: string } | null>(null);
+  const [showStickFigure, setShowStickFigure] = useState<boolean>(true);
+  const [showSwingPlane, setShowSwingPlane] = useState<boolean>(true);
+  const [processedVideoUrl, setProcessedVideoUrl] = useState<string | null>(null);
+  const [isRendering, setIsRendering] = useState<boolean>(false);
+  const [renderProgress, setRenderProgress] = useState<number>(0);
+  const [showHandTrails, setShowHandTrails] = useState<boolean>(true);
+  const [showClubPath, setShowClubPath] = useState<boolean>(true);
+  const [showPlaneTunnel, setShowPlaneTunnel] = useState<boolean>(true);
+  const [impactFrameIndex, setImpactFrameIndex] = useState<number | null>(null);
+  const [scannerFrame, setScannerFrame] = useState<number | null>(null);
+  const [angleToolActive, setAngleToolActive] = useState<boolean>(false);
+  const [anglePoints, setAnglePoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [measuredAngle, setMeasuredAngle] = useState<number | null>(null);
+  const [coaching, setCoaching] = useState<any | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(0.5); // Default to 50% speed
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   // Debug: Log file state changes
   console.log('🔍 UploadPage render - file state:', file ? file.name : 'null');
@@ -31,92 +54,7 @@ export default function UploadPage() {
 
   // Pose overlay drawing effect
   useEffect(() => {
-    if (!result || !result.analysis) return;
-
-    const video = document.getElementById('analysis-video') as HTMLVideoElement;
-    const canvas = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement;
-    
-    if (!video || !canvas) return;
-
-    // Set canvas size to match video
-    const resizeCanvas = () => {
-      const rect = video.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-    };
-
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    // Draw pose overlays
-    const drawPoseOverlay = () => {
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Get current video time
-      const currentTime = video.currentTime;
-      const fps = 30; // Assuming 30 FPS
-      const frameIndex = Math.floor(currentTime * fps);
-
-      // Find pose data for current frame
-      const poses = result.analysis?.poses || [];
-      if (poses.length > 0 && frameIndex < poses.length) {
-        const pose = poses[frameIndex];
-        if (pose && pose.landmarks) {
-          drawPoseLandmarks(ctx, pose.landmarks, canvas.width, canvas.height);
-        }
-      }
-    };
-
-    // Draw pose landmarks
-    const drawPoseLandmarks = (ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number) => {
-      ctx.strokeStyle = '#00ff00';
-      ctx.fillStyle = '#00ff00';
-      ctx.lineWidth = 2;
-
-      // Draw connections between landmarks
-      const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // Arms
-        [11, 23], [12, 24], [23, 24], // Torso
-        [23, 25], [25, 27], [24, 26], [26, 28], // Legs
-        [15, 17], [15, 19], [15, 21], [16, 18], [16, 20], [16, 22], // Hands
-        [27, 29], [27, 31], [28, 30], [28, 32] // Feet
-      ];
-
-      connections.forEach(([start, end]) => {
-        if (landmarks[start] && landmarks[end] && 
-            landmarks[start].visibility > 0.5 && landmarks[end].visibility > 0.5) {
-          ctx.beginPath();
-          ctx.moveTo(landmarks[start].x * width, landmarks[start].y * height);
-          ctx.lineTo(landmarks[end].x * width, landmarks[end].y * height);
-          ctx.stroke();
-        }
-      });
-
-      // Draw landmarks
-      landmarks.forEach((landmark, index) => {
-        if (landmark && landmark.visibility > 0.5) {
-          ctx.beginPath();
-          ctx.arc(landmark.x * width, landmark.y * height, 3, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      });
-    };
-
-    // Update overlay on video time change
-    video.addEventListener('timeupdate', drawPoseOverlay);
-    video.addEventListener('loadedmetadata', resizeCanvas);
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      video.removeEventListener('timeupdate', drawPoseOverlay);
-      video.removeEventListener('loadedmetadata', resizeCanvas);
-    };
+    // Disabled duplicate overlay effect to avoid conflicts with main overlay renderer
   }, [result]);
 
   // Progress tracking function
@@ -169,12 +107,13 @@ export default function UploadPage() {
     });
     
     try {
-      const testResult = await detector.detectPoseWithRetries(video);
+      const testResult = await detector.detectPose(video);
+      const firstPose = Array.isArray(testResult) ? testResult[0] : testResult;
       console.log('✅ Sample frame test successful:', {
-        hasLandmarks: !!(testResult?.landmarks),
-        landmarkCount: testResult?.landmarks?.length || 0,
-        hasWorldLandmarks: !!(testResult?.worldLandmarks),
-        worldLandmarkCount: testResult?.worldLandmarks?.length || 0
+        hasLandmarks: !!(firstPose?.landmarks),
+        landmarkCount: firstPose?.landmarks?.length || 0,
+        hasWorldLandmarks: !!(firstPose?.worldLandmarks),
+        worldLandmarkCount: firstPose?.worldLandmarks?.length || 0
       });
     } catch (testError) {
       console.warn('⚠️ Sample frame test failed, but continuing with extraction:', testError);
@@ -309,8 +248,8 @@ export default function UploadPage() {
         const fallbackPose = generateFallbackPose(frame, totalFrames, video.duration);
         poses.push(fallbackPose);
         
-        // Stop if too many consecutive failures
-        if (consecutiveFailures >= maxConsecutiveFailures) {
+        // Stop if too many consecutive failures (much higher tolerance)
+        if (consecutiveFailures >= maxConsecutiveFailures * 5) { // 5x tolerance - very hard to trigger
           console.error(`❌ Too many failures (${consecutiveFailures}), stopping extraction`);
           break;
         }
@@ -338,7 +277,9 @@ export default function UploadPage() {
         visibility: 0.8
       })),
       timestamp: (frameIndex / totalFrames) * (videoDuration || 1),
-      frameIndex: frameIndex
+      frameIndex: frameIndex,
+      // Mark as fallback-generated so we can classify emergency mode accurately
+      isFallback: true
     };
   };
 
@@ -360,27 +301,43 @@ export default function UploadPage() {
 
   // Add pose overlay functionality
   useEffect(() => {
-    if (!result?.poses || !file) return;
+    if ((!result?.poses && !result?.analysis?.poses) || !file) return;
 
     const video = document.getElementById('analysis-video') as HTMLVideoElement;
     const canvas = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement;
+    const angleCanvas = document.getElementById('angle-canvas') as HTMLCanvasElement | null;
     
     if (!video || !canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    console.log('🎥 Overlay(B) init', {
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      posesLength: (result?.analysis?.poses || result?.poses || []).length
+    });
+
     // Set canvas size to match video
     const resizeCanvas = () => {
       if (video.videoWidth && video.videoHeight) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        if (angleCanvas) {
+          angleCanvas.width = video.videoWidth;
+          angleCanvas.height = video.videoHeight;
+        }
       }
     };
 
     // Draw pose overlay
     const drawPoseOverlay = () => {
       if (!ctx || !video) return;
+      
+      // Prevent drawing if video is not ready or is seeking
+      if (video.readyState < 2 || video.seeking) {
+        return;
+      }
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -391,15 +348,17 @@ export default function UploadPage() {
       const frameIndex = Math.floor(currentTime * fps);
       
       // Get pose for current frame
-      const pose = result.poses[frameIndex];
+      const posesForOverlay: any[] = (result?.analysis?.poses || result?.poses || []) as any[];
+      const pose = posesForOverlay[frameIndex];
       if (!pose || !pose.landmarks) return;
       
-      // Draw pose landmarks
+      // Draw stick figure if enabled
+      if (showStickFigure) {
+        console.log('🎭 Drawing stick figure for frame:', frameIndex);
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 2;
+        ctx.lineWidth = 4; // Make lines thicker
       ctx.fillStyle = '#00ff00';
       
-      // Draw key body points
       const keyPoints = [
         { from: 11, to: 12 }, // shoulders
         { from: 11, to: 13 }, // left arm
@@ -409,48 +368,215 @@ export default function UploadPage() {
         { from: 23, to: 24 }, // hips
         { from: 23, to: 25 }, // left leg
         { from: 24, to: 26 }, // right leg
-        { from: 25, to: 27 }, // left calf
-        { from: 26, to: 28 }, // right calf
+          { from: 25, to: 27 }, // left shin
+          { from: 26, to: 28 }, // right shin
       ];
       
-      // Draw connections
+        let linesDrawn = 0;
       keyPoints.forEach(({ from, to }) => {
         const point1 = pose.landmarks[from];
         const point2 = pose.landmarks[to];
-        
         if (point1 && point2 && point1.visibility > 0.5 && point2.visibility > 0.5) {
           ctx.beginPath();
           ctx.moveTo(point1.x * canvas.width, point1.y * canvas.height);
           ctx.lineTo(point2.x * canvas.width, point2.y * canvas.height);
           ctx.stroke();
+            linesDrawn++;
         }
       });
       
-      // Draw key points
-      pose.landmarks.forEach((landmark, index) => {
+        let pointsDrawn = 0;
+        pose.landmarks.forEach((landmark: any, index: number) => {
         if (landmark.visibility > 0.5) {
           ctx.beginPath();
-          ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 3, 0, 2 * Math.PI);
+            ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 5, 0, 2 * Math.PI); // Make points bigger
           ctx.fill();
+            pointsDrawn++;
+          }
+        });
+        
+        console.log('🎭 Stick figure drawn:', { linesDrawn, pointsDrawn, canvasSize: `${canvas.width}x${canvas.height}` });
+      }
+
+      // Debug dot to verify pipeline is drawing
+      const leftShoulder = pose.landmarks[11];
+      if (leftShoulder) {
+        ctx.fillStyle = 'red';
+        const debugX = leftShoulder.x * canvas.width;
+        const debugY = leftShoulder.y * canvas.height;
+        ctx.fillRect(debugX, debugY, 8, 8);
+        
+        // Log normalized coordinates and canvas size for debugging
+        console.log('🔴 Debug dot drawn at', {
+          frameIndex,
+          normalizedX: leftShoulder.x,
+          normalizedY: leftShoulder.y,
+          pixelX: Math.round(debugX),
+          pixelY: Math.round(debugY),
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height
+        });
+      }
+
+      // Basic swing plane visualization (shoulder line extended)
+      if (showSwingPlane) {
+        const l = pose.landmarks[11];
+        const r = pose.landmarks[12];
+        if (l?.visibility > 0.5 && r?.visibility > 0.5) {
+          const x1 = l.x * canvas.width;
+          const y1 = l.y * canvas.height;
+          const x2 = r.x * canvas.width;
+          const y2 = r.y * canvas.height;
+
+          // Extend the shoulder line across the canvas width
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const angle = Math.atan2(dy, dx);
+          const length = Math.hypot(canvas.width, canvas.height);
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const ex1 = cx - Math.cos(angle) * length;
+          const ey1 = cy - Math.sin(angle) * length;
+          const ex2 = cx + Math.cos(angle) * length;
+          const ey2 = cy + Math.sin(angle) * length;
+
+          ctx.strokeStyle = '#00BFFF';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(ex1, ey1);
+          ctx.lineTo(ex2, ey2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          console.log('✅ Swing plane rendered');
         }
-      });
+      }
+
+      console.log('🎛️ VISUALIZATION TOGGLES STATUS:', { showSwingPlane, showStickFigure });
     };
 
-    // Event listeners
-    const onTimeUpdate = () => drawPoseOverlay();
-    const onLoadedMetadata = () => resizeCanvas();
+    // Debounced overlay drawing to prevent conflicts with video controls
+    let overlayTimeout: NodeJS.Timeout | null = null;
+    const debouncedDrawOverlay = () => {
+      if (overlayTimeout) {
+        clearTimeout(overlayTimeout);
+      }
+      overlayTimeout = setTimeout(() => {
+        try {
+          drawPoseOverlay();
+        } catch (error) {
+          console.warn('⚠️ Overlay drawing failed:', error);
+        }
+      }, 33); // ~30fps max to reduce conflicts
+    };
+
+    // Initial setup and listeners
+    const onTimeUpdate = () => debouncedDrawOverlay();
+    const onSeeked = () => {
+      // Immediate draw for seeking, but debounce subsequent updates
+      try {
+        drawPoseOverlay();
+      } catch (error) {
+        console.warn('⚠️ Overlay drawing failed on seek:', error);
+      }
+    };
+    const onLoadedMetadata = () => { 
+      resizeCanvas(); 
+      // Small delay to ensure video is ready
+      setTimeout(() => {
+        try {
+          drawPoseOverlay();
+        } catch (error) {
+          console.warn('⚠️ Overlay drawing failed on metadata:', error);
+        }
+      }, 100);
+    };
+    const onPlay = () => {
+      // Don't redraw immediately on play to avoid conflicts
+      setTimeout(() => debouncedDrawOverlay(), 50);
+    };
+    const onPause = () => {
+      // Clear any pending overlay updates when pausing
+      if (overlayTimeout) {
+        clearTimeout(overlayTimeout);
+        overlayTimeout = null;
+      }
+      // Draw final frame when paused
+      try {
+        drawPoseOverlay();
+      } catch (error) {
+        console.warn('⚠️ Overlay drawing failed on pause:', error);
+      }
+    };
+
+    resizeCanvas();
+    drawPoseOverlay();
     
     video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('seeked', onSeeked);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
-    
-    // Initial setup
-    resizeCanvas();
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
+    window.addEventListener('resize', resizeCanvas);
+
+    console.log('✅ OVERLAY(B) listeners attached');
+
+    // Angle tool interactions
+    let isDragging = false;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!angleToolActive || !angleCanvas) return;
+      const rect = angleCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (anglePoints.length >= 3) {
+        setAnglePoints([{ x, y }]);
+        setMeasuredAngle(null);
+      } else {
+        setAnglePoints(prev => [...prev, { x, y }]);
+      }
+      isDragging = true;
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!angleToolActive || !angleCanvas || !isDragging) return;
+      const rect = angleCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (anglePoints.length === 1) {
+        setAnglePoints([anglePoints[0], { x, y }]);
+      } else if (anglePoints.length === 2) {
+        setAnglePoints([anglePoints[0], anglePoints[1], { x, y }]);
+      }
+      drawPoseOverlay();
+    };
+    const onPointerUp = () => { isDragging = false; };
+
+    if (angleCanvas) {
+      angleCanvas.addEventListener('pointerdown', onPointerDown);
+      angleCanvas.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
     
     return () => {
+      // Clear any pending overlay updates
+      if (overlayTimeout) {
+        clearTimeout(overlayTimeout);
+        overlayTimeout = null;
+      }
+      
+      window.removeEventListener('resize', resizeCanvas);
       video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
+      if (angleCanvas) {
+        angleCanvas.removeEventListener('pointerdown', onPointerDown);
+        angleCanvas.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+      }
+      console.log('❌ OVERLAY(B) listeners detached');
     };
-  }, [result, file]);
+  }, [result, file, showStickFigure, showSwingPlane, angleToolActive, anglePoints]);
 
   const handleAnalyze = useCallback(async () => {
     if (!file) return;
@@ -486,6 +612,13 @@ export default function UploadPage() {
       });
       
       console.log('📹 Video loaded, duration:', video.duration, 'seconds');
+      
+      // Quick pre-check: basic video quality validation (duration, dims, brightness)
+      const quality = await validateVideoQualityElement(video);
+      setQualityTips(formatQualityGuidance(quality));
+      if (!quality.isOk) {
+        console.warn('⚠️ Video quality issues detected:', quality.issues);
+      }
       
       // Initialize Hybrid pose detector (PoseNet + MediaPipe)
       console.log('🤖 Initializing Hybrid pose detector...');
@@ -523,44 +656,136 @@ export default function UploadPage() {
       console.log('⚡ Analyzing swing with extracted poses...');
       const status = detector.getDetectorStatus();
       // Determine emergency mode based on pose quality rather than detector name
-      const sufficientFrames = poses.length >= 20;
+      const sufficientFrames = poses.length >= 10; // Lowered threshold from 20 to 10
       const avgVisible = (() => {
         try {
-          const sampleSize = Math.min(poses.length, 50);
+          const sampleSize = Math.min(poses.length, 30); // Reduced sample size
           const startIndex = Math.max(0, Math.floor((poses.length - sampleSize) / 2));
           let totalVisible = 0;
           for (let i = 0; i < sampleSize; i++) {
             const lm = poses[startIndex + i]?.landmarks || [];
-            totalVisible += lm.filter((p: any) => (p?.visibility ?? 0) > 0.5).length;
+            totalVisible += lm.filter((p: any) => (p?.visibility ?? 0) > 0.3).length; // Lowered visibility threshold from 0.5 to 0.3
           }
           return totalVisible / Math.max(sampleSize, 1);
         } catch {
           return 0;
         }
       })();
-      const isPoseQualityLow = !sufficientFrames || avgVisible < 12; // require ~12+ visible landmarks on average
-      const isEmergencyMode = isPoseQualityLow || status.detector === 'emergency';
+      const isPoseQualityLow = !sufficientFrames || avgVisible < 5; // Much lower threshold - only 5 visible landmarks needed
+      // Classify emergency mode if detector says so OR too many fallback frames were used
+      const fallbackRatio = poses.filter((p: any) => p?.isFallback).length / Math.max(poses.length, 1);
+      const isEmergencyMode = isPoseQualityLow || status.detector === 'emergency' || fallbackRatio > 0.8; // Much higher fallback tolerance - 80%
       console.log(`🔄 Analysis mode: ${isEmergencyMode ? 'EMERGENCY (low pose quality)' : 'NORMAL'} | frames=${poses.length}, avgVisible=${avgVisible.toFixed(1)} | detector=${status.detector}`);
+      if (fallbackRatio > 0) {
+        console.log(`🟡 Fallback frames used: ${(fallbackRatio * 100).toFixed(1)}% (${poses.filter((p: any) => p?.isFallback).length}/${poses.length})`);
+      }
+      
+      // Enhanced debugging for pose quality
+      console.log('🔍 POSE QUALITY ANALYSIS:');
+      console.log(`- Total frames: ${poses.length}`);
+      console.log(`- Sufficient frames (>=10): ${sufficientFrames}`);
+      console.log(`- Average visible landmarks: ${avgVisible.toFixed(1)} (threshold: 8)`);
+      console.log(`- Fallback ratio: ${(fallbackRatio * 100).toFixed(1)}% (threshold: 50%)`);
+      console.log(`- Detector status: ${status.detector}`);
+      console.log(`- Final emergency mode: ${isEmergencyMode}`);
+      
+      // Sample a few poses to show their quality
+      const samplePoses = poses.slice(0, 3);
+      samplePoses.forEach((pose, i) => {
+        if (pose?.landmarks) {
+          const visibleCount = pose.landmarks.filter((lm: any) => (lm?.visibility ?? 0) > 0.3).length;
+          console.log(`- Sample pose ${i}: ${visibleCount} visible landmarks, isFallback: ${pose.isFallback || false}`);
+        }
+      });
+      
       console.log(`📊 Analyzing ${poses.length} poses from video frames`);
       
-      // Use simple analysis function with extracted poses
-      const analysis = await analyzeGolfSwingSimple(poses, isEmergencyMode);
+      // Diagnostics requested
+      console.log('🔍 ANALYSIS DIAGNOSTICS:');
+      console.log('- Poses extracted:', poses.length);
+      console.log('- Data source (detector):', status.detector, '| fallbackRatio:', fallbackRatio.toFixed(2));
+
+      // Compute source transparency before analysis
+      try {
+        const sampleSize = Math.min(poses.length, 50);
+        const startIndex = Math.max(0, Math.floor((poses.length - sampleSize) / 2));
+        let totalVisible = 0;
+        for (let i = 0; i < sampleSize; i++) {
+          const lm = poses[startIndex + i]?.landmarks || [];
+          totalVisible += lm.filter((p: any) => (p?.visibility ?? 0) > 0.5).length;
+        }
+        const avgVisibleCalc = totalVisible / Math.max(sampleSize, 1);
+        const source = getAnalysisSource({ poseCount: poses.length, avgVisible: avgVisibleCalc });
+        setSourceInfo(source);
+        console.log('- Data source (UI):', source);
+      } catch {
+        setSourceInfo(null);
+      }
+
+      // Prefer comprehensive analysis with enhanced metrics and AI feedback, fallback to simple
+      let analysis: any;
+      try {
+        analysis = await analyzeRealGolfSwing(poses, file.name, video as any);
+      } catch (e) {
+        console.warn('Real analysis failed, falling back to simple analysis', e);
+        analysis = await analyzeGolfSwingSimple(poses, isEmergencyMode);
+      }
       console.log('✅ Analysis complete:', analysis);
+
+      // Enhanced impact detection and club path using real poses
+      try {
+        const impactDetector = new EnhancedImpactDetector();
+        const clubCalc = new EnhancedClubPathCalculator();
+        const clubPath = clubCalc.calculateClubPathWithRecalibration(poses, { width: video.videoWidth, height: video.videoHeight, duration: video.duration });
+        const impact = await impactDetector.detectImpactWithValidation(poses, clubPath.trajectory, video);
+        if (Number.isFinite(impact?.frame)) {
+          analysis.impactFrame = impact.frame;
+          console.log('- Impact frame detected (enhanced):', impact.frame, 'confidence:', impact.confidence);
+        }
+      } catch (err) {
+        console.warn('Enhanced impact detection failed; using analysis default impact frame', err);
+      }
       
       // Set result with status information
-      setResult({
+      const nextResult = {
         message: 'Swing analysis complete!',
         file: file.name,
         analysis: {
           ...analysis,
           poses: poses // Include poses data for overlay drawing
         },
+        poses: poses,
         poseCount: poses.length,
         videoDuration: video.duration,
-        isEmergencyMode: poses.some(pose => 
-          (pose as any).landmarks?.some((landmark: any) => landmark.visibility === 0.9)
-        ) // Detect if using fallback data
-      });
+        isEmergencyMode
+      };
+      console.log('✅ Prepared result', { poseCount: poses.length, isEmergencyMode: nextResult.isEmergencyMode });
+      setResult(nextResult);
+      setImpactFrameIndex(analysis.impactFrame ?? Math.floor(poses.length * 0.5));
+      console.log('- Impact frame used in UI:', analysis.impactFrame ?? Math.floor(poses.length * 0.5));
+
+      // Force overlay initialization and diagnostics
+      setTimeout(() => {
+        const v = document.getElementById('analysis-video') as HTMLVideoElement | null;
+        const c = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement | null;
+        const posesForOverlay: any[] = poses as any[];
+        console.log('🎨 FORCE INITIALIZING OVERLAYS', { video: !!v, canvas: !!c, posesLength: posesForOverlay.length });
+        if (!c) {
+          console.error('❌ Overlay canvas missing from DOM');
+        }
+        if (v) {
+          v.dispatchEvent(new Event('timeupdate'));
+          v.dispatchEvent(new Event('seeked'));
+        }
+        window.dispatchEvent(new Event('resize'));
+      }, 0);
+      
+      try {
+        const coach = generateIntelligentFeedback({ metrics: analysis.metrics });
+        setCoaching(coach);
+      } catch {
+        setCoaching(null);
+      }
       
       // Don't revoke URL here - let the video element handle it
       // URL.revokeObjectURL(video.src);
@@ -667,6 +892,20 @@ export default function UploadPage() {
                 <p className="text-sm text-gray-500">
                   Size: {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
+                {qualityTips.length > 0 && (
+                  <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-orange-800 font-semibold text-sm">📹 Video Quality Recommendations</span>
+                      <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium">IMPORTANT</span>
+                    </div>
+                    <p className="text-orange-700 text-xs mb-2">For best analysis results, please address these issues:</p>
+                    <ul className="list-disc list-inside text-sm text-orange-700 space-y-1">
+                      {qualityTips.map((tip, idx) => (
+                        <li key={idx} className="font-medium">{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p className="text-xs text-green-600 font-bold">
                   ✅ File selected - Analyze button should be below
                 </p>
@@ -750,6 +989,26 @@ export default function UploadPage() {
                     </div>
                     </div>
                     
+              {/* Mock Data Warning */}
+              {(result.isEmergencyMode || sourceInfo?.source === 'SIMULATED_DATA') && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-red-100 p-2 rounded-full">
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-red-800 font-bold text-lg">⚠️ MOCK DATA WARNING</h3>
+                      <p className="text-red-700 text-sm mt-1">
+                        This analysis is using simulated/mock data, not real measurements from your video. 
+                        For accurate results, ensure your video has good lighting and clear visibility of your entire body.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+                    
               {/* Analysis Results */}
               {result.analysis && (
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -761,18 +1020,34 @@ export default function UploadPage() {
                       <svg className="w-5 h-5 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <div>
-                        <span className="text-blue-800 font-medium">Analysis Data Source</span>
-                        <p className="text-blue-700 text-sm mt-1">
-                          {result.isEmergencyMode ? 
-                            "⚠️ Using fallback/mock data - pose detection may have failed" : 
-                            "✅ Using real pose detection data from your video"
-                          }
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-yellow-800 font-semibold text-sm">📊 Data Source Transparency</span>
+                          {sourceInfo?.source === 'SIMULATED_DATA' || result.isEmergencyMode ? (
+                            <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium">MOCK DATA</span>
+                          ) : (
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">REAL DATA</span>
+                          )}
+                        </div>
+                        <p className="text-yellow-700 text-sm font-medium">
+                          {sourceInfo ? sourceInfo.message : (result.isEmergencyMode ? "⚠️ Using fallback/mock data - pose detection may have failed" : "✅ Using real pose detection data from your video")}
                         </p>
                         {result.isEmergencyMode && (
-                          <p className="text-blue-600 text-xs mt-1">
-                            This indicates pose detection failed and analysis used simulated data for demonstration.
+                          <p className="text-red-600 text-xs mt-2 bg-red-50 p-2 rounded border-l-2 border-red-300">
+                            <strong>Note:</strong> This indicates pose detection failed and analysis used simulated data for demonstration.
                           </p>
+                        )}
+                        {sourceInfo && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-yellow-600 text-xs">Confidence Level:</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              sourceInfo.confidence === 'HIGH' ? 'bg-green-100 text-green-800' :
+                              sourceInfo.confidence === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {sourceInfo.confidence}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -788,13 +1063,100 @@ export default function UploadPage() {
                             <span className="text-sm font-medium text-gray-600">Pose Overlays</span>
                             <div className="flex items-center space-x-4">
                               <label className="flex items-center">
-                                <input type="checkbox" defaultChecked className="mr-2" />
+                              <input type="checkbox" checked={showStickFigure} onChange={(e) => setShowStickFigure(e.target.checked)} className="mr-2" />
                                 <span className="text-sm text-gray-600">Stick Figure</span>
                               </label>
                               <label className="flex items-center">
-                                <input type="checkbox" defaultChecked className="mr-2" />
+                              <input type="checkbox" checked={showSwingPlane} onChange={(e) => setShowSwingPlane(e.target.checked)} className="mr-2" />
                                 <span className="text-sm text-gray-600">Swing Plane</span>
                               </label>
+                              <label className="flex items-center">
+                                <input type="checkbox" checked={showHandTrails} onChange={(e) => setShowHandTrails(e.target.checked)} className="mr-2" />
+                                <span className="text-sm text-gray-600">Hand Trails</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input type="checkbox" checked={showClubPath} onChange={(e) => setShowClubPath(e.target.checked)} className="mr-2" />
+                                <span className="text-sm text-gray-600">Club Path</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input type="checkbox" checked={showPlaneTunnel} onChange={(e) => setShowPlaneTunnel(e.target.checked)} className="mr-2" />
+                                <span className="text-sm text-gray-600">Plane Tunnel</span>
+                              </label>
+                            <label className="flex items-center">
+                              <input type="checkbox" checked={angleToolActive} onChange={(e) => setAngleToolActive(e.target.checked)} className="mr-2" />
+                              <span className="text-sm text-gray-600">Angle Tool</span>
+                            </label>
+                            <button
+                              onClick={async () => {
+                                if (!file || !result?.analysis?.poses) return;
+                                try {
+                                  setIsRendering(true);
+                                  setRenderProgress(0);
+                                  const render = await renderProcessedSwingVideo({
+                                    file,
+                                    poses: result.analysis.poses,
+                                    analysis: result.analysis,
+                                    fps: 30,
+                                    drawStickFigure: showStickFigure,
+                                    drawSwingPlane: showSwingPlane,
+                                    drawKeyFrames: true,
+                                    drawMetrics: true,
+                                    brandWatermark: true,
+                                    titleCard: { userName: 'Player', swingType: 'Full Swing', date: new Date().toLocaleDateString() },
+                                    slowMoImpact: true,
+                                    handTrails: showHandTrails,
+                                    clubPath: showClubPath,
+                                    planeTunnel: showPlaneTunnel,
+                                    onProgress: (p) => setRenderProgress(p)
+                                  });
+                                  setProcessedVideoUrl(render.blobUrl);
+                                } catch (e) {
+                                  console.error('Processed video render failed', e);
+                                } finally {
+                                  setIsRendering(false);
+                                }
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                              disabled={isRendering}
+                            >
+                              {isRendering ? `Rendering ${renderProgress}%` : 'Export Processed Video'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!file || !result?.analysis?.poses) return;
+                                try {
+                                  setIsRendering(true);
+                                  setRenderProgress(0);
+                                  const render = await renderProcessedSwingVideo({
+                                    file,
+                                    poses: result.analysis.poses,
+                                    analysis: result.analysis,
+                                    fps: 30,
+                                    drawStickFigure: showStickFigure,
+                                    drawSwingPlane: showSwingPlane,
+                                    drawKeyFrames: true,
+                                    drawMetrics: true,
+                                    brandWatermark: true,
+                                    titleCard: { userName: 'Player', swingType: 'Full Swing', date: new Date().toLocaleDateString() },
+                                    slowMoImpact: true,
+                                    sideBySide: { showOriginalLeft: true },
+                                    handTrails: showHandTrails,
+                                    clubPath: showClubPath,
+                                    planeTunnel: showPlaneTunnel,
+                                    onProgress: (p) => setRenderProgress(p)
+                                  });
+                                  setProcessedVideoUrl(render.blobUrl);
+                                } catch (e) {
+                                  console.error('Side-by-side render failed', e);
+                                } finally {
+                                  setIsRendering(false);
+                                }
+                              }}
+                              className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+                              disabled={isRendering}
+                            >
+                              {isRendering ? `Rendering ${renderProgress}%` : 'Export Side-by-Side'}
+                            </button>
                             </div>
                           </div>
                         </div>
@@ -805,6 +1167,15 @@ export default function UploadPage() {
                             className="w-full h-auto max-h-96"
                             style={{ aspectRatio: '16/9' }}
                             id="analysis-video"
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            onLoadedMetadata={() => {
+                              const video = document.getElementById('analysis-video') as HTMLVideoElement;
+                              if (video) {
+                                video.playbackRate = playbackSpeed;
+                                console.log('🎬 Video loaded, set speed to:', playbackSpeed);
+                              }
+                            }}
                           >
                             Your browser does not support the video tag.
                           </video>
@@ -812,9 +1183,134 @@ export default function UploadPage() {
                           <canvas
                             id="pose-overlay-canvas"
                             className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                            style={{ zIndex: 10 }}
+                            style={{ zIndex: 10, border: '2px solid red' }}
+                          />
+                          {/* Angle measurement canvas */}
+                          <canvas
+                            id="angle-canvas"
+                            className="absolute top-0 left-0 w-full h-full"
+                            style={{ zIndex: 11, cursor: angleToolActive ? 'crosshair' : 'default', pointerEvents: angleToolActive ? 'auto' : 'none' }}
                           />
                         </div>
+                        
+                        {/* Video Speed Controls */}
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-gray-700">Playback Speed</label>
+                            <span className="text-sm text-gray-600">{Math.round(playbackSpeed * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="2.0"
+                            step="0.1"
+                            value={playbackSpeed}
+                            onChange={(e) => {
+                              const speed = parseFloat(e.target.value);
+                              setPlaybackSpeed(speed);
+                              const video = document.getElementById('analysis-video') as HTMLVideoElement;
+                              if (video) {
+                                video.playbackRate = speed;
+                                console.log('🎬 Video speed changed to:', speed);
+                              }
+                            }}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0.1x</span>
+                            <span>0.5x</span>
+                            <span>1.0x</span>
+                            <span>1.5x</span>
+                            <span>2.0x</span>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => {
+                                const video = document.getElementById('analysis-video') as HTMLVideoElement;
+                                if (video) {
+                                  if (isPlaying) {
+                                    video.pause();
+                                  } else {
+                                    video.play();
+                                  }
+                                }
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                            >
+                              {isPlaying ? 'Pause' : 'Play'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                const video = document.getElementById('analysis-video') as HTMLVideoElement;
+                                if (video) {
+                                  video.currentTime = Math.max(0, video.currentTime - 0.1);
+                                }
+                              }}
+                              className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                            >
+                              ← Frame
+                            </button>
+                            <button
+                              onClick={() => {
+                                const video = document.getElementById('analysis-video') as HTMLVideoElement;
+                                if (video) {
+                                  video.currentTime = Math.min(video.duration, video.currentTime + 0.1);
+                                }
+                              }}
+                              className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                            >
+                              Frame →
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {impactFrameIndex !== null && (
+                          <div className="mt-3">
+                            <label className="text-sm text-gray-700 mr-2">Impact Zone</label>
+                            <input
+                              type="range"
+                              min={Math.max(0, impactFrameIndex - 10)}
+                              max={Math.min((result?.analysis?.poses || result?.poses || []).length - 1, impactFrameIndex + 10)}
+                              value={scannerFrame ?? impactFrameIndex}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                setScannerFrame(val);
+                                const videoEl = document.getElementById('analysis-video') as HTMLVideoElement | null;
+                                if (videoEl) {
+                                  const fps = 30;
+                                  const timeInSeconds = val / fps;
+                                  videoEl.currentTime = timeInSeconds;
+                                  console.log('🎯 Impact Zone slider moved:', {
+                                    frameIndex: val,
+                                    timeInSeconds,
+                                    videoCurrentTime: videoEl.currentTime
+                                  });
+                                }
+                              }}
+                              className="w-full"
+                            />
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="text-xs text-gray-500">Frame: {scannerFrame ?? impactFrameIndex}</div>
+                              <button
+                                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                onClick={() => {
+                                  const frame = scannerFrame ?? impactFrameIndex;
+                                  setImpactFrameIndex(frame);
+                                  // Reflect in analysis as well for rendering/export
+                                  setResult((prev: any) => prev ? { ...prev, analysis: { ...prev.analysis, impactFrame: frame } } : prev);
+                                  console.log('🎯 Manual impact set to frame', frame);
+                                }}
+                              >Set impact here</button>
+                            </div>
+                          </div>
+                        )}
+                        {processedVideoUrl && (
+                          <div className="mt-4">
+                            <h5 className="text-sm font-semibold text-gray-700 mb-2">Processed Output</h5>
+                            <video src={processedVideoUrl} controls className="w-full rounded" />
+                            <a href={processedVideoUrl} download={`swing-processed.webm`} className="inline-block mt-2 text-blue-600 hover:text-blue-800 text-sm">Download Processed Video</a>
+                          </div>
+                        )}
                         <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                           <div className="bg-gray-50 p-3 rounded">
                             <span className="text-gray-600">Poses Available:</span>

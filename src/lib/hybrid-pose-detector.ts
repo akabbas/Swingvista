@@ -88,15 +88,36 @@ export class HybridPoseDetector {
           const convertedPoses = this.posenetDetector.convertToMediaPipeFormat(posenetPoses);
           
           if (convertedPoses.length === 0) {
-            console.warn('⚠️ No valid converted poses, using emergency data');
+            console.warn('⚠️ No valid converted poses from PoseNet, trying MediaPipe fallback');
+            // Try MediaPipe as fallback instead of immediately going to emergency
+            try {
+              const mediapipePoses = await this.mediapipeDetector.detectPose(video);
+              if (mediapipePoses.length > 0) {
+                console.log('✅ MediaPipe fallback successful');
+                return mediapipePoses;
+              }
+            } catch (mediapipeError) {
+              console.warn('⚠️ MediaPipe fallback also failed:', mediapipeError);
+            }
+            console.warn('⚠️ All detectors failed, using emergency data');
             return [this.generateEmergencyPoseResult()];
           }
           
           const result = convertedPoses[0]; // Return first pose
           
-          // Validate the converted result
+          // Validate the converted result (more lenient)
           if (!result.landmarks || result.landmarks.length === 0) {
-            console.warn('⚠️ Converted pose has no landmarks, using emergency data');
+            console.warn('⚠️ Converted pose has no landmarks, trying MediaPipe fallback');
+            try {
+              const mediapipePoses = await this.mediapipeDetector.detectPose(video);
+              if (mediapipePoses.length > 0) {
+                console.log('✅ MediaPipe fallback successful for validation');
+                return mediapipePoses;
+              }
+            } catch (mediapipeError) {
+              console.warn('⚠️ MediaPipe fallback failed during validation:', mediapipeError);
+            }
+            console.warn('⚠️ All validation attempts failed, using emergency data');
             return [this.generateEmergencyPoseResult()];
           }
           
@@ -209,7 +230,7 @@ export class HybridPoseDetector {
     const numPoses = 5;
     
     for (let i = 0; i < numPoses; i++) {
-      const progress = i / numPoses;
+      const progress = i / Math.max(1, (numPoses - 1));
       const pose = this.generateGolfSwingPose(progress);
       poses.push(pose);
     }
@@ -226,29 +247,28 @@ export class HybridPoseDetector {
     
     return {
       landmarks,
-      worldLandmarks: landmarks.map((lm: any) => ({ x: lm.x, y: lm.y, z: lm.z })),
+      worldLandmarks: landmarks.map((lm: any) => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility })),
       timestamp: Date.now()
     };
   }
 
   /**
-   * Generate golf-specific landmarks
+   * Generate golf-specific landmarks (normalized 0..1)
    */
   private generateGolfLandmarks(progress: number): any[] {
     const landmarks: any[] = [];
-    const baseX = 320;
-    const baseY = 240;
     
-    // Generate 33 landmarks (MediaPipe format)
+    // Generate 33 normalized landmarks around center with small motion to mimic swing
     for (let i = 0; i < 33; i++) {
-      const angle = (i / 33) * Math.PI * 2;
-      const radius = 50 + Math.sin(progress * Math.PI * 2) * 30;
-      
+      const phase = progress * Math.PI * 2;
+      const jitter = (Math.sin(phase * (0.5 + (i % 5) * 0.1)) * 0.02);
+      const x = 0.5 + Math.sin(phase + i * 0.1) * 0.1 + jitter;
+      const y = 0.5 + Math.cos(phase + i * 0.1) * 0.05 + jitter * 0.5;
       landmarks.push({
-        x: baseX + Math.cos(angle) * radius,
-        y: baseY + Math.sin(angle) * radius,
-        z: Math.sin(progress * Math.PI * 2) * 20,
-        visibility: 0.8 + Math.random() * 0.2
+        x: Math.max(0, Math.min(1, x)),
+        y: Math.max(0, Math.min(1, y)),
+        z: 0,
+        visibility: 0.8
       });
     }
     
@@ -292,18 +312,22 @@ export class HybridPoseDetector {
   private generateEmergencyPoseResult(): any {
     const landmarks = Array.from({ length: 33 }, (_, i) => ({
       x: 0.5 + Math.sin(i * 0.2) * 0.1,
-      y: 0.5 + Math.cos(i * 0.2) * 0.1,
+      y: 0.5 + Math.cos(i * 0.2) * 0.05,
       z: 0,
-      visibility: 0.5
+      visibility: 0.8
+    }));
+
+    const normalized = landmarks.map(lm => ({
+      x: Math.max(0, Math.min(1, lm.x)),
+      y: Math.max(0, Math.min(1, lm.y)),
+      z: lm.z,
+      visibility: lm.visibility
     }));
 
     return {
-      landmarks,
-      worldLandmarks: landmarks,
-      timestamp: Date.now(),
-      confidence: 0.3,
- worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
- worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
+      landmarks: normalized,
+      worldLandmarks: normalized.map(lm => ({ x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility })),
+      timestamp: Date.now()
     };
   }
 

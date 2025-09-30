@@ -93,6 +93,12 @@ export class EnhancedImpactDetector {
         
         console.log('🎯 Starting enhanced impact detection with', safePoses.length, 'poses');
 
+        // Method 0: Hand speed deceleration (peak negative acceleration shortly after max speed)
+        const handSpeedDropResult = safeFunctionCall(
+          () => this.detectImpactByHandSpeedDrop(safeClubData),
+          { frame: 0, confidence: 0, maxDrop: 0 } as any
+        ) as any;
+
         // Method 1: Club speed analysis with error handling
         const clubSpeedResult = safeFunctionCall(
           () => this.detectImpactByClubSpeed(safeClubData),
@@ -117,9 +123,10 @@ export class EnhancedImpactDetector {
           { frame: 0, confidence: 0, acceleration: 0 }
         );
 
-        // Consensus analysis with error handling
+        // Consensus analysis with error handling (give handSpeedDrop more weight via confidence scaling)
         const consensusResult = safeFunctionCall(
           () => this.calculateConsensus([
+            { frame: handSpeedDropResult.frame, confidence: Math.min(1, (handSpeedDropResult.confidence || 0) * 1.2) },
             clubSpeedResult,
             weightTransferResult, 
             clubPositionResult,
@@ -144,6 +151,7 @@ export class EnhancedImpactDetector {
             frameAccuracy: 0,
             pathDeviation: 0,
             consistencyScore: this.calculateConsistencyScore([
+              { frame: handSpeedDropResult.frame, confidence: handSpeedDropResult.confidence || 0 },
               clubSpeedResult,
               weightTransferResult,
               clubPositionResult, 
@@ -178,10 +186,13 @@ export class EnhancedImpactDetector {
           validationReport
         };
 
-        console.log('🎯 Impact detection complete:', {
-          frame: result.frame,
-          confidence: result.confidence,
-          consistency: validationReport.metrics.consistencyScore
+        console.log('🎯 IMPACT DETECTION BREAKDOWN:', {
+          handSpeedDrop: handSpeedDropResult,
+          clubSpeed: clubSpeedResult,
+          clubPosition: clubPositionResult,
+          rotationDynamics: dynamicsResult,
+          weightTransfer: weightTransferResult,
+          final: { frame: result.frame, confidence: result.confidence }
         });
 
         return result;
@@ -321,6 +332,27 @@ export class EnhancedImpactDetector {
     const confidence = Math.min(1.0, maxAcceleration / 100.0);
     
     return { frame: impactFrame, confidence, acceleration: maxAcceleration };
+  }
+
+  /**
+   * Detect impact by peak hand speed deceleration (drop after max speed)
+   */
+  private detectImpactByHandSpeedDrop(clubData: ClubPathPoint[]): { frame: number; confidence: number; maxDrop: number } {
+    if (clubData.length < 6) return { frame: 0, confidence: 0, maxDrop: 0 };
+    let maxDrop = 0;
+    let impactFrame = 0;
+    // Ensure velocities present
+    for (let i = 2; i < clubData.length; i++) {
+      const vPrev = clubData[i - 1].velocity || 0;
+      const vCurr = clubData[i].velocity || 0;
+      const drop = Math.max(0, vPrev - vCurr);
+      if (drop > maxDrop) {
+        maxDrop = drop;
+        impactFrame = clubData[i].frame;
+      }
+    }
+    const confidence = Math.min(1.0, maxDrop / 5.0);
+    return { frame: impactFrame, confidence, maxDrop };
   }
 
   /**

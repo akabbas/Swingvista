@@ -7,26 +7,11 @@
 
 import OpenAI from 'openai';
 
-// Initialize OpenAI with proper error handling
+// Client-side AI feedback - use API route instead of direct OpenAI access
 let openai: OpenAI | null = null;
 
-try {
-  // Try to get API key from environment variables
-  const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-  
-  if (apiKey && apiKey !== 'your_openai_api_key_here') {
-    openai = new OpenAI({
-      apiKey: apiKey,
-    });
-    console.log('✅ AI FEEDBACK: OpenAI initialized successfully');
-  } else {
-    console.warn('⚠️ AI FEEDBACK: OpenAI API key not found or not configured. AI feedback will be disabled.');
-    console.warn('⚠️ AI FEEDBACK: To enable AI feedback, set OPENAI_API_KEY in your .env.local file');
-  }
-} catch (error) {
-  console.error('❌ AI FEEDBACK: Failed to initialize OpenAI:', error);
-  openai = null;
-}
+// Note: OpenAI client is not available on client-side
+// Use API route /api/ai-feedback instead
 
 export interface SwingCharacteristics {
   backswingLength: string;
