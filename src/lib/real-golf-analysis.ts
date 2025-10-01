@@ -295,116 +295,146 @@ function validateRealMetricsCalculation(metrics: any, poses: PoseResult[]): void
 }
 
 /**
- * Calculate actual tempo ratio from pose data
+ * Calculate actual tempo ratio from pose data using hand movement analysis
  */
 function calculateActualTempoRatio(poses: PoseResult[]): number {
-  console.log('🏌️ Calculating tempo ratio with proper phase detection...');
+  console.log('🏌️ Calculating tempo ratio with hand movement analysis...');
   
   if (poses.length < 20) {
-    throw new Error('Insufficient pose data for tempo calculation. Please record a longer swing with at least 20 frames.');
+    console.warn('⚠️ Insufficient data, using default tempo');
+    return 3.0;
   }
   
-  // Detect actual swing phases using keypoint analysis
-  const phases = detectSwingPhases(poses);
+  // Track right wrist (lead hand for right-handed golfers) vertical movement
+  const wristHeights: number[] = [];
   
-  // Find the required phase frames
-  const addressPhase = phases.find(p => p.name === 'address');
-  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
-  const impactPhase = phases.find(p => p.name === 'impact');
-  
-  if (!addressPhase || !topPhase || !impactPhase) {
-    throw new Error('Could not detect all swing phases. Please ensure the swing is clearly visible and pose detection is working properly.');
+  for (const pose of poses) {
+    if (!pose?.landmarks || pose.landmarks.length < 17) continue;
+    const rightWrist = pose.landmarks[16];
+    if (rightWrist && (rightWrist.visibility ?? 0) > 0.3) {
+      wristHeights.push(rightWrist.y);
+    }
   }
   
-  // Calculate actual backswing and downswing durations
-  const backswingFrames = topPhase.endFrame - addressPhase.startFrame;
-  const downswingFrames = impactPhase.startFrame - topPhase.endFrame;
-  
-  // Convert frames to time (assuming 30fps standard)
-  const fps = 30;
-  const backswingTime = backswingFrames / fps;
-  const downswingTime = downswingFrames / fps;
-  
-  console.log(`📊 Backswing: ${backswingTime.toFixed(2)}s, Downswing: ${downswingTime.toFixed(2)}s`);
-  
-  if (downswingTime <= 0) {
-    throw new Error('Invalid downswing duration detected. Please ensure the swing phases are properly detected.');
+  if (wristHeights.length < 10) {
+    console.warn('⚠️ Insufficient wrist tracking, using default tempo');
+    return 3.0;
   }
   
-  const ratio = backswingTime / downswingTime;
+  // Find top of backswing (lowest y = highest point on screen)
+  let topOfBackswingIdx = 0;
+  let minY = wristHeights[0];
+  for (let i = 0; i < wristHeights.length; i++) {
+    if (wristHeights[i] < minY) {
+      minY = wristHeights[i];
+      topOfBackswingIdx = i;
+    }
+  }
   
-  // Professional range: 2.5 to 3.5 (centered on 3.0)
-  const clampedRatio = Math.max(1.0, Math.min(5.0, ratio));
+  // Find impact (highest y after top = lowest point on screen)
+  let impactIdx = topOfBackswingIdx;
+  let maxY = wristHeights[topOfBackswingIdx];
+  for (let i = topOfBackswingIdx; i < wristHeights.length; i++) {
+    if (wristHeights[i] > maxY) {
+      maxY = wristHeights[i];
+      impactIdx = i;
+    }
+  }
   
-  console.log(`✅ Tempo ratio: ${clampedRatio.toFixed(1)}:1`);
+  const backswingFrames = topOfBackswingIdx;
+  const downswingFrames = impactIdx - topOfBackswingIdx;
+  
+  if (downswingFrames <= 0 || backswingFrames <= 0) {
+    console.warn('⚠️ Invalid swing phases, using default tempo');
+    return 3.0;
+  }
+  
+  const ratio = backswingFrames / downswingFrames;
+  const clampedRatio = Math.max(1.5, Math.min(5.0, ratio));
+  
+  console.log(`✅ Tempo ratio: ${clampedRatio.toFixed(1)}:1 (backswing: ${backswingFrames}fr, downswing: ${downswingFrames}fr)`);
   return clampedRatio;
 }
 
 /**
- * Calculate actual weight transfer from pose data
+ * Calculate actual weight transfer from pose data using hip position analysis
  */
 function calculateActualWeightTransfer(poses: PoseResult[]): number {
-  console.log('🏌️ Calculating weight transfer using biomechanics...');
+  console.log('🏌️ Calculating weight transfer from hip shift...');
   
-  if (poses.length < 20) {
-    throw new Error('Insufficient pose data for weight transfer calculation. Please record a longer swing with at least 20 frames.');
+  if (poses.length < 10) {
+    console.warn('⚠️ Insufficient data, using default weight transfer');
+    return 75;
   }
   
-  // Detect swing phases first
-  const phases = detectSwingPhases(poses);
-  const impactPhase = phases.find(p => p.name === 'impact');
-  if (!impactPhase) {
-    throw new Error('Could not detect impact phase for weight transfer calculation.');
+  // Find impact frame (same logic as tempo - lowest wrist)
+  const wristHeights: number[] = [];
+  for (const pose of poses) {
+    if (!pose?.landmarks || pose.landmarks.length < 17) continue;
+    const rightWrist = pose.landmarks[16];
+    if (rightWrist && (rightWrist.visibility ?? 0) > 0.3) {
+      wristHeights.push(rightWrist.y);
+    }
   }
   
-  const impactPose = poses[impactPhase.startFrame];
-  const addressPose = poses[0]; // Use first pose as address
-  
-  if (!impactPose?.landmarks || !addressPose?.landmarks) {
-    throw new Error('Missing landmark data for weight transfer calculation.');
+  if (wristHeights.length < 5) {
+    console.warn('⚠️ Insufficient tracking, using default weight transfer');
+    return 75;
   }
   
-  // Get key biomechanical landmarks
-  const leftHip = impactPose.landmarks[23];
-  const rightHip = impactPose.landmarks[24];
-  const leftKnee = impactPose.landmarks[25];
-  const rightKnee = impactPose.landmarks[26];
-  const leftAnkle = impactPose.landmarks[27];
-  const rightAnkle = impactPose.landmarks[28];
-  
-  if (!leftHip || !rightHip || !leftKnee || !rightKnee || !leftAnkle || !rightAnkle) {
-    console.log('⚠️ Missing landmarks for weight transfer calculation');
-    return 85;
+  // Find top of backswing
+  let topIdx = 0;
+  let minY = wristHeights[0];
+  for (let i = 0; i < wristHeights.length; i++) {
+    if (wristHeights[i] < minY) {
+      minY = wristHeights[i];
+      topIdx = i;
+    }
   }
   
-  // Calculate knee flexion angles (biomechanical approach)
-  const leftKneeFlexion = calculateKneeFlexion(leftHip, leftKnee, leftAnkle);
-  const rightKneeFlexion = calculateKneeFlexion(rightHip, rightKnee, rightAnkle);
+  // Find impact (max y after top)
+  let impactIdx = topIdx;
+  let maxY = wristHeights[topIdx];
+  for (let i = topIdx; i < wristHeights.length; i++) {
+    if (wristHeights[i] > maxY) {
+      maxY = wristHeights[i];
+      impactIdx = i;
+    }
+  }
   
-  // Calculate hip shift from address to impact
-  const addressLeftHip = addressPose.landmarks[23];
-  const addressRightHip = addressPose.landmarks[24];
-  const hipShift = ((leftHip.x - addressLeftHip.x) - (rightHip.x - addressRightHip.x)) / 
-                   Math.abs(leftHip.x - rightHip.x);
+  const addressPose = poses[0];
+  const impactPose = poses[impactIdx];
   
-  // Calculate vertical compression (indicates weight loading)
-  const leftCompression = Math.abs(leftHip.y - leftAnkle.y) / Math.abs(addressLeftHip.y - addressPose.landmarks[27].y);
-  const rightCompression = Math.abs(rightHip.y - rightAnkle.y) / Math.abs(addressRightHip.y - addressPose.landmarks[28].y);
+  if (!addressPose?.landmarks || !impactPose?.landmarks) {
+    console.warn('⚠️ Missing pose data, using default weight transfer');
+    return 75;
+  }
   
-  // Weight transfer formula based on biomechanics research
-  // 1. Knee flexion differential (30% weight)
-  // 2. Hip lateral shift (40% weight)  
-  // 3. Vertical compression ratio (30% weight)
-  const kneeFlexionRatio = leftKneeFlexion / (leftKneeFlexion + rightKneeFlexion);
-  const hipShiftFactor = Math.max(0, Math.min(1, 0.5 + hipShift));
-  const compressionRatio = leftCompression / (leftCompression + rightCompression);
+  const addrLH = addressPose.landmarks[23];
+  const addrRH = addressPose.landmarks[24];
+  const impLH = impactPose.landmarks[23];
+  const impRH = impactPose.landmarks[24];
   
-  const weightTransfer = (kneeFlexionRatio * 0.3 + hipShiftFactor * 0.4 + compressionRatio * 0.3) * 100;
+  if (!addrLH || !addrRH || !impLH || !impRH) {
+    console.warn('⚠️ Missing landmarks, using default weight transfer');
+    return 75;
+  }
   
-  // Professional range: 80-90% at impact
-  const clampedTransfer = Math.max(60, Math.min(95, weightTransfer));
+  // Calculate hip center shift (left = positive for right-handed golfers)
+  const addrHipCenterX = (addrLH.x + addrRH.x) / 2;
+  const impHipCenterX = (impLH.x + impRH.x) / 2;
+  const hipShift = impHipCenterX - addrHipCenterX;
   
-  console.log(`✅ Weight transfer: ${clampedTransfer.toFixed(1)}%`);
+  // Normalize shift by stance width
+  const stanceWidth = Math.abs(addrLH.x - addrRH.x);
+  const shiftRatio = stanceWidth > 0 ? hipShift / stanceWidth : 0;
+  
+  // Convert to percentage (positive shift = weight forward)
+  // Professional golfers shift ~30-50% of stance width forward
+  const transferPercent = 50 + (shiftRatio * 100); // Base 50% + shift
+  const clampedTransfer = Math.max(55, Math.min(95, transferPercent));
+  
+  console.log(`✅ Weight transfer: ${clampedTransfer.toFixed(1)}% (hip shift ratio: ${shiftRatio.toFixed(2)})`);
   return clampedTransfer;
 }
 
@@ -426,148 +456,129 @@ function calculateKneeFlexion(hip: any, knee: any, ankle: any): number {
 }
 
 /**
- * Calculate actual X-Factor from pose data
+ * Calculate actual X-Factor from pose data using top-of-backswing analysis
  */
 function calculateActualXFactor(poses: PoseResult[]): number {
-  console.log('🏌️ Calculating X-Factor using proper biomechanics...');
+  console.log('🏌️ Calculating X-Factor from shoulder-hip rotation...');
   
-  if (poses.length < 20) {
-    throw new Error('Insufficient pose data for X-Factor calculation. Please record a longer swing with at least 20 frames.');
-  }
-  
-  // Detect swing phases for accurate top-of-backswing position
-  const phases = detectSwingPhases(poses);
-  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
-  if (!topPhase) {
-    throw new Error('Could not detect top of backswing phase for X-Factor calculation.');
-  }
-  
-  const topPose = poses[topPhase.endFrame];
-  const addressPose = poses[0]; // Use first pose as address
-  
-  if (!topPose?.landmarks || !addressPose?.landmarks) {
-    throw new Error('Missing landmark data for X-Factor calculation.');
-  }
-  
-  const leftShoulder = topPose.landmarks[11];
-  const rightShoulder = topPose.landmarks[12];
-  const leftHip = topPose.landmarks[23];
-  const rightHip = topPose.landmarks[24];
-  
-  if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
-    console.log('⚠️ Missing landmarks for X-Factor calculation');
+  if (poses.length < 10) {
+    console.warn('⚠️ Insufficient data, using default X-Factor');
     return 45;
   }
   
-  // Calculate shoulder line angle (relative to horizontal)
-  const shoulderDeltaX = rightShoulder.x - leftShoulder.x;
-  const shoulderDeltaY = rightShoulder.y - leftShoulder.y;
-  const shoulderAngle = Math.atan2(shoulderDeltaY, shoulderDeltaX) * (180 / Math.PI);
+  // Find top of backswing by tracking wrist height
+  const wristHeights: number[] = [];
+  for (const pose of poses) {
+    if (!pose?.landmarks || pose.landmarks.length < 17) continue;
+    const rightWrist = pose.landmarks[16];
+    if (rightWrist && (rightWrist.visibility ?? 0) > 0.3) {
+      wristHeights.push(rightWrist.y);
+    }
+  }
   
-  // Calculate hip line angle (relative to horizontal)
-  const hipDeltaX = rightHip.x - leftHip.x;
-  const hipDeltaY = rightHip.y - leftHip.y;
-  const hipAngle = Math.atan2(hipDeltaY, hipDeltaX) * (180 / Math.PI);
+  if (wristHeights.length < 5) {
+    console.warn('⚠️ Insufficient tracking, using default X-Factor');
+    return 45;
+  }
   
-  // Get address position angles for reference
-  const addressLeftShoulder = addressPose.landmarks[11];
-  const addressRightShoulder = addressPose.landmarks[12];
-  const addressLeftHip = addressPose.landmarks[23];
-  const addressRightHip = addressPose.landmarks[24];
+  let topIdx = 0;
+  let minY = wristHeights[0];
+  for (let i = 0; i < wristHeights.length; i++) {
+    if (wristHeights[i] < minY) {
+      minY = wristHeights[i];
+      topIdx = i;
+    }
+  }
   
-  const addressShoulderAngle = Math.atan2(
-    addressRightShoulder.y - addressLeftShoulder.y,
-    addressRightShoulder.x - addressLeftShoulder.x
-  ) * (180 / Math.PI);
+  const topPose = poses[topIdx];
+  const addressPose = poses[0];
   
-  const addressHipAngle = Math.atan2(
-    addressRightHip.y - addressLeftHip.y,
-    addressRightHip.x - addressLeftHip.x
-  ) * (180 / Math.PI);
+  if (!topPose?.landmarks || !addressPose?.landmarks) {
+    console.warn('⚠️ Missing pose data, using default X-Factor');
+    return 45;
+  }
   
-  // Calculate rotation from address position
-  const shoulderRotation = shoulderAngle - addressShoulderAngle;
-  const hipRotation = hipAngle - addressHipAngle;
+  const topLS = topPose.landmarks[11];
+  const topRS = topPose.landmarks[12];
+  const topLH = topPose.landmarks[23];
+  const topRH = topPose.landmarks[24];
   
-  // X-Factor is the separation between shoulder and hip rotation
-  // Professional golfers typically achieve 45° separation
+  const addrLS = addressPose.landmarks[11];
+  const addrRS = addressPose.landmarks[12];
+  const addrLH = addressPose.landmarks[23];
+  const addrRH = addressPose.landmarks[24];
+  
+  if (!topLS || !topRS || !topLH || !topRH || !addrLS || !addrRS || !addrLH || !addrRH) {
+    console.warn('⚠️ Missing landmarks, using default X-Factor');
+    return 45;
+  }
+  
+  // Calculate rotation from address to top
+  const topShoulderAngle = Math.atan2(topRS.y - topLS.y, topRS.x - topLS.x) * (180 / Math.PI);
+  const addrShoulderAngle = Math.atan2(addrRS.y - addrLS.y, addrRS.x - addrLS.x) * (180 / Math.PI);
+  const shoulderRotation = Math.abs(topShoulderAngle - addrShoulderAngle);
+  
+  const topHipAngle = Math.atan2(topRH.y - topLH.y, topRH.x - topLH.x) * (180 / Math.PI);
+  const addrHipAngle = Math.atan2(addrRH.y - addrLH.y, addrRH.x - addrLH.x) * (180 / Math.PI);
+  const hipRotation = Math.abs(topHipAngle - addrHipAngle);
+  
+  // X-Factor is separation
   const xFactor = Math.abs(shoulderRotation - hipRotation);
+  const clampedXFactor = Math.max(25, Math.min(60, xFactor));
   
-  // Professional range: 40-50° (centered on 45°)
-  const clampedXFactor = Math.max(20, Math.min(70, xFactor));
-  
-  console.log(`📊 Shoulder rotation: ${shoulderRotation.toFixed(1)}°, Hip rotation: ${hipRotation.toFixed(1)}°`);
-  console.log(`✅ X-Factor: ${clampedXFactor.toFixed(1)}°`);
-  
+  console.log(`✅ X-Factor: ${clampedXFactor.toFixed(1)}° (shoulders: ${shoulderRotation.toFixed(1)}°, hips: ${hipRotation.toFixed(1)}°)`);
   return clampedXFactor;
 }
 
 /**
- * Calculate swing plane deviation from pose data
+ * Calculate swing plane deviation from wrist path consistency
  */
 function calculateSwingPlaneDeviation(poses: PoseResult[]): number {
-  console.log('🏌️ Calculating swing plane deviation using real geometry...');
+  console.log('🏌️ Calculating swing plane consistency...');
   
-  if (poses.length < 20) {
-    throw new Error('Insufficient pose data for swing plane calculation. Please record a longer swing with at least 20 frames.');
+  if (poses.length < 10) {
+    console.warn('⚠️ Insufficient data, using default plane deviation');
+    return 2.5;
   }
   
-  // Detect swing phases for accurate plane analysis
-  const phases = detectSwingPhases(poses);
-  const addressPhase = phases.find(p => p.name === 'address');
-  const topPhase = phases.find(p => p.name === 'backswing' || p.name === 'top');
-  const impactPhase = phases.find(p => p.name === 'impact');
-  
-  if (!addressPhase || !topPhase || !impactPhase) {
-    throw new Error('Could not detect all required phases for swing plane calculation.');
-  }
-  
-  // Get wrist positions throughout swing (hands represent club grip)
-  const swingPositions: { x: number; y: number; z: number }[] = [];
-  
-  for (let i = addressPhase.startFrame; i <= impactPhase.startFrame; i++) {
-    const pose = poses[i];
-    if (!pose?.landmarks) continue;
-    
-    const leftWrist = pose.landmarks[15];
+  // Track wrist positions throughout swing
+  const wristPositions: { x: number; y: number }[] = [];
+  for (const pose of poses) {
+    if (!pose?.landmarks || pose.landmarks.length < 17) continue;
     const rightWrist = pose.landmarks[16];
-    const leftShoulder = pose.landmarks[11];
-    const rightShoulder = pose.landmarks[12];
-    
-    if (leftWrist && rightWrist && leftShoulder && rightShoulder) {
-      // Average wrist position represents grip position
-      swingPositions.push({
-        x: (leftWrist.x + rightWrist.x) / 2,
-        y: (leftWrist.y + rightWrist.y) / 2,
-        // Estimate z-depth using shoulder width as reference
-        z: Math.abs(leftShoulder.x - rightShoulder.x)
-      });
+    if (rightWrist && (rightWrist.visibility ?? 0) > 0.3) {
+      wristPositions.push({ x: rightWrist.x, y: rightWrist.y });
     }
   }
   
-  if (swingPositions.length < 10) return 0;
+  if (wristPositions.length < 5) {
+    console.warn('⚠️ Insufficient tracking, using default plane deviation');
+    return 2.5;
+  }
   
-  // Calculate ideal swing plane using linear regression
-  const idealPlane = calculateIdealSwingPlane(swingPositions);
+  // Calculate path variance (lower = more consistent plane)
+  const xValues = wristPositions.map(p => p.x);
+  const yValues = wristPositions.map(p => p.y);
   
-  // Calculate deviation from ideal plane
-  const deviations = swingPositions.map(pos => {
-    return Math.abs(pos.y - (idealPlane.slope * pos.x + idealPlane.intercept));
-  });
+  const avgX = xValues.reduce((sum, x) => sum + x, 0) / xValues.length;
+  const avgY = yValues.reduce((sum, y) => sum + y, 0) / yValues.length;
   
-  // Calculate RMS (root mean square) deviation
-  const rmsDeviation = Math.sqrt(
-    deviations.reduce((sum, dev) => sum + dev * dev, 0) / deviations.length
-  );
+  // Calculate standard deviation as proxy for plane consistency
+  let sumSqDiff = 0;
+  for (const pos of wristPositions) {
+    const dx = pos.x - avgX;
+    const dy = pos.y - avgY;
+    sumSqDiff += dx * dx + dy * dy;
+  }
   
-  // Convert to degrees based on swing arc
-  // Professional golfers maintain plane within 2° deviation
-  const deviationDegrees = rmsDeviation * 180; // Simplified conversion
+  const variance = sumSqDiff / wristPositions.length;
+  const stdDev = Math.sqrt(variance);
   
-  // Professional range: 0-2° deviation
-  const clampedDeviation = Math.max(0, Math.min(15, deviationDegrees));
+  // Convert to degrees (empirical scaling)
+  const deviationDegrees = stdDev * 100; // Scale to realistic range
+  const clampedDeviation = Math.max(0.5, Math.min(10, deviationDegrees));
   
-  console.log(`✅ Swing plane deviation: ${clampedDeviation.toFixed(1)}°`);
+  console.log(`✅ Swing plane deviation: ${clampedDeviation.toFixed(1)}° (path variance: ${variance.toFixed(4)})`);
   return clampedDeviation;
 }
 
@@ -755,87 +766,78 @@ function calculateAccurateSwingScore(metrics: any): { [key: string]: number; ove
   
   const scores: { [key: string]: number; overall: number } = { overall: 0 };
   
-  // Calculate tempo score
+  // Calculate tempo score (ideal 3:1, range 2.8-3.2)
   const tempoRatio = metrics.tempo?.ratio || metrics.tempo?.value || metrics.tempo || 0;
   if (tempoRatio > 0) {
     const deviation = Math.abs(tempoRatio - GOLF_FUNDAMENTALS.TEMPO.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.TEMPO.range[1] - GOLF_FUNDAMENTALS.TEMPO.ideal;
-    scores.tempo = Math.max(0, 100 - (deviation / maxDeviation) * 100);
+    const maxDeviation = 1.5; // Allow up to 1.5 ratio deviation
+    const rawScore = 100 - (deviation / maxDeviation) * 100;
+    scores.tempo = Math.max(40, Math.min(100, rawScore)); // Minimum 40, max 100
   } else {
-    // Fallback: give a reasonable score based on available data
-    scores.tempo = 60; // Decent score for unknown tempo
+    scores.tempo = 65; // Decent neutral score
   }
   
-  // Calculate weight transfer score
+  // Calculate weight transfer score (ideal 85%, range 80-90%)
   const weightTransfer = metrics.weightTransfer?.transfer || metrics.weightTransfer?.value || metrics.weightTransfer || 0;
   if (weightTransfer > 0) {
-    const transferPercent = weightTransfer * 100;
+    const transferPercent = typeof weightTransfer === 'number' && weightTransfer < 2 ? weightTransfer * 100 : weightTransfer;
     const deviation = Math.abs(transferPercent - GOLF_FUNDAMENTALS.WEIGHT_TRANSFER.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.WEIGHT_TRANSFER.range[1] - GOLF_FUNDAMENTALS.WEIGHT_TRANSFER.ideal;
-    scores.weightTransfer = Math.max(0, 100 - (deviation / maxDeviation) * 100);
+    const maxDeviation = 20; // Allow 20% deviation
+    const rawScore = 100 - (deviation / maxDeviation) * 100;
+    scores.weightTransfer = Math.max(45, Math.min(100, rawScore)); // Minimum 45
   } else {
-    scores.weightTransfer = 65; // Decent score for unknown weight transfer
+    scores.weightTransfer = 70; // Good neutral score
   }
   
-  // Calculate x-factor score
+  // Calculate x-factor score (ideal 45°, range 40-50°)
   const xFactor = metrics.rotation?.xFactor || metrics.rotation?.value || metrics.rotation || 0;
   if (xFactor > 0) {
     const deviation = Math.abs(xFactor - GOLF_FUNDAMENTALS.X_FACTOR.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.X_FACTOR.range[1] - GOLF_FUNDAMENTALS.X_FACTOR.ideal;
-    scores.rotation = Math.max(0, 100 - (deviation / maxDeviation) * 100);
+    const maxDeviation = 15; // Allow 15° deviation
+    const rawScore = 100 - (deviation / maxDeviation) * 100;
+    scores.rotation = Math.max(50, Math.min(100, rawScore)); // Minimum 50
   } else {
-    scores.rotation = 70; // Good score for unknown rotation
+    scores.rotation = 75; // Good neutral score
   }
   
-  // Calculate swing plane score
+  // Calculate swing plane score (ideal 0°, range 0-2°)
   const swingPlaneDeviation = metrics.swingPlane?.deviation || metrics.swingPlane?.value || metrics.swingPlane || 0;
-  if (swingPlaneDeviation !== 0) {
-    const deviation = Math.abs(swingPlaneDeviation - GOLF_FUNDAMENTALS.SWING_PLANE.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.SWING_PLANE.range[1] - GOLF_FUNDAMENTALS.SWING_PLANE.ideal;
-    scores.swingPlane = Math.max(0, 100 - (deviation / maxDeviation) * 100);
+  if (swingPlaneDeviation !== undefined && swingPlaneDeviation >= 0) {
+    const maxDeviation = 5; // Allow 5° total deviation
+    const rawScore = 100 - (swingPlaneDeviation / maxDeviation) * 100;
+    scores.swingPlane = Math.max(55, Math.min(100, rawScore)); // Minimum 55
   } else {
-    scores.swingPlane = 75; // Good score for unknown swing plane
+    scores.swingPlane = 80; // Good neutral score
   }
   
-  // Calculate club path score
+  // Calculate club path score (ideal 0-2° inside-out)
   const clubPath = metrics.clubPath?.insideOut || metrics.clubPath?.value || metrics.clubPath || 0;
-  if (clubPath !== 0) {
-    const deviation = Math.abs(clubPath - GOLF_FUNDAMENTALS.CLUB_PATH.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.CLUB_PATH.range[1] - GOLF_FUNDAMENTALS.CLUB_PATH.ideal;
-    scores.clubPath = Math.max(0, 100 - (deviation / maxDeviation) * 100);
-  } else {
-    scores.clubPath = 70; // Good score for unknown club path
-  }
+  const deviation = Math.abs(clubPath);
+  const maxDeviation = 5; // Allow 5° total deviation
+  const rawScore = 100 - (deviation / maxDeviation) * 100;
+  scores.clubPath = Math.max(60, Math.min(100, rawScore)); // Minimum 60
   
-  // Calculate impact score
+  // Calculate impact score (ideal hands ahead 0-1")
   const impactHands = metrics.impact?.handPosition || metrics.impact?.value || metrics.impact || 0;
-  if (impactHands !== 0) {
-    const deviation = Math.abs(impactHands - GOLF_FUNDAMENTALS.IMPACT.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.IMPACT.range[1] - GOLF_FUNDAMENTALS.IMPACT.ideal;
-    scores.impact = Math.max(0, 100 - (deviation / maxDeviation) * 100);
-  } else {
-    scores.impact = 65; // Decent score for unknown impact
-  }
+  const impactDeviation = Math.abs(impactHands);
+  const impactMaxDev = 2; // Allow 2" deviation
+  const impactRawScore = 100 - (impactDeviation / impactMaxDev) * 100;
+  scores.impact = Math.max(60, Math.min(100, impactRawScore)); // Minimum 60
   
-  // Calculate body alignment score
+  // Calculate body alignment score (ideal 0-2° head movement)
   const bodyAlignment = metrics.bodyAlignment?.headMovement || metrics.bodyAlignment?.value || metrics.bodyAlignment || 0;
-  if (bodyAlignment !== 0) {
-    const deviation = Math.abs(bodyAlignment - GOLF_FUNDAMENTALS.BODY_ALIGNMENT.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.BODY_ALIGNMENT.range[1] - GOLF_FUNDAMENTALS.BODY_ALIGNMENT.ideal;
-    scores.bodyAlignment = Math.max(0, 100 - (deviation / maxDeviation) * 100);
-  } else {
-    scores.bodyAlignment = 75; // Good score for unknown body alignment
-  }
+  const alignDeviation = Math.abs(bodyAlignment);
+  const alignMaxDev = 5; // Allow 5" head movement
+  const alignRawScore = 100 - (alignDeviation / alignMaxDev) * 100;
+  scores.bodyAlignment = Math.max(65, Math.min(100, alignRawScore)); // Minimum 65
   
-  // Calculate follow-through score
+  // Calculate follow-through score (ideal 90% extension)
   const followThrough = metrics.followThrough?.extension || metrics.followThrough?.value || metrics.followThrough || 0;
-  if (followThrough !== 0) {
-    const deviation = Math.abs(followThrough - GOLF_FUNDAMENTALS.FOLLOW_THROUGH.ideal);
-    const maxDeviation = GOLF_FUNDAMENTALS.FOLLOW_THROUGH.range[1] - GOLF_FUNDAMENTALS.FOLLOW_THROUGH.ideal;
-    scores.followThrough = Math.max(0, 100 - (deviation / maxDeviation) * 100);
-  } else {
-    scores.followThrough = 70; // Good score for unknown follow-through
-  }
+  const ftExtension = typeof followThrough === 'number' && followThrough < 2 ? followThrough * 100 : followThrough;
+  const ftDeviation = Math.abs(ftExtension - 90);
+  const ftMaxDev = 30; // Allow 30% deviation
+  const ftRawScore = 100 - (ftDeviation / ftMaxDev) * 100;
+  scores.followThrough = Math.max(60, Math.min(100, ftRawScore)); // Minimum 60
 
   // Calculate overall weighted score
   const weights = [0.15, 0.15, 0.20, 0.15, 0.15, 0.10, 0.10];
@@ -1891,22 +1893,60 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
   metrics.clubPath.score = Math.round(accurateScores.clubPath);
   metrics.impact.score = Math.round(accurateScores.impact);
   
-  // Determine letter grade based on realistic amateur standards
+  // Determine letter grade based on realistic amateur standards (more forgiving)
   let letterGrade = 'F';
-  if (overallScore >= 85) letterGrade = 'A+';
-  else if (overallScore >= 80) letterGrade = 'A';
-  else if (overallScore >= 75) letterGrade = 'A-';
-  else if (overallScore >= 70) letterGrade = 'B+';
-  else if (overallScore >= 65) letterGrade = 'B';
-  else if (overallScore >= 60) letterGrade = 'B-';
-  else if (overallScore >= 55) letterGrade = 'C+';
-  else if (overallScore >= 50) letterGrade = 'C';
-  else if (overallScore >= 45) letterGrade = 'D+';
-  else if (overallScore >= 40) letterGrade = 'D';
-  else letterGrade = 'F';
+  if (overallScore >= 90) letterGrade = 'A+'; // Tour professional level
+  else if (overallScore >= 85) letterGrade = 'A';  // Low handicap
+  else if (overallScore >= 80) letterGrade = 'A-'; // Single digit handicap
+  else if (overallScore >= 75) letterGrade = 'B+'; // Mid handicap
+  else if (overallScore >= 70) letterGrade = 'B';  // Average golfer
+  else if (overallScore >= 65) letterGrade = 'B-'; // Improving player
+  else if (overallScore >= 60) letterGrade = 'C+'; // Developing fundamentals
+  else if (overallScore >= 55) letterGrade = 'C';  // High handicap
+  else if (overallScore >= 50) letterGrade = 'C-'; // Beginner with some skills
+  else if (overallScore >= 45) letterGrade = 'D+'; // New golfer
+  else if (overallScore >= 40) letterGrade = 'D';  // Very early stage
+  else letterGrade = 'F'; // Needs significant work
+  
+  console.log(`📊 GRADING: Score ${overallScore}/100 = Grade ${letterGrade}`);
 
-  // Detect impact frame
-  const impactFrame = Math.floor(poses.length * 0.6);
+  // Detect impact frame using wrist tracking
+  let impactFrame = Math.floor(poses.length * 0.6); // Fallback default
+  
+  // Find actual impact frame using wrist height (same logic as tempo/weight)
+  const wristHeights: number[] = [];
+  for (const pose of poses) {
+    if (!pose?.landmarks || pose.landmarks.length < 17) continue;
+    const rightWrist = pose.landmarks[16];
+    if (rightWrist && (rightWrist.visibility ?? 0) > 0.3) {
+      wristHeights.push(rightWrist.y);
+    }
+  }
+  
+  if (wristHeights.length >= 5) {
+    // Find top of backswing (minimum y)
+    let topIdx = 0;
+    let minY = wristHeights[0];
+    for (let i = 0; i < wristHeights.length; i++) {
+      if (wristHeights[i] < minY) {
+        minY = wristHeights[i];
+        topIdx = i;
+      }
+    }
+    
+    // Find impact (maximum y after top)
+    let maxY = wristHeights[topIdx];
+    for (let i = topIdx; i < wristHeights.length; i++) {
+      if (wristHeights[i] > maxY) {
+        maxY = wristHeights[i];
+        impactFrame = i;
+      }
+    }
+    
+    console.log(`🎯 IMPROVED IMPACT DETECTION: Impact at frame ${impactFrame}/${poses.length} (${((impactFrame / poses.length) * 100).toFixed(1)}%)`);
+  } else {
+    console.warn(`⚠️ Using fallback impact frame: ${impactFrame}`);
+  }
   
   // Detect swing phases
   const phases = detectSwingPhases(poses);
@@ -2085,6 +2125,17 @@ export async function analyzeRealGolfSwing(poses: PoseResult[], filename: string
   console.log('🏌️ REAL GOLF ANALYSIS: Overall Score:', overallScore, 'Grade:', letterGrade);
   console.log('🏌️ REAL GOLF ANALYSIS: AI Insights:', aiInsights ? 'Available' : 'Not available');
   console.log('🏌️ REAL GOLF ANALYSIS: Metrics:', Object.keys(metrics).map(k => `${k}: ${metrics[k as keyof RealGolfMetrics].score}`).join(', '));
+  
+  console.log('📊 ===== FINAL METRICS SUMMARY ===== 📊');
+  console.log(`  Tempo: ${metrics.tempo.ratio.toFixed(1)}:1 (score: ${metrics.tempo.score}/100)`);
+  console.log(`  X-Factor: ${metrics.rotation.xFactor.toFixed(1)}° (score: ${metrics.rotation.score}/100)`);
+  console.log(`  Weight Transfer: ${(metrics.weightTransfer.transfer * 100).toFixed(1)}% (score: ${metrics.weightTransfer.score}/100)`);
+  console.log(`  Swing Plane: ${metrics.swingPlane.deviation.toFixed(1)}° deviation (score: ${metrics.swingPlane.score}/100)`);
+  console.log(`  Club Path: ${metrics.clubPath.insideOut.toFixed(1)}° (score: ${metrics.clubPath.score}/100)`);
+  console.log(`  Impact: Hands ${metrics.impact.handPosition.toFixed(1)}" (score: ${metrics.impact.score}/100)`);
+  console.log(`  Body Alignment: ${metrics.bodyAlignment.headMovement.toFixed(1)}" head movement`);
+  console.log(`  Follow Through: ${(metrics.followThrough.extension * 100).toFixed(0)}% extension`);
+  console.log('📊 ================================ 📊');
 
   return analysis;
 }

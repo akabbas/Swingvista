@@ -407,7 +407,7 @@ async function testConsoleLoggingPatterns(): Promise<TestResult> {
   console.log('📝 Testing console logging patterns...');
   const startTime = Date.now();
   
-  let originalLog: any = console.log;
+  const originalLog: any = console.log;
   try {
     // Capture console logs
     const capturedLogs: string[] = [];
