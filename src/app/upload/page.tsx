@@ -33,14 +33,32 @@ export default function UploadPage() {
   const [angleToolActive, setAngleToolActive] = useState<boolean>(false);
   const [anglePoints, setAnglePoints] = useState<Array<{ x: number; y: number }>>([]);
   const [measuredAngle, setMeasuredAngle] = useState<number | null>(null);
+  const [videoSize, setVideoSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [coaching, setCoaching] = useState<any | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(0.5); // Default to 50% speed
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Debug: Log file state changes
-  console.log('🔍 UploadPage render - file state:', file ? file.name : 'null');
-  console.log('🔍 UploadPage render - result state:', result ? 'has result' : 'no result');
-  console.log('🔍 UploadPage render - isAnalyzing:', isAnalyzing);
+  const normalizePoseLandmarks = useCallback((landmarks: any[] = []) => (
+    landmarks.map((lm: any) => ({
+      x: Math.max(0, Math.min(1, lm?.x ?? 0.5)),
+      y: Math.max(0, Math.min(1, lm?.y ?? 0.5)),
+      z: lm?.z ?? 0,
+      visibility: Math.max(0, Math.min(1, lm?.visibility ?? 0))
+    }))
+  ), []);
+
+  const getNormalizedPose = useCallback((pose: any | null) => {
+    if (!pose?.landmarks) return null;
+    return {
+      ...pose,
+      landmarks: normalizePoseLandmarks(pose.landmarks)
+    };
+  }, [normalizePoseLandmarks]);
+
+  // Debug: Log file state changes (disabled to prevent render loop)
+  // console.log('🔍 UploadPage render - file state:', file ? file.name : 'null');
+  // console.log('🔍 UploadPage render - result state:', result ? 'has result' : 'no result');
+  // console.log('🔍 UploadPage render - isAnalyzing:', isAnalyzing);
 
   // Track file state changes
   useEffect(() => {
@@ -52,10 +70,10 @@ export default function UploadPage() {
     }
   }, [file]);
 
-  // Pose overlay drawing effect
-  useEffect(() => {
-    // Disabled duplicate overlay effect to avoid conflicts with main overlay renderer
-  }, [result]);
+  // Pose overlay drawing effect - disabled to avoid conflicts
+  // useEffect(() => {
+  //   // Disabled duplicate overlay effect to avoid conflicts with main overlay renderer
+  // }, [result]);
 
   // Progress tracking function
   const updateProgress = (frame: number, totalFrames: number) => {
@@ -225,7 +243,10 @@ export default function UploadPage() {
           pose = generateFallbackPose(frame, totalFrames, video.duration);
         }
         
-        poses.push(pose);
+        const normalizedPose = getNormalizedPose(pose);
+        if (normalizedPose) {
+          poses.push(normalizedPose);
+        }
         consecutiveFailures = 0;
         
         // Add small delay between frames to prevent overwhelming the system
@@ -246,7 +267,7 @@ export default function UploadPage() {
         
         // Generate fallback pose instead of failing
         const fallbackPose = generateFallbackPose(frame, totalFrames, video.duration);
-        poses.push(fallbackPose);
+        poses.push(getNormalizedPose(fallbackPose));
         
         // Stop if too many consecutive failures (much higher tolerance)
         if (consecutiveFailures >= maxConsecutiveFailures * 5) { // 5x tolerance - very hard to trigger
@@ -299,9 +320,14 @@ export default function UploadPage() {
     }
   }, []);
 
+  // Memoize poses to prevent unnecessary re-renders
+  const poses = React.useMemo(() => {
+    return result?.analysis?.poses || result?.poses || [];
+  }, [result?.analysis?.poses, result?.poses]);
+
   // Add pose overlay functionality
   useEffect(() => {
-    if ((!result?.poses && !result?.analysis?.poses) || !file) return;
+    if (!poses.length || !file) return;
 
     const video = document.getElementById('analysis-video') as HTMLVideoElement;
     const canvas = document.getElementById('pose-overlay-canvas') as HTMLCanvasElement;
@@ -315,19 +341,254 @@ export default function UploadPage() {
     console.log('🎥 Overlay(B) init', {
       videoWidth: video.videoWidth,
       videoHeight: video.videoHeight,
-      posesLength: (result?.analysis?.poses || result?.poses || []).length
+      posesLength: poses.length,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      canvasStyle: canvas.style.cssText,
+      canvasPosition: canvas.getBoundingClientRect()
     });
 
     // Set canvas size to match video
     const resizeCanvas = () => {
-      if (video.videoWidth && video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      const width = video.videoWidth || videoSize.width;
+      const height = video.videoHeight || videoSize.height;
+      if (width && height) {
+        canvas.width = width;
+        canvas.height = height;
         if (angleCanvas) {
-          angleCanvas.width = video.videoWidth;
-          angleCanvas.height = video.videoHeight;
+          angleCanvas.width = width;
+          angleCanvas.height = height;
+        }
+        console.log('📐 Canvas resized to:', { width, height });
+      } else {
+        console.log('⚠️ Cannot resize canvas - missing dimensions:', { width, height, videoWidth: video.videoWidth, videoHeight: video.videoHeight });
+      }
+    };
+    
+    // Call resize immediately
+    resizeCanvas();
+
+    // Stick figure drawing function
+    const drawStickFigure = (ctx: CanvasRenderingContext2D, landmarks: any[], canvasWidth: number, canvasHeight: number) => {
+      if (!landmarks || landmarks.length < 17) {
+        console.warn('⚠️ Not enough landmarks for stick figure');
+        return;
+      }
+
+      // Make stick figure more visible
+      ctx.strokeStyle = '#00FF00';
+      ctx.fillStyle = '#00FF00';
+      ctx.lineWidth = 6; // Thicker lines
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      let linesDrawn = 0;
+      let pointsDrawn = 0;
+
+      // Define connections between landmarks (MediaPipe pose model)
+      const connections = [
+        // Head and shoulders
+        [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
+        // Torso
+        [11, 12], [11, 13], [12, 14], [13, 15], [14, 16],
+        // Arms
+        [11, 13], [13, 15], [12, 14], [14, 16],
+        // Legs
+        [11, 23], [12, 24], [23, 25], [24, 26], [25, 27], [26, 28]
+      ];
+      
+      // Draw connections
+      connections.forEach(([start, end]) => {
+        const startPoint = landmarks[start];
+        const endPoint = landmarks[end];
+        
+        if (startPoint && endPoint && startPoint.visibility > 0.3 && endPoint.visibility > 0.3) {
+          const x1 = startPoint.x * canvasWidth;
+          const y1 = startPoint.y * canvasHeight;
+          const x2 = endPoint.x * canvasWidth;
+          const y2 = endPoint.y * canvasHeight;
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          linesDrawn++;
+        }
+      });
+      
+      // Draw key points
+      landmarks.forEach((landmark, index) => {
+        if (landmark && landmark.visibility > 0.3) {
+          const x = landmark.x * canvasWidth;
+          const y = landmark.y * canvasHeight;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, 2 * Math.PI); // Bigger points
+          ctx.fill();
+          pointsDrawn++;
+        }
+      });
+
+      console.log('🎭 Stick figure drawn:', { 
+        linesDrawn, 
+        pointsDrawn, 
+        canvasSize: `${canvasWidth}x${canvasHeight}`,
+        firstLandmark: landmarks[0] ? { x: landmarks[0].x, y: landmarks[0].y, visibility: landmarks[0].visibility } : 'none',
+        pixelCoords: landmarks[0] ? { x: landmarks[0].x * canvasWidth, y: landmarks[0].y * canvasHeight } : 'none'
+      });
+    };
+
+    // Hand trails overlay function
+    const drawHandTrailsOverlay = (ctx: CanvasRenderingContext2D, poses: any[], currentFrame: number, canvasWidth: number, canvasHeight: number) => {
+      if (!poses || poses.length === 0) return;
+      
+      ctx.strokeStyle = '#FF6B6B';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      
+      // Draw trail for left hand (landmark 15)
+      const leftHandTrail = [];
+      const rightHandTrail = [];
+      
+      // Collect hand positions from recent frames
+      const trailLength = Math.min(20, currentFrame);
+      for (let i = Math.max(0, currentFrame - trailLength); i <= currentFrame; i++) {
+        const pose = poses[i];
+        if (pose && pose.landmarks) {
+          const leftHand = pose.landmarks[15];
+          const rightHand = pose.landmarks[16];
+          
+          if (leftHand && leftHand.visibility > 0.3) {
+            leftHandTrail.push({
+              x: leftHand.x * canvasWidth,
+              y: leftHand.y * canvasHeight,
+              alpha: (i - (currentFrame - trailLength)) / trailLength
+            });
+          }
+          
+          if (rightHand && rightHand.visibility > 0.3) {
+            rightHandTrail.push({
+              x: rightHand.x * canvasWidth,
+              y: rightHand.y * canvasHeight,
+              alpha: (i - (currentFrame - trailLength)) / trailLength
+            });
+          }
         }
       }
+      
+      // Draw left hand trail
+      if (leftHandTrail.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(leftHandTrail[0].x, leftHandTrail[0].y);
+        for (let i = 1; i < leftHandTrail.length; i++) {
+          ctx.globalAlpha = leftHandTrail[i].alpha;
+          ctx.lineTo(leftHandTrail[i].x, leftHandTrail[i].y);
+        }
+        ctx.stroke();
+      }
+      
+      // Draw right hand trail
+      if (rightHandTrail.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(rightHandTrail[0].x, rightHandTrail[0].y);
+        for (let i = 1; i < rightHandTrail.length; i++) {
+          ctx.globalAlpha = rightHandTrail[i].alpha;
+          ctx.lineTo(rightHandTrail[i].x, rightHandTrail[i].y);
+        }
+        ctx.stroke();
+      }
+      
+      ctx.globalAlpha = 1; // Reset alpha
+    };
+
+    // Club path overlay function
+    const drawClubPathOverlay = (ctx: CanvasRenderingContext2D, landmarks: any[], canvasWidth: number, canvasHeight: number) => {
+      if (!landmarks || landmarks.length < 17) return;
+      
+      // Estimate club head position based on hand positions and swing dynamics
+      const leftHand = landmarks[15];
+      const rightHand = landmarks[16];
+      
+      if (leftHand && rightHand && leftHand.visibility > 0.3 && rightHand.visibility > 0.3) {
+        // Simple club head estimation - extend from hands
+        const handMidX = (leftHand.x + rightHand.x) / 2;
+        const handMidY = (leftHand.y + rightHand.y) / 2;
+        
+        // Estimate club length (roughly 1.2x arm span)
+        const armSpan = Math.sqrt(
+          Math.pow(leftHand.x - rightHand.x, 2) + Math.pow(leftHand.y - rightHand.y, 2)
+        );
+        const clubLength = armSpan * 1.2;
+        
+        // Draw club shaft
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(handMidX * canvasWidth, handMidY * canvasHeight);
+        ctx.lineTo(
+          (handMidX + clubLength * 0.3) * canvasWidth,
+          (handMidY + clubLength * 0.7) * canvasHeight
+        );
+        ctx.stroke();
+        
+        // Draw club head
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(
+          (handMidX + clubLength * 0.3) * canvasWidth,
+          (handMidY + clubLength * 0.7) * canvasHeight,
+          8, 0, 2 * Math.PI
+        );
+        ctx.fill();
+      }
+    };
+
+    // Swing plane tunnel function
+    const drawSwingPlaneTunnel = (ctx: CanvasRenderingContext2D, landmarks: any[], canvasWidth: number, canvasHeight: number) => {
+      if (!landmarks || landmarks.length < 17) return;
+      
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      
+      if (leftShoulder && rightShoulder && leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3) {
+        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+        
+        // Create a tunnel effect with parallel lines
+        ctx.strokeStyle = '#00BFFF';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 5]);
+        
+        // Upper tunnel line
+        ctx.beginPath();
+        ctx.moveTo(0, shoulderMidY * canvasHeight - 50);
+        ctx.lineTo(canvasWidth, shoulderMidY * canvasHeight - 50);
+        ctx.stroke();
+        
+        // Lower tunnel line
+        ctx.beginPath();
+        ctx.moveTo(0, shoulderMidY * canvasHeight + 50);
+        ctx.lineTo(canvasWidth, shoulderMidY * canvasHeight + 50);
+        ctx.stroke();
+        
+        ctx.setLineDash([]);
+      }
+    };
+
+    const normalizeLandmarks = (landmarks: any[] = []) =>
+      landmarks.map((lm: any) => ({
+        x: Math.max(0, Math.min(1, lm?.x ?? 0.5)),
+        y: Math.max(0, Math.min(1, lm?.y ?? 0.5)),
+        z: lm?.z ?? 0,
+        visibility: Math.max(0, Math.min(1, lm?.visibility ?? 0))
+      }));
+
+    const getNormalizedPose = (rawPose: any) => {
+      if (!rawPose?.landmarks) return null;
+      return {
+        ...rawPose,
+        landmarks: normalizeLandmarks(rawPose.landmarks)
+      };
     };
 
     // Draw pose overlay
@@ -342,81 +603,68 @@ export default function UploadPage() {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Calculate current frame
+      // Map current time to pose sample index (independent of camera FPS)
       const currentTime = video.currentTime;
-      const fps = 30; // Assume 30fps
-      const frameIndex = Math.floor(currentTime * fps);
+      const posesForOverlay: any[] = poses;
+      const totalPoses = posesForOverlay.length;
+      const frameIndex = totalPoses > 1 && video.duration > 0
+        ? Math.max(0, Math.min(totalPoses - 1, Math.round((currentTime / video.duration) * (totalPoses - 1))))
+        : 0;
       
-      // Get pose for current frame
-      const posesForOverlay: any[] = (result?.analysis?.poses || result?.poses || []) as any[];
-      const pose = posesForOverlay[frameIndex];
-      if (!pose || !pose.landmarks) return;
+      console.log('🎬 Overlay drawing:', {
+        currentTime: currentTime.toFixed(2),
+        frameIndex,
+        totalPoses,
+        videoReady: video.readyState,
+        videoSeeking: video.seeking
+      });
+      
+      // Try to get pose for current frame, with fallback to nearest frame
+      let pose = getNormalizedPose(posesForOverlay[frameIndex]);
+      
+      // If no pose for exact frame, try nearby frames
+      if (!pose || !pose.landmarks) {
+        // Try frames within ±2 range
+        for (let offset = 1; offset <= 2; offset++) {
+          const lowerFrame = Math.max(0, frameIndex - offset);
+          const upperFrame = Math.min(posesForOverlay.length - 1, frameIndex + offset);
+          
+          if (posesForOverlay[lowerFrame]?.landmarks) {
+            pose = getNormalizedPose(posesForOverlay[lowerFrame]);
+            console.log(`🔄 Using pose from frame ${lowerFrame} for frame ${frameIndex}`);
+            break;
+          }
+          if (posesForOverlay[upperFrame]?.landmarks) {
+            pose = getNormalizedPose(posesForOverlay[upperFrame]);
+            console.log(`🔄 Using pose from frame ${upperFrame} for frame ${frameIndex}`);
+            break;
+          }
+        }
+      }
+      
+      if (!pose || !pose.landmarks) {
+        console.log('⚠️ No pose data available for frame:', frameIndex, 'or nearby frames');
+        return;
+      }
       
       // Draw stick figure if enabled
       if (showStickFigure) {
-        console.log('🎭 Drawing stick figure for frame:', frameIndex);
-      ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 4; // Make lines thicker
-      ctx.fillStyle = '#00ff00';
-      
-      const keyPoints = [
-        { from: 11, to: 12 }, // shoulders
-        { from: 11, to: 13 }, // left arm
-        { from: 12, to: 14 }, // right arm
-        { from: 13, to: 15 }, // left forearm
-        { from: 14, to: 16 }, // right forearm
-        { from: 23, to: 24 }, // hips
-        { from: 23, to: 25 }, // left leg
-        { from: 24, to: 26 }, // right leg
-          { from: 25, to: 27 }, // left shin
-          { from: 26, to: 28 }, // right shin
-      ];
-      
-        let linesDrawn = 0;
-      keyPoints.forEach(({ from, to }) => {
-        const point1 = pose.landmarks[from];
-        const point2 = pose.landmarks[to];
-        if (point1 && point2 && point1.visibility > 0.5 && point2.visibility > 0.5) {
-          ctx.beginPath();
-          ctx.moveTo(point1.x * canvas.width, point1.y * canvas.height);
-          ctx.lineTo(point2.x * canvas.width, point2.y * canvas.height);
-          ctx.stroke();
-            linesDrawn++;
-        }
-      });
-      
-        let pointsDrawn = 0;
-        pose.landmarks.forEach((landmark: any, index: number) => {
-        if (landmark.visibility > 0.5) {
-          ctx.beginPath();
-            ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 5, 0, 2 * Math.PI); // Make points bigger
-          ctx.fill();
-            pointsDrawn++;
-          }
-        });
+        console.log('🎯 Drawing stick figure for frame:', frameIndex);
         
-        console.log('🎭 Stick figure drawn:', { linesDrawn, pointsDrawn, canvasSize: `${canvas.width}x${canvas.height}` });
+        // Test: Draw a simple rectangle to verify canvas is working
+        ctx.fillStyle = 'red';
+        ctx.fillRect(10, 10, 50, 50);
+        console.log('🔴 Test rectangle drawn at (10,10)');
+        
+        drawStickFigure(ctx, pose.landmarks, canvas.width, canvas.height);
+        
+        // Add a small indicator that stick figure is active
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+        ctx.font = '12px Arial';
+        ctx.fillText('Stick Figure ON', 10, 20);
       }
 
-      // Debug dot to verify pipeline is drawing
-      const leftShoulder = pose.landmarks[11];
-      if (leftShoulder) {
-        ctx.fillStyle = 'red';
-        const debugX = leftShoulder.x * canvas.width;
-        const debugY = leftShoulder.y * canvas.height;
-        ctx.fillRect(debugX, debugY, 8, 8);
-        
-        // Log normalized coordinates and canvas size for debugging
-        console.log('🔴 Debug dot drawn at', {
-          frameIndex,
-          normalizedX: leftShoulder.x,
-          normalizedY: leftShoulder.y,
-          pixelX: Math.round(debugX),
-          pixelY: Math.round(debugY),
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height
-        });
-      }
+      // Visualization complete
 
       // Basic swing plane visualization (shoulder line extended)
       if (showSwingPlane) {
@@ -452,11 +700,33 @@ export default function UploadPage() {
         }
       }
 
-      console.log('🎛️ VISUALIZATION TOGGLES STATUS:', { showSwingPlane, showStickFigure });
+      // Draw hand trails if enabled
+      if (showHandTrails) {
+        drawHandTrailsOverlay(
+          ctx,
+          posesForOverlay.map(getNormalizedPose).filter(Boolean),
+          frameIndex,
+          canvas.width,
+          canvas.height
+        );
+      }
+
+      // Draw club path if enabled
+      if (showClubPath) {
+        drawClubPathOverlay(ctx, pose.landmarks, canvas.width, canvas.height);
+      }
+
+      // Draw swing plane tunnel if enabled
+      if (showPlaneTunnel) {
+        drawSwingPlaneTunnel(ctx, pose.landmarks, canvas.width, canvas.height);
+      }
+
+      console.log('🎛️ VISUALIZATION TOGGLES STATUS:', { showSwingPlane, showStickFigure, showHandTrails, showClubPath, showPlaneTunnel });
     };
 
     // Debounced overlay drawing to prevent conflicts with video controls
     let overlayTimeout: NodeJS.Timeout | null = null;
+    let overlayRaf: number | null = null;
     const debouncedDrawOverlay = () => {
       if (overlayTimeout) {
         clearTimeout(overlayTimeout);
@@ -467,11 +737,18 @@ export default function UploadPage() {
         } catch (error) {
           console.warn('⚠️ Overlay drawing failed:', error);
         }
-      }, 33); // ~30fps max to reduce conflicts
+      }, 16); // ~60fps for smoother overlay updates
     };
 
     // Initial setup and listeners
-    const onTimeUpdate = () => debouncedDrawOverlay();
+    const onTimeUpdate = () => {
+      // Draw immediately for smooth playback
+      try {
+        drawPoseOverlay();
+      } catch (error) {
+        console.warn('⚠️ Overlay drawing failed on timeupdate:', error);
+      }
+    };
     const onSeeked = () => {
       // Immediate draw for seeking, but debounce subsequent updates
       try {
@@ -492,14 +769,30 @@ export default function UploadPage() {
       }, 100);
     };
     const onPlay = () => {
-      // Don't redraw immediately on play to avoid conflicts
-      setTimeout(() => debouncedDrawOverlay(), 50);
+      // Start rAF loop for smooth overlays during playback
+      if (overlayRaf) {
+        cancelAnimationFrame(overlayRaf);
+        overlayRaf = null;
+      }
+      const render = () => {
+        try {
+          drawPoseOverlay();
+        } catch (error) {
+          console.warn('⚠️ Overlay drawing failed in rAF:', error);
+        }
+        overlayRaf = requestAnimationFrame(render);
+      };
+      overlayRaf = requestAnimationFrame(render);
     };
     const onPause = () => {
       // Clear any pending overlay updates when pausing
       if (overlayTimeout) {
         clearTimeout(overlayTimeout);
         overlayTimeout = null;
+      }
+      if (overlayRaf) {
+        cancelAnimationFrame(overlayRaf);
+        overlayRaf = null;
       }
       // Draw final frame when paused
       try {
@@ -576,7 +869,7 @@ export default function UploadPage() {
       }
       console.log('❌ OVERLAY(B) listeners detached');
     };
-  }, [result, file, showStickFigure, showSwingPlane, angleToolActive, anglePoints]);
+  }, [poses, file, showStickFigure, showSwingPlane, angleToolActive]);
 
   const handleAnalyze = useCallback(async () => {
     if (!file) return;
@@ -831,20 +1124,11 @@ export default function UploadPage() {
               Upload a video of your golf swing for AI-powered analysis
             </p>
             
-            {/* Debug info */}
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Debug:</strong> File = {file ? `"${file.name}"` : 'null'} | 
-                Show Analyze Button = {file ? 'YES' : 'NO'}
-              </p>
-            </div>
+            {/* Ready to analyze */}
                 </div>
 
           {!file && !result && (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <p className="text-xs text-gray-400 mb-4">
-                Debug: Upload area visible (file = {file ? 'selected' : 'null'})
-              </p>
                 <input
                 ref={inputRef}
                   type="file"
@@ -869,18 +1153,6 @@ export default function UploadPage() {
                 </span>
               </label>
               
-              {/* Debug: Manual file input trigger */}
-              <div className="mt-4">
-                <button
-                  onClick={() => {
-                    console.log('🔧 Manual file input trigger clicked');
-                    inputRef.current?.click();
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
-                >
-                  🔧 Debug: Click to Open File Dialog
-                </button>
-              </div>
               </div>
               )}
 
@@ -1164,8 +1436,11 @@ export default function UploadPage() {
                           <video
                             src={URL.createObjectURL(file)}
                             controls
-                            className="w-full h-auto max-h-96"
-                            style={{ aspectRatio: '16/9' }}
+                            className="w-full h-full object-contain"
+                            style={{
+                              maxHeight: '28rem',
+                              backgroundColor: 'black'
+                            }}
                             id="analysis-video"
                             onPlay={() => setIsPlaying(true)}
                             onPause={() => setIsPlaying(false)}
@@ -1174,6 +1449,9 @@ export default function UploadPage() {
                               if (video) {
                                 video.playbackRate = playbackSpeed;
                                 console.log('🎬 Video loaded, set speed to:', playbackSpeed);
+                                if (video.videoWidth && video.videoHeight) {
+                                  setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+                                }
                               }
                             }}
                           >
@@ -1183,7 +1461,7 @@ export default function UploadPage() {
                           <canvas
                             id="pose-overlay-canvas"
                             className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                            style={{ zIndex: 10, border: '2px solid red' }}
+                            style={{ zIndex: 10, mixBlendMode: 'normal' }}
                           />
                           {/* Angle measurement canvas */}
                           <canvas
@@ -1277,8 +1555,11 @@ export default function UploadPage() {
                                 setScannerFrame(val);
                                 const videoEl = document.getElementById('analysis-video') as HTMLVideoElement | null;
                                 if (videoEl) {
-                                  const fps = 30;
-                                  const timeInSeconds = val / fps;
+                                  const posesForOverlay: any[] = (result?.analysis?.poses || result?.poses || []) as any[];
+                                  const totalPoses = posesForOverlay.length;
+                                  const timeInSeconds = totalPoses > 1 && videoEl.duration > 0
+                                    ? (val / Math.max(1, totalPoses - 1)) * videoEl.duration
+                                    : val / 30; // fallback
                                   videoEl.currentTime = timeInSeconds;
                                   console.log('🎯 Impact Zone slider moved:', {
                                     frameIndex: val,
