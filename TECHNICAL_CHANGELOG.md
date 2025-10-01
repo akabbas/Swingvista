@@ -2,6 +2,22 @@
 
 ## Version 2.0.0-dev (January 2025)
 
+### 🔧 Latest Technical Updates (2025-01-27)
+
+#### **Overlay System Debugging**
+- **ADDED**: Comprehensive canvas setup debugging with dimensions, position, and CSS logging
+- **ADDED**: Test rectangle drawing (red square at 10,10) to verify canvas functionality
+- **ADDED**: Landmark coordinate debugging showing normalized (0-1) and pixel coordinates
+- **ADDED**: Canvas resize logging with immediate resize call and dimension validation
+- **ADDED**: Detailed stick figure diagnostics with drawing counts and coordinate info
+
+#### **Render Loop Optimization**
+- **FIXED**: Infinite render loop in UploadPage component
+- **OPTIMIZED**: useEffect dependencies to prevent unnecessary re-renders
+- **ADDED**: React.useMemo for poses array to prevent constant re-creation
+- **REMOVED**: Debug console.logs that were contributing to render loops
+- **IMPROVED**: Overlay drawing performance with proper dependency management
+
 ### 🎯 Major System Overhaul
 
 #### **Pose Detection Engine**
