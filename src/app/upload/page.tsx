@@ -380,9 +380,9 @@ export default function UploadPage() {
       }
 
       // Make stick figure more visible
-      ctx.strokeStyle = '#00FF00';
-      ctx.fillStyle = '#00FF00';
-      ctx.lineWidth = 6; // Thicker lines
+      ctx.strokeStyle = '#FF0000'; // Red lines for better visibility
+      ctx.fillStyle = '#00FF00'; // Green points
+      ctx.lineWidth = 8; // Even thicker lines
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -412,6 +412,11 @@ export default function UploadPage() {
           const x2 = endPoint.x * canvasWidth;
           const y2 = endPoint.y * canvasHeight;
 
+          // Debug: Log some connection attempts
+          if (linesDrawn < 3) {
+            console.log(`🔗 Drawing line ${linesDrawn}: (${x1.toFixed(1)}, ${y1.toFixed(1)}) -> (${x2.toFixed(1)}, ${y2.toFixed(1)})`);
+          }
+
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x2, y2);
@@ -438,7 +443,9 @@ export default function UploadPage() {
         pointsDrawn, 
         canvasSize: `${canvasWidth}x${canvasHeight}`,
         firstLandmark: landmarks[0] ? { x: landmarks[0].x, y: landmarks[0].y, visibility: landmarks[0].visibility } : 'none',
-        pixelCoords: landmarks[0] ? { x: landmarks[0].x * canvasWidth, y: landmarks[0].y * canvasHeight } : 'none'
+        pixelCoords: landmarks[0] ? { x: landmarks[0].x * canvasWidth, y: landmarks[0].y * canvasHeight } : 'none',
+        landmarksCount: landmarks.length,
+        visibleLandmarks: landmarks.filter(l => l && l.visibility > 0.3).length
       });
     };
 
