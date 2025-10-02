@@ -649,6 +649,12 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     if (videoState.isPlaying && analysis) {
       animationFrameId = requestAnimationFrame(drawAllOverlays);
     }
+    
+    // Also trigger a single draw if poses are available but video isn't playing
+    if (poses && poses.length > 0 && !videoState.isPlaying) {
+      console.log('🎨 Triggering single overlay draw for static poses');
+      drawAllOverlays(performance.now());
+    }
 
     // Clean up
     return () => {
@@ -666,7 +672,8 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     drawStickFigure,
     drawSwingPlane,
     drawPhaseMarkers,
-    drawClubPath
+    drawClubPath,
+    poses // Added poses to dependencies
   ]);
 
   // Simplified time update handler - minimal state updates
