@@ -79,7 +79,7 @@ export default function SimpleCameraPage() {
       detectorRef.current.startDetection(
         videoRef.current,
         canvasRef.current,
-        (pose: RealtimePoseResult) => {
+        (_pose: RealtimePoseResult) => {
           setPoseCount(prev => prev + 1);
           
           // Calculate FPS

@@ -114,7 +114,7 @@ export default function VideoAnalysisPlayer({
     const connect = (a: number, b: number, color = 'rgba(0, 255, 0, 0.8)', width = 3) => {
       const pa = points[a];
       const pb = points[b];
-      if (!pa || !pb || (pa.visibility && pa.visibility < 0.5) || (pb.visibility && pb.visibility < 0.5)) return;
+      if (!pa || !pb || (pa.visibility && pa.visibility < 0.1) || (pb.visibility && pb.visibility < 0.1)) return;
       
       ctx.beginPath();
       ctx.moveTo(pa.x * width, pa.y * height);
@@ -127,7 +127,7 @@ export default function VideoAnalysisPlayer({
     // Helper function to draw joints
     const drawJoint = (index: number, color = 'rgba(0, 255, 0, 0.9)', size = 4) => {
       const p = points[index];
-      if (!p || (p.visibility && p.visibility < 0.5)) return;
+      if (!p || (p.visibility && p.visibility < 0.1)) return;
       
       const x = p.x * width;
       const y = p.y * height;

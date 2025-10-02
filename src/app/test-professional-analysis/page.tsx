@@ -59,6 +59,7 @@ export default function TestProfessionalAnalysisPage() {
       
       mockPoses.push({
         landmarks,
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })),
         timestamp: time,
         confidence: 0.9
       });
@@ -289,8 +290,8 @@ export default function TestProfessionalAnalysisPage() {
               />
               
               <ProfessionalGolfVisualization
-                videoRef={videoRef}
-                canvasRef={canvasRef}
+                videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+                canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
                 poses={poses}
                 phases={phases}
                 currentTime={currentTime}

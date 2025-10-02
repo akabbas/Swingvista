@@ -189,7 +189,7 @@ function drawStickFigure(ctx: CanvasRenderingContext2D, landmarks: PoseLandmark[
     const start = landmarks[startIdx];
     const end = landmarks[endIdx];
     
-    if (start && end && start.visibility > 0.5 && end.visibility > 0.5) {
+    if (start && end && (start.visibility || 0) > 0.5 && (end.visibility || 0) > 0.5) {
       ctx.beginPath();
       ctx.moveTo(start.x * width, start.y * height);
       ctx.lineTo(end.x * width, end.y * height);
@@ -199,7 +199,7 @@ function drawStickFigure(ctx: CanvasRenderingContext2D, landmarks: PoseLandmark[
 
   // Draw key landmarks with different colors
   landmarks.forEach((landmark, index) => {
-    if (landmark.visibility > 0.5) {
+    if ((landmark.visibility || 0) > 0.5) {
       const x = landmark.x * width;
       const y = landmark.y * height;
       

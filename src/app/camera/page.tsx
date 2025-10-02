@@ -22,15 +22,15 @@ export default function CameraPage() {
   const [liveFeedback, setLiveFeedback] = useState<string>('');
   const [swingMetrics, setSwingMetrics] = useState<any>(null);
   const [poseHistory, setPoseHistory] = useState<PoseResult[]>([]);
-  const [isSwinging, setIsSwinging] = useState(false);
-  const [swingStartTime, setSwingStartTime] = useState<number | null>(null);
+  const [_isSwinging, _setIsSwinging] = useState(false);
+  const [_swingStartTime, _setSwingStartTime] = useState<number | null>(null);
   const [enhancedPhases, setEnhancedPhases] = useState<EnhancedSwingPhase[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
-  const [weightDistribution, setWeightDistribution] = useState<WeightDistribution>({ left: 50, right: 50, total: 100 });
-  const [clubPosition, setClubPosition] = useState<ClubPosition>({ x: 0.5, y: 0.5 });
+  const [_weightDistribution, _setWeightDistribution] = useState<WeightDistribution>({ left: 50, right: 50, total: 100 });
+  const [_clubPosition, _setClubPosition] = useState<ClubPosition>({ x: 0.5, y: 0.5 });
   
   // Enhanced phase detector instance
-  const phaseDetectorRef = useRef<EnhancedPhaseDetector | null>(null);
+  const _phaseDetectorRef = useRef<EnhancedPhaseDetector | null>(null);
 
   // Simple moving FPS calculator
   const fpsSamples = useRef<number[]>([]);
@@ -72,7 +72,7 @@ export default function CameraPage() {
     let feedback = '';
 
     // Check if we're starting a new swing
-    if (!isSwinging && poseHistory.length === 0) {
+    if (!_isSwinging && poseHistory.length === 0) {
       // Look for initial movement to start swing
       const movement = Math.sqrt(
         Math.pow(rightWrist.x - (rightWrist.x || 0), 2) + 
@@ -80,13 +80,13 @@ export default function CameraPage() {
       );
       
       if (movement > 0.02) {
-        setIsSwinging(true);
-        setSwingStartTime(Date.now());
+        _setIsSwinging(true);
+        _setSwingStartTime(Date.now());
         setPoseHistory([pose]);
         phase = 'Address';
         feedback = 'Starting swing - maintain good posture.';
       }
-    } else if (isSwinging && poseHistory.length > 0) {
+    } else if (_isSwinging && poseHistory.length > 0) {
       // Analyze swing progression
       const lastPose = poseHistory[poseHistory.length - 1];
       const lastRightWrist = lastPose.landmarks?.[16];
@@ -120,14 +120,14 @@ export default function CameraPage() {
       
       // Check if swing is complete
       if (poseHistory.length > 30 && shoulderHipAngle < 5 && rightWrist.y > 0.7) {
-        setIsSwinging(false);
-        setSwingStartTime(null);
+        _setIsSwinging(false);
+        _setSwingStartTime(null);
         
         // Calculate comprehensive swing metrics using accurate calculations
         if (poseHistory.length > 10) {
           try {
             // Create mock phases for real-time analysis
-            const swingDuration = (Date.now() - (swingStartTime || Date.now())) / 1000;
+            const swingDuration = (Date.now() - (_swingStartTime || Date.now())) / 1000;
             const phases = [
               { 
                 name: 'address' as const, 
@@ -341,27 +341,27 @@ export default function CameraPage() {
 
     setCurrentPhase(phase);
     setLiveFeedback(feedback);
-  }, [isSwinging, poseHistory, swingStartTime]);
+  }, [_isSwinging, poseHistory, _swingStartTime]);
 
   // Add pose to history for analysis
   const addPoseToHistory = useCallback((pose: PoseResult) => {
-    if (isSwinging) {
+    if (_isSwinging) {
       setPoseHistory(prev => {
         const newHistory = [...prev, pose];
         // Keep only last 30 poses (about 1 second at 30fps)
         return newHistory.slice(-30);
       });
     }
-  }, [isSwinging]);
+  }, [_isSwinging]);
 
   // Update current time for overlays
   const updateCurrentTime = useCallback(() => {
-    if (isSwinging && swingStartTime) {
-      setCurrentTime(Date.now() - swingStartTime);
+    if (_isSwinging && _swingStartTime) {
+      setCurrentTime(Date.now() - _swingStartTime);
     } else {
       setCurrentTime(0);
     }
-  }, [isSwinging, swingStartTime]);
+  }, [_isSwinging, _swingStartTime]);
 
   // Generate enhanced phases from pose history
   const generateEnhancedPhases = useCallback(() => {
@@ -616,7 +616,7 @@ export default function CameraPage() {
               poses={poseHistory}
               phases={enhancedPhases}
               currentTime={currentTime}
-              isSwinging={isSwinging}
+              isSwinging={_isSwinging}
               swingPhase={currentPhase}
               liveFeedback={liveFeedback}
             />
@@ -629,9 +629,9 @@ export default function CameraPage() {
             ) : (
               <span className="inline-flex items-center text-gray-500">● Idle</span>
             )}
-            {isSwinging && swingStartTime && (
+            {_isSwinging && _swingStartTime && (
               <span className="text-orange-600">
-                Swing Time: {((Date.now() - swingStartTime) / 1000).toFixed(1)}s
+                Swing Time: {((Date.now() - _swingStartTime) / 1000).toFixed(1)}s
               </span>
             )}
           </div>

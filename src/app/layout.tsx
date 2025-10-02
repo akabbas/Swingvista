@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import FeedbackButton from '@/components/ui/FeedbackButton';
 import VersionInfo from '@/components/ui/VersionInfo';
+import { IntegrityStatusProvider } from '@/lib/integrity/status-context';
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,19 +46,21 @@ export default function RootLayout({
         {/* Critical CSS moved to globals.css to prevent hydration mismatch */}
       </head>
       <body className="min-h-screen bg-white text-gray-900 antialiased fouc-prevention">
-        <Header />
-        <main className="min-h-screen bg-white">
-          {children}
-        </main>
-        <Footer />
-        {/* Lightweight feedback button */}
-        {process.env.NODE_ENV !== 'test' && (
-          <FeedbackButton />
-        )}
-        {/* Version info for development */}
-        {process.env.NODE_ENV === 'development' && (
-          <VersionInfo />
-        )}
+        <IntegrityStatusProvider>
+          <Header />
+          <main className="min-h-screen bg-white">
+            {children}
+          </main>
+          <Footer />
+          {/* Lightweight feedback button */}
+          {process.env.NODE_ENV !== 'test' && (
+            <FeedbackButton />
+          )}
+          {/* Version info for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <VersionInfo />
+          )}
+        </IntegrityStatusProvider>
       </body>
     </html>
   );

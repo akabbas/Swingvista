@@ -7,6 +7,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { RealGolfAnalysis, SwingVisualization } from '@/lib/real-golf-analysis';
+import type { PoseResult } from '@/lib/mediapipe';
 import { loadVideoWithFallbacks, diagnoseVideoLoading } from '@/lib/video-loading-fixes';
 
 interface VideoAnalysisDisplayProps {
@@ -15,21 +16,34 @@ interface VideoAnalysisDisplayProps {
   analysis: RealGolfAnalysis | null;
   isAnalyzing: boolean;
   isSampleVideo?: boolean;
+  poses?: PoseResult[];
 }
 
-export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, isAnalyzing, isSampleVideo = false }: VideoAnalysisDisplayProps) {
+export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, isAnalyzing, isSampleVideo = false, poses }: VideoAnalysisDisplayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const planeCanvasRef = useRef<HTMLCanvasElement>(null);
   const phaseCanvasRef = useRef<HTMLCanvasElement>(null);
   const pathCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [videoLoadingStatus, setVideoLoadingStatus] = useState<string>('Ready to load');
+  // Video state management
+  const [videoState, setVideoState] = useState({
+    currentFrame: 0,
+    isPlaying: false,
+    playbackSpeed: 1.0,
+    isLoaded: false,
+    isBuffering: false,
+    isSeeking: false,
+    error: null as string | null,
+    loadingStatus: 'Ready to load',
+    lastUpdateTime: 0,
+    totalFrames: 0
+  });
+
+  // Update video state atomically
+  const updateVideoState = useCallback((updates: Partial<typeof videoState>) => {
+    setVideoState(prev => ({ ...prev, ...updates }));
+  }, []);
   const [showOverlays, setShowOverlays] = useState({
     stickFigure: true,
     swingPlane: true,
@@ -47,66 +61,134 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       hasVisualizations: !!analysis?.visualizations, 
       hasStickFigure: !!analysis?.visualizations?.stickFigure,
       stickFigureLength: analysis?.visualizations?.stickFigure?.length || 0,
-      hasPoses: !!analysis?.poses,
-      posesLength: analysis?.poses?.length || 0,
+      hasPoses: !!poses,
+      posesLength: poses?.length || 0,
       videoFileName: videoFile?.name
     });
-  }, [videoFile, videoUrl, analysis]);
+    
+    // Detailed analysis structure logging
+    if (analysis) {
+      console.log('📊 Analysis structure:', {
+        analysisKeys: Object.keys(analysis),
+        visualizations: analysis.visualizations ? Object.keys(analysis.visualizations) : 'none',
+        phases: analysis.phases ? `Array with ${analysis.phases.length} phases` : 'none',
+        poses: poses ? `Array with ${poses.length} poses` : 'none'
+      });
+    } else {
+      console.log('❌ No analysis data provided to VideoAnalysisDisplay');
+    }
+    
+    // Debug pose data specifically
+    if (poses && poses.length > 0) {
+      console.log('🔍 POSE DATA DEBUG: First few poses:', poses.slice(0, 3).map((pose, i) => ({
+        frame: i,
+        hasLandmarks: !!pose.landmarks,
+        landmarksCount: pose.landmarks?.length || 0,
+        firstLandmark: pose.landmarks?.[0] || 'none',
+        confidence: pose.confidence
+      })));
+    } else {
+      console.log('❌ No poses data available for overlays');
+    }
+  }, [videoFile, videoUrl, analysis, poses]);
 
-  // Cleanup video URL when component unmounts
+  // Simple video loading - no complex state management
+  const hasLoadedRef = useRef(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  
   useEffect(() => {
-    return () => {
-      // Don't revoke the video URL immediately to prevent playback issues
-      // The browser will clean up blob URLs when the page is unloaded
-    };
-  }, []);
+    if (!videoRef.current) return;
+    
+    // Reset hasLoadedRef when videoFile or videoUrl changes
+    hasLoadedRef.current = false;
 
-  // Enhanced video loading with fallback handling for sample videos
-  useEffect(() => {
-    if (videoUrl && isSampleVideo && videoRef.current) {
-      console.log('🎥 ENHANCED LOADING: Loading sample video with fallbacks:', videoUrl);
-      setVideoError(null);
-      setVideoLoaded(false);
-      setVideoLoadingStatus('Loading video...');
-      
-      // Use enhanced video loading with fallbacks
-      loadVideoWithFallbacks(videoRef.current, videoUrl, {
-        retryAttempts: 3,
-        retryDelay: 1000,
-        timeout: 10000
-      }).then((status) => {
-        if (status.isLoaded) {
-          setVideoLoaded(true);
-          setVideoError(null);
-          setVideoLoadingStatus('Video loaded successfully');
-          console.log('✅ ENHANCED LOADING: Sample video loaded successfully');
-        } else if (status.hasError) {
-          setVideoError(status.errorMessage || 'Failed to load video');
-          setVideoLoadingStatus('Video loading failed');
-          console.error('❌ ENHANCED LOADING: Sample video loading failed:', status.errorMessage);
-          
-          // Diagnose the issue
-          const diagnosis = diagnoseVideoLoading(videoRef.current!);
-          console.log('🔍 ENHANCED LOADING: Video loading diagnosis:', diagnosis);
+    let blobUrl = '';
+    let videoSrc = '';
+
+    console.log('🎥 Video loading effect triggered:', {
+      videoFile: videoFile?.name,
+      videoUrl,
+      isSampleVideo,
+      hasVideoRef: !!videoRef.current
+    });
+
+    // Determine video source - try multiple approaches
+    if (isSampleVideo && videoUrl) {
+      videoSrc = videoUrl;
+      console.log('🎥 Using sample video URL:', videoSrc);
+    } else if (videoFile) {
+      try {
+        blobUrl = URL.createObjectURL(videoFile);
+        videoSrc = blobUrl;
+        console.log('🎥 Created blob URL for video file:', videoSrc);
+      } catch (error) {
+        console.error('❌ Error creating blob URL:', error);
+        // Fallback to videoUrl if available
+        if (videoUrl) {
+          videoSrc = videoUrl;
+          console.log('🎥 Fallback to videoUrl:', videoSrc);
+        } else {
+          updateVideoState({
+            error: 'Failed to process video file. Please try a different format.',
+            isLoaded: false
+          });
+          return;
         }
-      }).catch((error) => {
-        setVideoError(error.message);
-        setVideoLoadingStatus('Video loading error');
-        console.error('❌ ENHANCED LOADING: Video loading error:', error);
+      }
+    } else if (videoUrl) {
+      videoSrc = videoUrl;
+      console.log('🎥 Using provided video URL:', videoSrc);
+    }
+
+    if (videoSrc) {
+      hasLoadedRef.current = true;
+      videoRef.current.src = videoSrc;
+      videoRef.current.load();
+      console.log('🎥 Video source set and load() called');
+    } else {
+      console.warn('⚠️ No video source available');
+      updateVideoState({
+        error: 'No video source available',
+        isLoaded: false
       });
     }
-  }, [videoUrl, isSampleVideo]);
+
+    // Cleanup blob URL when component unmounts
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [videoFile, videoUrl, isSampleVideo]);
+
+  // Retry video loading
+  const retryVideoLoading = useCallback(() => {
+    console.log('🔄 Retrying video loading...');
+    hasLoadedRef.current = false;
+    setReloadKey(prev => prev + 1);
+    updateVideoState({
+      error: null,
+      isLoaded: false
+    });
+  }, []);
 
   // Calculate current frame from video time
   const calculateFrame = useCallback((video: HTMLVideoElement) => {
     if (!video.duration) return 0;
     const fps = 30; // Assume 30fps
-    return Math.floor(video.currentTime * fps);
+    const frame = Math.floor(video.currentTime * fps);
+    console.log('🎬 Frame calculation:', {
+      currentTime: video.currentTime.toFixed(3),
+      duration: video.duration.toFixed(3),
+      fps,
+      calculatedFrame: frame
+    });
+    return frame;
   }, []);
 
   // Draw stick figure overlay
   const drawStickFigure = useCallback((canvas: HTMLCanvasElement, frame: number) => {
-    console.log('🖌️ drawStickFigure called for frame:', frame);
+    console.log('🖌️ drawStickFigure called for frame:', frame, 'canvas size:', canvas.width, 'x', canvas.height);
     
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -114,10 +196,17 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       return;
     }
 
-    console.log('🖌️ Drawing stick figure on canvas:', canvas.width, 'x', canvas.height);
+    // Clear canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw a simple test overlay first
+    // Draw a simple test overlay to verify canvas is working
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fillRect(10, 10, 100, 50);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText('TEST OVERLAY', 15, 35);
+
+    console.log('🖌️ Drawing stick figure on canvas:', canvas.width, 'x', canvas.height);
     ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
     ctx.fillRect(50, 50, 100, 50);
     ctx.fillStyle = 'white';
@@ -128,14 +217,23 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     let poseData = null;
     let landmarks = null;
     
+    console.log('🔍 POSE DEBUG: Frame:', frame, 'Poses available:', poses?.length, 'Analysis visualizations:', !!analysis?.visualizations?.stickFigure);
+    
     if (analysis?.visualizations?.stickFigure && analysis.visualizations.stickFigure[frame]) {
       poseData = analysis.visualizations.stickFigure[frame];
       landmarks = poseData.landmarks;
       console.log('🖌️ Using stick figure data from visualizations');
-    } else if (analysis?.poses && analysis.poses[frame]) {
-      poseData = analysis.poses[frame];
-      landmarks = poseData.landmarks;
-      console.log('🖌️ Using pose data directly');
+    } else if (poses && poses[frame]) {
+      poseData = poses[frame];
+      landmarks = poseData?.landmarks;
+      console.log('🖌️ Using pose data from extracted poses:', {
+        frame,
+        poseData: poseData ? 'exists' : 'null',
+        landmarksCount: landmarks?.length || 0,
+        firstLandmark: landmarks?.[0]
+      });
+    } else {
+      console.log('❌ No pose data available for frame:', frame, 'Total poses:', poses?.length);
     }
     
     if (!landmarks || landmarks.length === 0) {
@@ -167,7 +265,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     
     connections.forEach(([start, end]) => {
       if (landmarks[start] && landmarks[end] && 
-          landmarks[start].visibility > 0.5 && landmarks[end].visibility > 0.5) {
+          (landmarks[start].visibility ?? 1) > 0.1 && (landmarks[end].visibility ?? 1) > 0.1) {
         ctx.beginPath();
         ctx.moveTo(landmarks[start].x * canvas.width, landmarks[start].y * canvas.height);
         ctx.lineTo(landmarks[end].x * canvas.width, landmarks[end].y * canvas.height);
@@ -177,7 +275,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
 
     // Draw keypoints
     landmarks.forEach((landmark: any, i: number) => {
-      if (landmark.visibility > 0.5) {
+      if ((landmark.visibility ?? 1) > 0.1) {
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
         ctx.arc(
@@ -190,48 +288,16 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     });
     
     // If no landmarks drawn, draw a simple fallback stick figure
-    if (landmarks.filter((l: any) => l.visibility > 0.5).length === 0) {
+    if (landmarks.filter((l: any) => (l.visibility ?? 1) > 0.1).length === 0) {
       console.log('🖌️ Drawing fallback stick figure');
       drawFallbackStickFigure(ctx, canvas.width, canvas.height, frame);
     }
-  }, [analysis]);
+  }, [analysis, poses]);
 
-  // GUARANTEE VISUALIZATION WORKS - Comprehensive stick figure system
+  // Simple stick figure initialization
   const ensureStickFigureWorks = useCallback((videoElement: HTMLVideoElement, poses: any[], canvasElement: HTMLCanvasElement) => {
-    console.log("🖌️ Initializing stick figure visualization...");
-    
-    // Validate inputs
-    if (!videoElement || !poses || poses.length === 0 || !canvasElement) {
-      console.error("❌ Cannot draw stick figure: Missing required elements");
-      return false;
-    }
-    
-    // Set canvas dimensions to match video
-    canvasElement.width = videoElement.videoWidth || 640;
-    canvasElement.height = videoElement.videoHeight || 480;
-    
-    const ctx = canvasElement.getContext('2d');
-    if (!ctx) {
-      console.error("❌ Cannot get canvas context");
-      return false;
-    }
-    
-    console.log("🖌️ Canvas dimensions set:", canvasElement.width, "x", canvasElement.height);
-    console.log("🖌️ Processing", poses.length, "poses");
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    
-    // Draw stick figure for each pose
-    poses.forEach((pose, index) => {
-      if (pose && pose.landmarks) {
-        drawSkeleton(ctx, pose.landmarks, canvasElement.width, canvasElement.height);
-        drawKeypoints(ctx, pose.landmarks, canvasElement.width, canvasElement.height);
-      }
-    });
-    
-    console.log("✅ Stick figure visualization complete");
-    return true;
+    console.log("🖌️ Simple stick figure initialization");
+    return true; // Just return true, let the animation loop handle drawing
   }, []);
 
   // Draw skeleton connections
@@ -392,6 +458,17 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       ctx.fillStyle = '#ffaa00';
       ctx.fillRect(barX, barY, barWidth * progress, barHeight);
     }
+
+    // Impact frame indicator (highlight border and label when near impact)
+    if (analysis?.impactFrame !== undefined && Math.abs(frame - analysis.impactFrame) <= 1) {
+      ctx.strokeStyle = '#FF4136';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+      ctx.fillStyle = '#FF4136';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Impact', 16, 36);
+    }
   }, [analysis]);
 
   // Draw club path overlay
@@ -432,7 +509,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       return;
     }
 
-    console.log('🎨 Drawing overlays for frame:', currentFrame, 'with analysis:', !!analysis.visualizations);
+    console.log('🎨 Drawing overlays for frame:', videoState.currentFrame, 'with analysis:', !!analysis.visualizations);
     console.log('🎨 Overlay settings:', showOverlays);
     console.log('🎨 Canvas refs:', {
       poseCanvas: !!poseCanvasRef.current,
@@ -444,47 +521,175 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     // Draw stick figure overlay
     if (showOverlays.stickFigure && poseCanvasRef.current) {
       console.log('🖌️ Drawing stick figure overlay');
-      drawStickFigure(poseCanvasRef.current, currentFrame);
+      drawStickFigure(poseCanvasRef.current, videoState.currentFrame);
     }
 
     // Draw swing plane overlay
     if (showOverlays.swingPlane && planeCanvasRef.current) {
       console.log('✈️ Drawing swing plane overlay');
-      drawSwingPlane(planeCanvasRef.current, currentFrame);
+      drawSwingPlane(planeCanvasRef.current, videoState.currentFrame);
     }
 
     // Draw phase markers
     if (showOverlays.phases && phaseCanvasRef.current) {
       console.log('📊 Drawing phase markers');
-      drawPhaseMarkers(phaseCanvasRef.current, currentFrame);
+      drawPhaseMarkers(phaseCanvasRef.current, videoState.currentFrame);
     }
 
     // Draw club path
     if (showOverlays.clubPath && pathCanvasRef.current) {
       console.log('🏌️ Drawing club path');
-      drawClubPath(pathCanvasRef.current, currentFrame);
+      drawClubPath(pathCanvasRef.current, videoState.currentFrame);
     }
-  }, [currentFrame, analysis, showOverlays, drawStickFigure, drawSwingPlane, drawPhaseMarkers, drawClubPath]);
+  }, [videoState.currentFrame, analysis, showOverlays, drawStickFigure, drawSwingPlane, drawPhaseMarkers, drawClubPath]);
 
-  // Handle video time update
+  // --- Stable Overlay Animation Loop ---
+  useEffect(() => {
+    let animationFrameId: number;
+    let lastDrawTime = 0;
+    const FRAME_INTERVAL = 1000 / 60; // Target 60fps for smooth drawing
+
+    function drawAllOverlays(timestamp: number) {
+      const video = videoRef.current;
+      
+      // Only draw if video is playing and ready
+      if (!video || !analysis || !videoState.isPlaying || videoState.isSeeking) {
+        // Continue animation loop only if video is playing
+        if (videoState.isPlaying) {
+          animationFrameId = requestAnimationFrame(drawAllOverlays);
+        }
+        return;
+      }
+
+      // Throttle drawing to maintain consistent frame rate
+      if (timestamp - lastDrawTime < FRAME_INTERVAL) {
+        animationFrameId = requestAnimationFrame(drawAllOverlays);
+        return;
+      }
+
+      // Calculate frame directly from video current time for smooth animation
+      const frame = calculateFrame(video);
+      lastDrawTime = timestamp;
+
+      // Clear all canvases first
+      [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach(canvasRef => {
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+        }
+      });
+
+      // Draw all enabled overlays
+      try {
+        if (showOverlays.stickFigure && poseCanvasRef.current) {
+          drawStickFigure(poseCanvasRef.current, frame);
+        }
+        if (showOverlays.swingPlane && planeCanvasRef.current) {
+          drawSwingPlane(planeCanvasRef.current, frame);
+        }
+        if (showOverlays.phases && phaseCanvasRef.current) {
+          drawPhaseMarkers(phaseCanvasRef.current, frame);
+        }
+        if (showOverlays.clubPath && pathCanvasRef.current) {
+          drawClubPath(pathCanvasRef.current, frame);
+        }
+
+        // Draw frame counter for debugging
+        if (poseCanvasRef.current) {
+          const ctx = poseCanvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(10, 10, 150, 30);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px monospace';
+            ctx.fillText(`Frame: ${frame}/${videoState.totalFrames}`, 20, 30);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error drawing overlays:', error);
+      }
+
+      // Continue animation loop if video is still playing
+      if (videoState.isPlaying && !video.ended) {
+        animationFrameId = requestAnimationFrame(drawAllOverlays);
+      }
+    }
+
+    // Start animation loop only when video starts playing
+    if (videoState.isPlaying && analysis) {
+      animationFrameId = requestAnimationFrame(drawAllOverlays);
+    }
+
+    // Clean up
+    return () => {
+      if (animationFrameId) {
+        console.log('⏸️ Stopping animation loop');
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [
+    videoState.isPlaying,
+    videoState.isSeeking,
+    videoState.currentFrame,
+    analysis,
+    showOverlays,
+    drawStickFigure,
+    drawSwingPlane,
+    drawPhaseMarkers,
+    drawClubPath
+  ]);
+
+  // Simplified time update handler - minimal state updates
   const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      const frame = calculateFrame(videoRef.current);
-      setCurrentFrame(frame);
-    }
-  }, [calculateFrame]);
+    if (!videoRef.current || videoState.isSeeking) return;
+    
+    const video = videoRef.current;
+    const now = performance.now();
+    
+    // Throttle updates to prevent conflicts
+    if (now - videoState.lastUpdateTime < 100) return; // 10fps max for time updates
+    
+    const frame = Math.round(video.currentTime * 30);
+    
+    // Only update frame, let animation loop handle the rest
+    updateVideoState({
+      currentFrame: frame,
+      lastUpdateTime: now
+    });
+  }, [videoState.lastUpdateTime, videoState.isSeeking, updateVideoState]);
 
-  // Handle video play/pause
-  const handlePlay = useCallback(() => setIsPlaying(true), []);
-  const handlePause = useCallback(() => setIsPlaying(false), []);
+  // Stable play/pause handlers
+  const handlePlay = useCallback(() => {
+    updateVideoState({ isPlaying: true });
+  }, [updateVideoState]);
 
-  // Handle playback speed change
+  const handlePause = useCallback(() => {
+    updateVideoState({ isPlaying: false });
+  }, [updateVideoState]);
+
+  // Stable seeking handlers
+  const handleSeeking = useCallback(() => {
+    updateVideoState({ isSeeking: true });
+  }, [updateVideoState]);
+
+  const handleSeeked = useCallback(() => {
+    if (!videoRef.current) return;
+    const frame = Math.round(videoRef.current.currentTime * 30);
+    updateVideoState({ 
+      isSeeking: false,
+      currentFrame: frame,
+      lastUpdateTime: performance.now()
+    });
+  }, [updateVideoState]);
+
+  // Handle playback speed change with state update
   const handleSpeedChange = useCallback((speed: number) => {
-    if (videoRef.current) {
+    if (!videoRef.current) return;
       videoRef.current.playbackRate = speed;
-      setPlaybackSpeed(speed);
-    }
-  }, []);
+    updateVideoState({ playbackSpeed: speed });
+  }, [updateVideoState]);
 
   // Seek to specific frame
   const seekToFrame = useCallback((frame: number) => {
@@ -501,87 +706,38 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
     }
   }, [analysis, seekToFrame]);
 
-  // Manual stick figure initialization
+  // Simple initialization
   const initializeStickFigure = useCallback(() => {
-    if (videoRef.current && analysis?.visualizations?.stickFigure && poseCanvasRef.current) {
-      console.log('🖌️ Manual stick figure initialization triggered');
-      const success = ensureStickFigureWorks(
-        videoRef.current, 
-        analysis.visualizations.stickFigure, 
-        poseCanvasRef.current
-      );
-      
-      if (success) {
-        console.log('✅ Manual stick figure initialization successful');
+    console.log('🖌️ Simple initialization triggered');
         return true;
-      } else {
-        console.log('❌ Manual stick figure initialization failed');
-        return false;
-      }
-    }
-    return false;
-  }, [analysis, ensureStickFigureWorks]);
+  }, []);
 
   // Force video reload
   const reloadVideo = useCallback(() => {
-    if (videoRef.current && !isSampleVideo) {
+    if (videoRef.current) {
       console.log('🔄 Reloading video...');
-      // Create a new video URL to prevent blob URL issues
-      const newUrl = URL.createObjectURL(videoFile);
-      videoRef.current.src = newUrl;
       videoRef.current.load();
-      setVideoLoaded(false);
-      setVideoError(null);
-      console.log('✅ Video reloaded with new URL:', newUrl);
+      updateVideoState({
+        isLoaded: false,
+        error: null,
+        loadingStatus: 'Reloading video...'
+      });
+      console.log('✅ Video reload initiated');
     }
-  }, [videoFile, isSampleVideo]);
+  }, []);
 
-  // Auto-initialize overlays when analysis changes
+  // Simple canvas initialization - let CSS handle sizing
   useEffect(() => {
-    if (analysis && videoRef.current) {
-      console.log('🖌️ Auto-initializing overlays on analysis change');
-      console.log('🖌️ Analysis data:', {
-        hasVisualizations: !!analysis.visualizations,
-        hasStickFigure: !!analysis.visualizations?.stickFigure,
-        stickFigureLength: analysis.visualizations?.stickFigure?.length || 0,
-        hasPoses: !!analysis.poses,
-        posesLength: analysis.poses?.length || 0
-      });
-      
-      // Initialize canvas sizes
-      const video = videoRef.current;
-      const canvasWidth = video.videoWidth || 640;
-      const canvasHeight = video.videoHeight || 480;
-      
-      [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach(canvasRef => {
+    if (!analysis) return;
+    
+    // Just set basic canvas dimensions and let CSS handle the rest
+    [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach((canvasRef) => {
         if (canvasRef.current) {
-          canvasRef.current.width = canvasWidth;
-          canvasRef.current.height = canvasHeight;
-          console.log('📐 Canvas initialized:', canvasWidth, 'x', canvasHeight);
-        }
-      });
-      
-      setTimeout(() => {
-        // Force draw all overlays
-        if (poseCanvasRef.current) {
-          console.log('🖌️ Drawing stick figure on canvas:', poseCanvasRef.current.width, 'x', poseCanvasRef.current.height);
-          drawStickFigure(poseCanvasRef.current, 0);
-        }
-        if (planeCanvasRef.current) {
-          console.log('✈️ Drawing swing plane on canvas:', planeCanvasRef.current.width, 'x', planeCanvasRef.current.height);
-          drawSwingPlane(planeCanvasRef.current, 0);
-        }
-        if (phaseCanvasRef.current) {
-          console.log('📊 Drawing phase markers on canvas:', phaseCanvasRef.current.width, 'x', phaseCanvasRef.current.height);
-          drawPhaseMarkers(phaseCanvasRef.current, 0);
-        }
-        if (pathCanvasRef.current) {
-          console.log('🏌️ Drawing club path on canvas:', pathCanvasRef.current.width, 'x', pathCanvasRef.current.height);
-          drawClubPath(pathCanvasRef.current, 0);
-        }
-      }, 200); // Small delay to ensure video is ready
-    }
-  }, [analysis, drawStickFigure, drawSwingPlane, drawPhaseMarkers, drawClubPath]);
+        canvasRef.current.width = 640;
+        canvasRef.current.height = 480;
+      }
+    });
+  }, [analysis]);
 
   return (
     <div className="video-analysis-container bg-white rounded-xl shadow-lg p-6 mb-6">
@@ -590,88 +746,101 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       {/* Video Player with Overlays */}
       <div className="relative mb-4">
         <video
+          key={reloadKey}
           ref={videoRef}
-          src={isSampleVideo ? videoUrl : (videoUrl || (videoFile ? URL.createObjectURL(videoFile) : ''))}
           controls
+          crossOrigin="anonymous"
+          loop={false}
+          autoPlay={false}
+          preload="metadata"
+          playsInline
           className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
           onTimeUpdate={handleTimeUpdate}
           onPlay={handlePlay}
           onPause={handlePause}
+          onSeeking={handleSeeking}
+          onSeeked={handleSeeked}
+          onWaiting={() => {}}
+          onCanPlay={() => {}}
           onLoadedData={() => {
-            console.log('🎥 Video loaded successfully');
-            console.log('🎥 Video source:', isSampleVideo ? videoUrl : (videoUrl || (videoFile ? URL.createObjectURL(videoFile) : '')));
-            setVideoLoaded(true);
-            setVideoError(null);
-            
-            if (videoRef.current) {
-              // Set canvas sizes to match video
-              const video = videoRef.current;
-              console.log('📐 Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-              
-              // Set canvas dimensions to match video exactly
-              const canvasWidth = video.videoWidth || 640;
-              const canvasHeight = video.videoHeight || 480;
-              
-              [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach((canvasRef, index) => {
-                if (canvasRef.current) {
-                  canvasRef.current.width = canvasWidth;
-                  canvasRef.current.height = canvasHeight;
-                  console.log(`📐 Canvas ${index + 1} set to:`, canvasWidth, 'x', canvasHeight);
-                }
-              });
-              
-              // Initialize stick figure visualization when video loads
-              if (analysis?.visualizations?.stickFigure && poseCanvasRef.current) {
-                console.log('🖌️ Initializing stick figure on video load...');
-                const success = ensureStickFigureWorks(video, analysis.visualizations.stickFigure, poseCanvasRef.current);
-                if (success) {
-                  console.log('✅ Stick figure initialization successful');
-                } else {
-                  console.log('⚠️ Stick figure initialization failed, will use fallback');
-                }
-              }
-              
-              // Force draw overlays after video loads
-              setTimeout(() => {
-                if (poseCanvasRef.current) drawStickFigure(poseCanvasRef.current, 0);
-                if (planeCanvasRef.current) drawSwingPlane(planeCanvasRef.current, 0);
-                if (phaseCanvasRef.current) drawPhaseMarkers(phaseCanvasRef.current, 0);
-                if (pathCanvasRef.current) drawClubPath(pathCanvasRef.current, 0);
-              }, 100);
-            }
+            updateVideoState({
+              isLoaded: true,
+              error: null,
+              totalFrames: Math.floor((videoRef.current?.duration || 0) * 30)
+            });
           }}
           onError={(e) => {
-            console.error('❌ Video load error:', e);
-            console.error('❌ Video source:', isSampleVideo ? videoUrl : (videoUrl || (videoFile ? URL.createObjectURL(videoFile) : '')));
-            console.error('❌ Video file:', videoFile);
-            setVideoError('Failed to load video. Please try a different format.');
-            setVideoLoaded(false);
+            const video = e.target as HTMLVideoElement;
+            const error = video.error;
+            console.error('❌ Video load error:', {
+              error,
+              errorCode: error?.code,
+              errorMessage: error?.message,
+              videoSrc: video.src,
+              videoNetworkState: video.networkState,
+              videoReadyState: video.readyState
+            });
+            
+            let errorMessage = 'Failed to load video. Please try a different format.';
+            if (error) {
+              switch (error.code) {
+                case 1:
+                  errorMessage = 'Video loading was aborted.';
+                  break;
+                case 2:
+                  errorMessage = 'Network error occurred while loading video.';
+                  break;
+                case 3:
+                  errorMessage = 'Video decoding error. File may be corrupted.';
+                  break;
+                case 4:
+                  errorMessage = 'Video format not supported.';
+                  break;
+              }
+            }
+            
+            updateVideoState({
+              error: errorMessage,
+              isLoaded: false
+            });
           }}
           onLoadStart={() => {
-            console.log('🎥 Video loading started');
+            // Video loading started
+          }}
+          onEnded={() => {
+            updateVideoState({ isPlaying: false });
           }}
         />
         
         {/* Video Loading Status */}
-        {!videoLoaded && !videoError && (
+        {!videoState.isLoaded && !videoState.error && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              <p className="text-blue-700">{videoLoadingStatus}</p>
+              <p className="text-blue-700">{videoState.loadingStatus}</p>
             </div>
           </div>
         )}
 
         {/* Video Error Display */}
-        {videoError && (
+        {videoState.error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-red-500 mr-2">❌</span>
-              <p className="text-red-700">{videoError}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="text-red-500 mr-2">❌</span>
+                <p className="text-red-700">{videoState.error}</p>
+              </div>
+              <button
+                onClick={retryVideoLoading}
+                className="ml-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
             </div>
             <div className="mt-2 text-sm text-red-600">
               <p>If this is a sample video, try:</p>
               <ul className="list-disc list-inside ml-4">
+                <li>Clicking the Retry button above</li>
                 <li>Refreshing the page</li>
                 <li>Checking your internet connection</li>
                 <li>Using a different browser</li>
@@ -681,46 +850,54 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
         )}
         
         {/* Overlay Canvases - Positioned absolutely over video */}
-        {analysis && !videoError && (
+        {analysis && !videoState.error && (
           <>
             <canvas
               ref={poseCanvasRef}
               className="absolute top-0 left-0 pointer-events-none"
               style={{ 
-                zIndex: 1,
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain'
+                zIndex: 1
               }}
             />
             <canvas
               ref={planeCanvasRef}
               className="absolute top-0 left-0 pointer-events-none"
               style={{ 
-                zIndex: 2,
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain'
+                zIndex: 2
               }}
             />
             <canvas
               ref={phaseCanvasRef}
               className="absolute top-0 left-0 pointer-events-none"
               style={{ 
-                zIndex: 3,
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain'
+                zIndex: 3
               }}
             />
             <canvas
               ref={pathCanvasRef}
               className="absolute top-0 left-0 pointer-events-none"
               style={{ 
-                zIndex: 4,
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain'
+                zIndex: 4
               }}
             />
             
@@ -738,13 +915,13 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       {/* Video Controls */}
       <div className="flex flex-wrap gap-2 justify-center mb-4">
         <button
-          onClick={() => seekToFrame(Math.max(0, currentFrame - 10))}
+          onClick={() => seekToFrame(Math.max(0, videoState.currentFrame - 10))}
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
           ⏪ -10
         </button>
         <button
-          onClick={() => seekToFrame(Math.min(analysis?.visualizations?.stickFigure?.length || 0, currentFrame + 10))}
+          onClick={() => seekToFrame(Math.min(videoState.totalFrames, videoState.currentFrame + 10))}
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
           +10 ⏩
@@ -756,67 +933,16 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
           🎯 Impact
         </button>
         <button
-          onClick={() => handleSpeedChange(playbackSpeed === 0.5 ? 1.0 : 0.5)}
+          onClick={() => handleSpeedChange(videoState.playbackSpeed === 0.5 ? 1.0 : 0.5)}
           className="px-3 py-1 bg-blue-200 text-blue-700 rounded hover:bg-blue-300"
         >
-          {playbackSpeed === 0.5 ? '1x Speed' : '0.5x Speed'}
-        </button>
-        <button
-          onClick={initializeStickFigure}
-          className="px-3 py-1 bg-green-200 text-green-700 rounded hover:bg-green-300"
-        >
-          🖌️ Init Stick Figure
+          {videoState.playbackSpeed === 0.5 ? '1x Speed' : '0.5x Speed'}
         </button>
         <button
           onClick={reloadVideo}
           className="px-3 py-1 bg-blue-200 text-blue-700 rounded hover:bg-blue-300"
         >
           🔄 Reload Video
-        </button>
-        <button
-          onClick={() => {
-            console.log('🎨 Manual overlay trigger');
-            if (poseCanvasRef.current) drawStickFigure(poseCanvasRef.current, currentFrame);
-            if (planeCanvasRef.current) drawSwingPlane(planeCanvasRef.current, currentFrame);
-            if (phaseCanvasRef.current) drawPhaseMarkers(phaseCanvasRef.current, currentFrame);
-            if (pathCanvasRef.current) drawClubPath(pathCanvasRef.current, currentFrame);
-          }}
-          className="px-3 py-1 bg-purple-200 text-purple-700 rounded hover:bg-purple-300"
-        >
-          🎨 Draw Overlays
-        </button>
-        <button
-          onClick={() => {
-            console.log('🧪 Test overlay visibility');
-            [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach((canvasRef, index) => {
-              if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d');
-                if (ctx) {
-                  // Clear canvas first
-                  ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                  
-                  // Draw colored rectangle
-                  ctx.fillStyle = index === 0 ? 'red' : index === 1 ? 'blue' : index === 2 ? 'green' : 'orange';
-                  ctx.fillRect(10, 10, 100, 60);
-                  
-                  // Draw text
-                  ctx.fillStyle = 'white';
-                  ctx.font = 'bold 20px Arial';
-                  ctx.fillText(`Canvas ${index + 1}`, 20, 40);
-                  
-                  // Draw border
-                  ctx.strokeStyle = 'black';
-                  ctx.lineWidth = 3;
-                  ctx.strokeRect(10, 10, 100, 60);
-                  
-                  console.log(`✅ Canvas ${index + 1} is visible and drawing`);
-                }
-              }
-            });
-          }}
-          className="px-3 py-1 bg-yellow-200 text-yellow-700 rounded hover:bg-yellow-300"
-        >
-          🧪 Test Canvas
         </button>
       </div>
 
@@ -862,7 +988,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
 
       {/* Frame Info */}
       <div className="text-center text-sm text-gray-600">
-        Frame: {currentFrame} / {analysis?.visualizations?.stickFigure?.length || 0}
+        Frame: {videoState.currentFrame} / {videoState.totalFrames}
         {analysis?.impactFrame && (
           <span className="ml-4">
             Impact: {analysis.impactFrame}

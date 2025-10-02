@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { UltimateSwingAnalyzer } from '@/components/analysis/UltimateSwingAnalyzer';
+import UltimateSwingAnalyzer from '@/components/analysis/UltimateSwingAnalyzer';
 import { MediaPipePoseDetector } from '@/lib/mediapipe';
 import { analyzeGolfSwingSimple } from '@/lib/simple-golf-analysis';
 
@@ -332,10 +332,10 @@ export default function TestComprehensivePage() {
       const startTime = Date.now();
       
       // Test memory usage
-      const memoryInfo = performance.memory ? {
-        used: performance.memory.usedJSHeapSize,
-        total: performance.memory.totalJSHeapSize,
-        limit: performance.memory.jsHeapSizeLimit
+      const memoryInfo = (performance as any).memory ? {
+        used: (performance as any).memory.usedJSHeapSize,
+        total: (performance as any).memory.totalJSHeapSize,
+        limit: (performance as any).memory.jsHeapSizeLimit
       } : null;
       
       // Test frame rate

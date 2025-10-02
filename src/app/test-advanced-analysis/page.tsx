@@ -64,19 +64,7 @@ export default function TestAdvancedAnalysisPage() {
         professionalBenchmark: {
           idealDuration: 1.0,
           keyPositions: [],
-          commonMistakes: [],
-
-        description: "Phase description",
-
-        professionalBenchmark: {
-
-          idealDuration: 1.0,
-
-          keyPositions: [],
-
           commonMistakes: []
-
-        }
         }
       },
       {
@@ -275,7 +263,7 @@ export default function TestAdvancedAnalysisPage() {
               
               {/* Analysis Overlay */}
               <ComprehensiveGolfAnalyzer
-                videoRef={videoRef}
+                videoRef={videoRef as React.RefObject<HTMLVideoElement>}
                 poses={poses}
                 phases={phases}
                 currentTime={currentTime}

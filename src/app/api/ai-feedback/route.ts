@@ -56,7 +56,7 @@ Format your response as a JSON object with these exact fields:
         success: true,
         feedback: aiFeedback 
       });
-    } catch (parseError) {
+    } catch (_parseError) {
       console.warn('⚠️ AI FEEDBACK API: JSON parse error, using fallback');
       return NextResponse.json({ 
         success: false,
@@ -115,7 +115,7 @@ Be encouraging but honest, specific but not overwhelming, and always provide act
 `;
 }
 
-function generateFallbackFeedback(metrics: any, characteristics: any): any {
+function generateFallbackFeedback(metrics: any, _characteristics: any): any {
   console.log('🔄 AI FEEDBACK API: Using fallback feedback system');
   
   const tempo = metrics.tempo?.ratio || 3.0;

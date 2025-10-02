@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MediaPipePoseDetector, type PoseResult } from '@/lib/mediapipe';
 import { trackEvent } from '@/lib/analytics';
-import CameraOverlayContainer from '@/components/ui/CameraOverlayContainer';
+// import CameraOverlayContainer from '@/components/ui/CameraOverlayContainer';
 import { EnhancedPhaseDetector, WeightDistribution, ClubPosition } from '@/lib/enhanced-phase-detector';
 import { calculateSwingMetrics } from '@/lib/golf-metrics';
 
@@ -22,15 +22,15 @@ export default function CameraEnhancedPage() {
   const [liveFeedback, setLiveFeedback] = useState<string>('');
   const [swingMetrics, setSwingMetrics] = useState<any>(null);
   const [poseHistory, setPoseHistory] = useState<PoseResult[]>([]);
-  const [isSwinging, setIsSwinging] = useState(false);
-  const [swingStartTime, setSwingStartTime] = useState<number | null>(null);
+  const [_isSwinging, _setIsSwinging] = useState(false);
+  const [_swingStartTime, _setSwingStartTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
-  const [weightDistribution, setWeightDistribution] = useState<WeightDistribution>({ left: 50, right: 50, total: 100 });
-  const [clubPosition, setClubPosition] = useState<ClubPosition>({ x: 0.5, y: 0.5 });
+  const [_weightDistribution, _setWeightDistribution] = useState<WeightDistribution>({ left: 50, right: 50, total: 100 });
+  const [_clubPosition, _setClubPosition] = useState<ClubPosition>({ x: 0.5, y: 0.5 });
 
   // Simple moving FPS calculator
   const fpsSamples = useRef<number[]>([]);
-  const updateFps = useCallback((instantFps: number) => {
+  const _updateFps = useCallback((instantFps: number) => {
     fpsSamples.current.push(instantFps);
     if (fpsSamples.current.length > 20) fpsSamples.current.shift();
     const avg = fpsSamples.current.reduce((a, b) => a + b, 0) / fpsSamples.current.length;
@@ -63,8 +63,8 @@ export default function CameraEnhancedPage() {
     const weightDist = phaseDetectorRef.current.calculateWeightDistribution(pose);
     const clubPos = phaseDetectorRef.current.calculateClubHeadPosition(pose);
     
-    setWeightDistribution(weightDist);
-    setClubPosition(clubPos);
+     _setWeightDistribution(weightDist);
+     _setClubPosition(clubPos);
     setCurrentPhase(detectedPhase.name);
 
     // Generate feedback based on phase
@@ -245,9 +245,9 @@ export default function CameraEnhancedPage() {
                 <div className="absolute top-4 left-4 bg-black bg-opacity-75 p-3 rounded-lg">
                   <div className="text-sm">
                     <div className="font-semibold text-green-400">Phase: {currentPhase}</div>
-                    <div className="text-gray-300">Weight: {weightDistribution.left}% L / {weightDistribution.right}% R</div>
-                    <div className="text-gray-300">Club: X={clubPosition.x.toFixed(2)}, Y={clubPosition.y.toFixed(2)}</div>
-                    <div className="text-gray-300">Total: {weightDistribution.total}%</div>
+                    <div className="text-gray-300">Weight: {_weightDistribution.left}% L / {_weightDistribution.right}% R</div>
+                    <div className="text-gray-300">Club: X={_clubPosition.x.toFixed(2)}, Y={_clubPosition.y.toFixed(2)}</div>
+                    <div className="text-gray-300">Total: {_weightDistribution.total}%</div>
                   </div>
                 </div>
               </div>
@@ -288,26 +288,26 @@ export default function CameraEnhancedPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Left Foot</span>
-                  <span className="font-mono">{weightDistribution.left}%</span>
+                  <span className="font-mono">{_weightDistribution.left}%</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div 
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${weightDistribution.left}%` }}
+                    style={{ width: `${_weightDistribution.left}%` }}
                   ></div>
                 </div>
                 <div className="flex justify-between">
                   <span>Right Foot</span>
-                  <span className="font-mono">{weightDistribution.right}%</span>
+                  <span className="font-mono">{_weightDistribution.right}%</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div 
                     className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${weightDistribution.right}%` }}
+                    style={{ width: `${_weightDistribution.right}%` }}
                   ></div>
                 </div>
                 <div className="text-center text-sm text-gray-400 mt-2">
-                  Total: {weightDistribution.total}%
+                  Total: {_weightDistribution.total}%
                 </div>
               </div>
             </div>
@@ -318,16 +318,16 @@ export default function CameraEnhancedPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>X Position</span>
-                  <span className="font-mono">{clubPosition.x.toFixed(3)}</span>
+                  <span className="font-mono">{_clubPosition.x.toFixed(3)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Y Position</span>
-                  <span className="font-mono">{clubPosition.y.toFixed(3)}</span>
+                  <span className="font-mono">{_clubPosition.y.toFixed(3)}</span>
                 </div>
-                {clubPosition.angle && (
+                {_clubPosition.angle && (
                   <div className="flex justify-between">
                     <span>Angle</span>
-                    <span className="font-mono">{clubPosition.angle.toFixed(1)}°</span>
+                    <span className="font-mono">{_clubPosition.angle.toFixed(1)}°</span>
                   </div>
                 )}
               </div>

@@ -97,7 +97,7 @@ export default function GolfAnalysisOverlay({
     const leftWrist = landmarks[GOLF_LANDMARKS.leftWrist];
     const rightWrist = landmarks[GOLF_LANDMARKS.rightWrist];
 
-    if (leftWrist && rightWrist && leftWrist.visibility > 0.5 && rightWrist.visibility > 0.5) {
+    if (leftWrist && rightWrist && (leftWrist.visibility || 0) > 0.5 && (rightWrist.visibility || 0) > 0.5) {
       // Calculate club head position (estimated from wrists)
       const clubHeadX = (leftWrist.x + rightWrist.x) / 2;
       const clubHeadY = Math.min(leftWrist.y, rightWrist.y) - 0.05; // Offset for club head

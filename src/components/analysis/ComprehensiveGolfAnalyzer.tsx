@@ -281,7 +281,7 @@ export default function ComprehensiveGolfAnalyzer({
       {/* Advanced Golf Visualization */}
       <AdvancedGolfVisualization
         videoRef={videoRef}
-        canvasRef={canvasRef}
+        canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
         poses={poses}
         phases={phases}
         currentTime={currentTime}
@@ -295,7 +295,7 @@ export default function ComprehensiveGolfAnalyzer({
       {/* Golf Analysis Overlay */}
       <GolfAnalysisOverlay
         videoRef={videoRef}
-        canvasRef={canvasRef}
+        canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
         poses={poses}
         phases={phases}
         currentTime={currentTime}

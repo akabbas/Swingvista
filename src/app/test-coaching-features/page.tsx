@@ -12,7 +12,7 @@ import type { StudentProgress } from '@/lib/coaching-features';
 
 export default function TestCoachingFeaturesPage() {
   const [activeTab, setActiveTab] = useState<'annotations' | 'voice' | 'lessons' | 'progress'>('annotations');
-  const [videoRef] = useState<React.RefObject<HTMLVideoElement>>(useRef<HTMLVideoElement>(null));
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [annotations, setAnnotations] = useState<SwingAnnotation[]>([]);
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
@@ -170,7 +170,7 @@ export default function TestCoachingFeaturesPage() {
                 <div className="bg-gray-800 rounded-lg p-6">
                   <h3 className="text-lg font-semibold mb-4">Swing Annotation Tools</h3>
                   <SwingAnnotationTool
-                    videoRef={videoRef}
+                    videoRef={videoRef as React.RefObject<HTMLVideoElement>}
                     onAnnotationAdd={handleAnnotationAdd}
                     onAnnotationUpdate={handleAnnotationUpdate}
                     onAnnotationDelete={handleAnnotationDelete}

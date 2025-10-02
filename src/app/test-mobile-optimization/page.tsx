@@ -107,9 +107,12 @@ export default function TestMobileOptimizationPage() {
         timestamp: i / 30,
         confidence: 0.9,
 
-        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
-
-        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
+        worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+          x: 0.5 + Math.sin(i * 0.1) * 0.1,
+          y: 0.5 + Math.cos(i * 0.1) * 0.1,
+          z: 0.1,
+          visibility: 0.9
+        }))
       });
     }
     setPoses(mockPoses);

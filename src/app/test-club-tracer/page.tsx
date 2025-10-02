@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import OverlaySystem from '@/components/analysis/OverlaySystem';
 import { PoseResult } from '@/lib/mediapipe';
 import { EnhancedSwingPhase } from '@/lib/enhanced-swing-phases';
+import { DebugProvider } from '@/contexts/DebugContext';
 
 const TestClubTracerPage: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -169,52 +170,54 @@ const TestClubTracerPage: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen bg-gray-900 flex items-center justify-center">
-      <div className="relative w-[80%] h-[80%] bg-black">
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          controls
-          loop
-          muted
-        >
-          <source src="/golf_swing_example.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        <canvas
-          ref={canvasRef}
-          className="absolute top-0 left-0 w-full h-full"
-        />
-        <OverlaySystem
-          canvasRef={canvasRef}
-          videoRef={videoRef}
-          poses={poses}
-          phases={phases}
-          currentTime={currentTime}
-          overlayMode={overlayMode}
-          isPlaying={isPlaying}
-        />
-      </div>
+    <DebugProvider enableDebug={false}>
+      <div className="relative w-full h-screen bg-gray-900 flex items-center justify-center">
+        <div className="relative w-[80%] h-[80%] bg-black">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            controls
+            loop
+            muted
+          >
+            <source src="/golf_swing_example.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          <canvas
+            ref={canvasRef}
+            className="absolute top-0 left-0 w-full h-full"
+          />
+          <OverlaySystem
+            canvasRef={canvasRef}
+            videoRef={videoRef}
+            poses={poses}
+            phases={phases}
+            currentTime={currentTime}
+            overlayMode={overlayMode}
+            isPlaying={isPlaying}
+          />
+        </div>
 
-      <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
-        <input type="file" accept="video/*" onChange={handleFileChange} className="text-white" />
-        <select 
-          value={overlayMode} 
-          onChange={(e) => setOverlayMode(e.target.value as any)}
-          className="p-2 rounded bg-gray-700 text-white"
-        >
-          <option value="clean">Clean</option>
-          <option value="analysis">Analysis</option>
-          <option value="technical">Technical</option>
-        </select>
-        <div className="text-white text-sm">
-          <p>Club Head Tracer Test Page</p>
-          <p>Mode: {overlayMode}</p>
-          <p>Poses: {poses.length}</p>
-          <p>Phases: {phases.length}</p>
+        <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
+          <input type="file" accept="video/*" onChange={handleFileChange} className="text-white" />
+          <select 
+            value={overlayMode} 
+            onChange={(e) => setOverlayMode(e.target.value as any)}
+            className="p-2 rounded bg-gray-700 text-white"
+          >
+            <option value="clean">Clean</option>
+            <option value="analysis">Analysis</option>
+            <option value="technical">Technical</option>
+          </select>
+          <div className="text-white text-sm">
+            <p>Club Head Tracer Test Page</p>
+            <p>Mode: {overlayMode}</p>
+            <p>Poses: {poses.length}</p>
+            <p>Phases: {phases.length}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </DebugProvider>
   );
 };
 

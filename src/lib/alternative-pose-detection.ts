@@ -183,6 +183,11 @@ const detectPosesWithTensorFlow = async (
             }
           });
           
+          const visible = landmarks.filter((lm: any) => (lm.visibility ?? 0) > 0.1).length;
+          if (i % 10 === 0 || i < 3) {
+            console.log(`📍 Frame ${i + 1}: ${landmarks.length} landmarks, ${visible} visible (>=0.1)`);
+          }
+
           poses.push({
             landmarks,
             worldLandmarks: landmarks,
@@ -195,6 +200,14 @@ const detectPosesWithTensorFlow = async (
             console.log('🔍 REAL POSE DETECTION: First frame pose data quality:', hasVariedPositions ? 'REAL' : 'MOCK');
             console.log('🔍 REAL POSE DETECTION: Sample landmark positions:', landmarks.slice(0, 5).map((lm: any) => ({ x: lm.x, y: lm.y })));
           }
+
+          // Visibility logging (first few frames and every 10th frame)
+          try {
+            const visible = landmarks.filter((lm: any) => (lm.visibility ?? 0) > 0.1).length;
+            if (i < 5 || i % 10 === 0) {
+              console.log(`🎯 Pose frame ${i + 1}: ${landmarks.length} landmarks, ${visible} visible (≥0.1)`);
+            }
+          } catch {}
         } else {
           // No pose detected, create empty pose
           const emptyLandmarks = Array(33).fill(null).map(() => ({
@@ -233,7 +246,7 @@ const detectPosesWithTensorFlow = async (
         });
       }
       
-      const progress = ((i + 1) / frameCount) * 100;
+        const progress = ((i + 1) / frameCount) * 100;
       onProgress?.(`Processing frame ${i + 1}/${frameCount}`, progress);
     }
     
@@ -249,6 +262,15 @@ const detectPosesWithTensorFlow = async (
     }
     
     console.log(`✅ REAL POSE DETECTION: TensorFlow.js processing completed: ${poses.length} poses (${failedFrames} failed frames)`);
+    // Final summary visibility
+    try {
+      const visStats = poses.slice(0, Math.min(poses.length, 50)).map((p, idx) => ({
+        frame: idx + 1,
+        visible: (p.landmarks || []).filter((lm: any) => (lm.visibility ?? 0) > 0.1).length
+      }));
+      const avgVisible = Math.round(visStats.reduce((s, v) => s + v.visible, 0) / Math.max(1, visStats.length));
+      console.log(`📊 Visibility summary (first ${visStats.length} frames): avg visible landmarks ≈ ${avgVisible}/33`);
+    } catch {}
     
     // Final validation of the results
     if (poses.length > 0) {
@@ -318,7 +340,7 @@ const detectPosesWithAPI = async (
 // EMERGENCY FIX: Validate video before processing
 const validateVideo = (videoFile: File): void => {
   const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/avi'];
-  const maxSize = 50 * 1024 * 1024; // 50MB
+  const maxSize = 100 * 1024 * 1024; // 100MB - consistent with other validations
   
   if (!validTypes.includes(videoFile.type)) {
     throw new Error(

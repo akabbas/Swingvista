@@ -83,7 +83,7 @@ export default function EnhancedGolfOverlay({
     const leftWrist = landmarks[GOLF_LANDMARKS.leftWrist];
     const rightWrist = landmarks[GOLF_LANDMARKS.rightWrist];
 
-    if (leftWrist && rightWrist && leftWrist.visibility > 0.5 && rightWrist.visibility > 0.5) {
+    if (leftWrist && rightWrist && (leftWrist.visibility || 0) > 0.5 && (rightWrist.visibility || 0) > 0.5) {
       // Calculate club head position (estimated from wrists)
       const clubHeadX = (leftWrist.x + rightWrist.x) / 2;
       const clubHeadY = Math.min(leftWrist.y, rightWrist.y) - 0.05; // Offset for club head
@@ -119,8 +119,8 @@ export default function EnhancedGolfOverlay({
     const rightHip = landmarks[GOLF_LANDMARKS.rightHip];
 
     if (leftShoulder && rightShoulder && leftHip && rightHip &&
-        leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5 &&
-        leftHip.visibility > 0.5 && rightHip.visibility > 0.5) {
+        (leftShoulder.visibility || 0) > 0.5 && (rightShoulder.visibility || 0) > 0.5 &&
+        (leftHip.visibility || 0) > 0.5 && (rightHip.visibility || 0) > 0.5) {
 
       // Calculate shoulder angle (rotation from horizontal)
       const shoulderAngle = Math.atan2(
@@ -245,7 +245,7 @@ function drawStickFigure(ctx: CanvasRenderingContext2D, landmarks: PoseLandmark[
     const start = landmarks[startIdx];
     const end = landmarks[endIdx];
     
-    if (start && end && start.visibility > 0.5 && end.visibility > 0.5) {
+    if (start && end && (start.visibility || 0) > 0.5 && (end.visibility || 0) > 0.5) {
       ctx.beginPath();
       ctx.moveTo(start.x * width, start.y * height);
       ctx.lineTo(end.x * width, end.y * height);
@@ -255,7 +255,7 @@ function drawStickFigure(ctx: CanvasRenderingContext2D, landmarks: PoseLandmark[
 
   // Draw key landmarks with different colors
   landmarks.forEach((landmark, index) => {
-    if (landmark.visibility > 0.5) {
+    if ((landmark.visibility || 0) > 0.5) {
       const x = landmark.x * width;
       const y = landmark.y * height;
       
@@ -500,7 +500,7 @@ function drawComparisonView(ctx: CanvasRenderingContext2D, currentLandmarks: Pos
     const start = comparisonLandmarks[startIdx];
     const end = comparisonLandmarks[endIdx];
     
-    if (start && end && start.visibility > 0.5 && end.visibility > 0.5) {
+    if (start && end && (start.visibility || 0) > 0.5 && (end.visibility || 0) > 0.5) {
       ctx.beginPath();
       ctx.moveTo(start.x * width, start.y * height);
       ctx.lineTo(end.x * width, end.y * height);
@@ -510,7 +510,7 @@ function drawComparisonView(ctx: CanvasRenderingContext2D, currentLandmarks: Pos
 
   // Draw comparison landmarks
   comparisonLandmarks.forEach((landmark, index) => {
-    if (landmark.visibility > 0.5) {
+    if ((landmark.visibility || 0) > 0.5) {
       const x = landmark.x * width;
       const y = landmark.y * height;
       

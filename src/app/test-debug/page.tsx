@@ -81,9 +81,12 @@ const mockPoses: PoseResult[] = Array.from({ length: 100 }, (_, i) => {
       confidence: 0.9,
       frame: i,
 
-    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
-
-    worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
+    worldLandmarks: Array.from({ length: 33 }, (_, j) => ({
+      x: 0.5 + Math.sin(i * 0.1) * 0.1,
+      y: 0.5 + Math.cos(i * 0.1) * 0.1,
+      z: 0.1,
+      visibility: 0.9
+    }))
     }
   };
 });
@@ -104,7 +107,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',
@@ -126,7 +128,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',
@@ -148,7 +149,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',
@@ -170,7 +170,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',
@@ -192,7 +191,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',
@@ -214,7 +212,6 @@ const mockPhases: EnhancedSwingPhase[] = [
       kneeFlex: 15, 
       posture: 0.8, 
       weightDistribution: { left: 50, right: 50 },
-      clubSpeed: 0,
       tempo: 1.0
     },
     grade: 'B',

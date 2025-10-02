@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prompt = `Analyze this golf swing comprehensively based on the provided metrics. Provide specific, actionable feedback as a professional golf instructor would.`;
+    const _prompt = `Analyze this golf swing comprehensively based on the provided metrics. Provide specific, actionable feedback as a professional golf instructor would.`;
     
     const systemPrompt = `You are a world-class golf instructor with 20+ years of experience teaching professional and amateur golfers. 
 

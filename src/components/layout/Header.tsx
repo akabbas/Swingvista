@@ -1,11 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useIntegrityStatus } from '@/lib/integrity/status-context';
 
 export default function Header() {
   const [isTestMenuOpen, setIsTestMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const status = useIntegrityStatus();
+  const indicator = useMemo(() => {
+    switch (status.dataSource) {
+      case 'live-api':
+        return { text: '🟢 LIVE ANALYSIS', cls: 'bg-green-600' };
+      case 'cached':
+        return { text: `🟠 CACHED${status.lastUpdated ? ` (${new Date(status.lastUpdated).toLocaleTimeString()})` : ''}`, cls: 'bg-amber-600' };
+      case 'mock':
+        return { text: '🔴 DEMO MODE', cls: 'bg-red-600' };
+      default:
+        return { text: '⚫ NO DATA', cls: 'bg-gray-600' };
+    }
+  }, [status]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -53,6 +67,9 @@ export default function Header() {
             📤 Upload
           </Link>
           
+          <div className={`px-3 py-1 rounded text-white text-xs font-semibold ${indicator.cls}`} title={`Data source: ${status.dataSource}${status.lastUpdated ? ` | Updated: ${new Date(status.lastUpdated).toLocaleString()}` : ''}`}>
+            {indicator.text}
+          </div>
           {/* Test Pages Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button

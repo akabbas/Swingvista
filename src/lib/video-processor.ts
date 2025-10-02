@@ -331,7 +331,7 @@ export class VideoProcessor {
       const startPoint = pose.landmarks![start];
       const endPoint = pose.landmarks![end];
       
-      if (startPoint && endPoint && startPoint.visibility && endPoint.visibility && startPoint.visibility > 0.5 && endPoint.visibility > 0.5) {
+      if (startPoint && endPoint && startPoint.visibility && endPoint.visibility && startPoint.visibility > 0.1 && endPoint.visibility > 0.1) {
         this.ctx.beginPath();
         this.ctx.moveTo(startPoint.x * this.canvas.width, startPoint.y * this.canvas.height);
         this.ctx.lineTo(endPoint.x * this.canvas.width, endPoint.y * this.canvas.height);
@@ -341,7 +341,7 @@ export class VideoProcessor {
 
     // Draw landmarks
     pose.landmarks.forEach(landmark => {
-      if (landmark.visibility && landmark.visibility > 0.5) {
+      if (landmark.visibility && landmark.visibility > 0.1) {
         this.ctx.beginPath();
         this.ctx.arc(
           landmark.x * this.canvas.width,

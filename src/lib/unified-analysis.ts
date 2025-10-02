@@ -127,12 +127,12 @@ export function validateVideoFile(file: File): { valid: boolean; error?: string 
     };
   }
   
-  // Check minimum size (at least 1MB)
-  const minSize = 1024 * 1024; // 1MB
+  // Check minimum size (at least 10KB for very short videos)
+  const minSize = 10 * 1024; // 10KB - allows for very short videos
   if (file.size < minSize) {
     return {
       valid: false,
-      error: 'Video file too small. Please use a larger video file.'
+      error: 'Video file too small. Please use a video file larger than 10KB.'
     };
   }
   

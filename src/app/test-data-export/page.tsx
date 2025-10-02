@@ -183,11 +183,7 @@ export default function TestDataExportPage() {
         visibility: 0.9
       })),
       timestamp: i / 30,
-      confidence: 0.9,
-
-      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
-
-      worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
+      confidence: 0.9
     }));
 
     // Generate mock phases
@@ -359,7 +355,18 @@ export default function TestDataExportPage() {
   }, []);
 
   // Handle export completion
-  const handleExportComplete = useCallback((format: string, data: any) => {
+  const handleExportComplete = useCallback((blob: Blob) => {
+    const result = {
+      id: `export-${Date.now()}`,
+      format: 'blob',
+      timestamp: new Date(),
+      data: blob
+    };
+    setExportResults(prev => [result, ...prev]);
+  }, []);
+
+  // Handle export completion for different component signatures
+  const handleExportCompleteWithFormat = useCallback((format: string, data: any) => {
     const result = {
       id: `export-${Date.now()}`,
       format,
@@ -431,7 +438,7 @@ export default function TestDataExportPage() {
                 phases={phases}
                 annotations={annotations}
                 voiceNotes={voiceNotes}
-                onExportComplete={handleExportComplete}
+                onExportComplete={handleExportCompleteWithFormat}
                 onExportError={handleExportError}
                 className="h-96"
               />

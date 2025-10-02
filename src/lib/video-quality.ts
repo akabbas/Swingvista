@@ -48,7 +48,7 @@ export async function validateVideoQualityElement(video: HTMLVideoElement): Prom
 	const brightness = await estimateBrightness(video).catch(() => 0.5);
 
 	const fullBodyVisible = width >= 320 && height >= 320; // proxy for framing
-	const tooShort = duration < 3 || duration > 12; // prefer 3-10s, allow a bit more
+	const tooShort = duration > 22; // max 22 seconds, no minimum
 	const poorLighting = brightness < 0.25; // dark frame
 	// Proxy for angled view: aspect ratio far from 16:9 or 9:16 implies potential odd angle
 	const aspect = width && height ? width / height : 16 / 9;
@@ -56,7 +56,7 @@ export async function validateVideoQualityElement(video: HTMLVideoElement): Prom
 
 	const issues: string[] = [];
 	if (!fullBodyVisible) issues.push('⚠️ Please ensure your entire body is visible in the frame');
-	if (tooShort) issues.push('📹 Video should be 3-10 seconds for accurate analysis');
+	if (tooShort) issues.push('📹 Video should be no longer than 22 seconds for optimal analysis');
 	if (poorLighting) issues.push('💡 Improve lighting for better pose detection');
 	// We avoid strong-arming angle until we have heading detection
 	// if (tangledView) issues.push('📐 Record from side view for optimal swing analysis');

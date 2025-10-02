@@ -87,7 +87,7 @@ export interface ProGolferSwing {
   thumbnailUrl?: string;
 }
 
-export interface SwingComparison {
+export interface SwingComparisonData {
   userSwing: SwingSession;
   proSwing: ProGolferSwing;
   comparisonMetrics: {

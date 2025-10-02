@@ -128,6 +128,7 @@ export default function TestSwingComparisonPage() {
       
       poses.push({
         landmarks,
+        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })),
         timestamp: time,
         confidence: 0.9
       });
@@ -421,8 +422,8 @@ export default function TestSwingComparisonPage() {
                   
                   {currentComparison && (
                     <SwingComparisonVisualization
-                      videoRef={videoRef}
-                      canvasRef={canvasRef}
+                      videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+                      canvasRef={canvasRef as React.RefObject<HTMLCanvasElement>}
                       comparisonResult={currentComparison}
                       currentTime={currentTime}
                       showSideBySide={true}
