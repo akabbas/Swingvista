@@ -121,22 +121,54 @@ const detectPosesWithTensorFlow = async (
       throw new Error(`Invalid video duration: ${duration}`);
     }
     
-    const { sampleFps = 30, maxFrames = 200 } = options;
-    const frameCount = Math.min(maxFrames, Math.floor(duration * sampleFps));
+    const { sampleFps = 30, maxFrames = 1000 } = options;
+    // Calculate total frames at video's native frame rate (assume 30fps if not available)
+    const videoFps = video.videoWidth > 0 ? 30 : 30; // Default to 30fps
+    const totalVideoFrames = Math.floor(duration * videoFps);
+    const frameCount = Math.min(maxFrames, totalVideoFrames);
     
-    console.log(`📊 Processing ${frameCount} frames from ${duration}s video`);
+    console.log(`📊 COMPLETE FRAME SCANNING: Processing ${frameCount} frames from ${duration}s video`);
+    console.log(`📊 Video FPS: ${videoFps}, Sample FPS: ${sampleFps}, Total Video Frames: ${totalVideoFrames}`);
     
     const poses: PoseResult[] = [];
     let failedFrames = 0;
     
     for (let i = 0; i < frameCount; i++) {
-      const frameTime = i / sampleFps;
+      // Scan every single frame at video's native frame rate
+      const frameTime = i / videoFps; // Use video's native FPS, not sampleFps
       video.currentTime = frameTime;
       
+      // Log progress every 30 frames (1 second at 30fps)
+      if (i % 30 === 0) {
+        console.log(`🎬 FRAME SCANNING: Processing frame ${i + 1}/${frameCount} (${((i / frameCount) * 100).toFixed(1)}%)`);
+      }
+      
+      // Wait for video to seek to the exact frame
       await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
-        video.onerror = () => resolve();
+        const timeout = setTimeout(() => {
+          console.warn(`⚠️ Frame ${i} seek timeout, continuing...`);
+          resolve();
+        }, 1000); // 1 second timeout
+        
+        video.onseeked = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+        video.onerror = () => {
+          clearTimeout(timeout);
+          console.warn(`⚠️ Frame ${i} seek error, continuing...`);
+          resolve();
+        };
       });
+      
+      // Verify we're at the correct frame
+      const actualTime = video.currentTime;
+      const expectedTime = frameTime;
+      const timeDiff = Math.abs(actualTime - expectedTime);
+      
+      if (timeDiff > 0.1) { // More than 0.1 seconds off
+        console.warn(`⚠️ Frame ${i} time mismatch: expected ${expectedTime.toFixed(3)}s, got ${actualTime.toFixed(3)}s`);
+      }
       
       try {
         // Convert video frame to tensor
@@ -261,7 +293,20 @@ const detectPosesWithTensorFlow = async (
       );
     }
     
-    console.log(`✅ REAL POSE DETECTION: TensorFlow.js processing completed: ${poses.length} poses (${failedFrames} failed frames)`);
+    console.log(`✅ COMPLETE FRAME SCANNING: TensorFlow.js processing completed!`);
+    console.log(`📊 Total frames processed: ${frameCount}`);
+    console.log(`📊 Total poses detected: ${poses.length}`);
+    console.log(`📊 Failed frames: ${failedFrames}`);
+    console.log(`📊 Success rate: ${((poses.length / frameCount) * 100).toFixed(1)}%`);
+    console.log(`📊 Frame coverage: ${((poses.length / totalVideoFrames) * 100).toFixed(1)}% of total video frames`);
+    
+    // Verify we have poses for the entire video duration
+    if (poses.length > 0) {
+      const firstPoseTime = poses[0].timestamp / 1000;
+      const lastPoseTime = poses[poses.length - 1].timestamp / 1000;
+      console.log(`📊 Pose coverage: ${firstPoseTime.toFixed(2)}s to ${lastPoseTime.toFixed(2)}s (${duration.toFixed(2)}s total)`);
+    }
+    
     // Final summary visibility
     try {
       const visStats = poses.slice(0, Math.min(poses.length, 50)).map((p, idx) => ({

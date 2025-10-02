@@ -50,10 +50,10 @@ export async function analyzeGolfSwing(
     // Step 1: Extract poses from video
     onProgress?.('Extracting poses from video...', 10);
     const poses = await extractPosesFromVideo(videoInput, {
-      sampleFps: 20,
-      maxFrames: 200,
-      minConfidence: 0.4,
-      qualityThreshold: 0.3
+      sampleFps: 30, // Scan at full video frame rate (30fps)
+      maxFrames: 1000, // Increased to handle longer videos
+      minConfidence: 0.3, // Lowered to catch more poses
+      qualityThreshold: 0.2 // Lowered to be more inclusive
     }, (progress) => {
       onProgress?.(progress.step, 10 + (progress.progress * 0.3));
     });
