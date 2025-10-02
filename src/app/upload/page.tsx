@@ -348,25 +348,29 @@ export default function UploadPage() {
       canvasPosition: canvas.getBoundingClientRect()
     });
 
-    // Set canvas size to match video
+    // Set canvas size to match video - only when video is ready
     const resizeCanvas = () => {
-      const width = video.videoWidth || videoSize.width;
-      const height = video.videoHeight || videoSize.height;
-      if (width && height) {
-        canvas.width = width;
-        canvas.height = height;
+      // Only resize if video has actual dimensions
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
         if (angleCanvas) {
-          angleCanvas.width = width;
-          angleCanvas.height = height;
+          angleCanvas.width = video.videoWidth;
+          angleCanvas.height = video.videoHeight;
         }
-        console.log('📐 Canvas resized to:', { width, height });
+        console.log('📐 Canvas resized to video dimensions:', { width: video.videoWidth, height: video.videoHeight });
+        return true;
       } else {
-        console.log('⚠️ Cannot resize canvas - missing dimensions:', { width, height, videoWidth: video.videoWidth, videoHeight: video.videoHeight });
+        console.log('⚠️ Video not ready for canvas resize:', { 
+          videoWidth: video.videoWidth, 
+          videoHeight: video.videoHeight,
+          readyState: video.readyState 
+        });
+        return false;
       }
     };
     
-    // Call resize immediately
-    resizeCanvas();
+    // Don't resize immediately - wait for video to be ready
 
     // Stick figure drawing function
     const drawStickFigure = (ctx: CanvasRenderingContext2D, landmarks: any[], canvasWidth: number, canvasHeight: number) => {
@@ -758,15 +762,29 @@ export default function UploadPage() {
       }
     };
     const onLoadedMetadata = () => { 
-      resizeCanvas(); 
-      // Small delay to ensure video is ready
-      setTimeout(() => {
+      console.log('🎬 Video metadata loaded, attempting canvas resize...');
+      if (resizeCanvas()) {
+        // Canvas resized successfully, draw initial overlay
+        setTimeout(() => {
+          try {
+            drawPoseOverlay();
+          } catch (error) {
+            console.warn('⚠️ Overlay drawing failed on metadata:', error);
+          }
+        }, 100);
+      }
+    };
+    
+    const onLoadedData = () => {
+      console.log('🎬 Video data loaded, ensuring canvas is ready...');
+      if (resizeCanvas()) {
+        // Video is fully ready, draw overlay
         try {
           drawPoseOverlay();
         } catch (error) {
-          console.warn('⚠️ Overlay drawing failed on metadata:', error);
+          console.warn('⚠️ Overlay drawing failed on data load:', error);
         }
-      }, 100);
+      }
     };
     const onPlay = () => {
       // Start rAF loop for smooth overlays during playback
@@ -802,15 +820,27 @@ export default function UploadPage() {
       }
     };
 
-    resizeCanvas();
-    drawPoseOverlay();
+    // Don't resize or draw immediately - wait for video events
     
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('seeked', onSeeked);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
+    video.addEventListener('loadeddata', onLoadedData);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
-    window.addEventListener('resize', resizeCanvas);
+    
+    // Handle window resize
+    const onWindowResize = () => {
+      console.log('🔄 Window resized, checking canvas...');
+      if (resizeCanvas()) {
+        try {
+          drawPoseOverlay();
+        } catch (error) {
+          console.warn('⚠️ Overlay drawing failed on window resize:', error);
+        }
+      }
+    };
+    window.addEventListener('resize', onWindowResize);
 
     console.log('✅ OVERLAY(B) listeners attached');
 
@@ -856,10 +886,11 @@ export default function UploadPage() {
         overlayTimeout = null;
       }
       
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', onWindowResize);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('loadeddata', onLoadedData);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
       if (angleCanvas) {
