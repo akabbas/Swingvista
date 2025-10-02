@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pose Extraction Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        video {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 640px;
+            height: 480px;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Pose Extraction Test</h1>
+        <p>This test will extract poses from a video using TensorFlow.js MoveNet and display the results.</p>
+        
+        <div class="controls">
+            <button onclick="loadVideo()">Load Video</button>
+            <button onclick="extractPoses()">Extract Poses</button>
+            <button onclick="testRendering()">Test Rendering</button>
+            <button onclick="clearDebug()">Clear Debug</button>
+        </div>
+
+        <div class="video-container">
+            <video id="video" controls>
+                <source src="/fixtures/swings/tiger-woods-swing.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <canvas id="poseCanvas" width="640" height="480"></canvas>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <div id="status" class="status info">
+            Ready to test pose extraction. Click "Load Video" to begin.
+        </div>
+
+        <div class="debug-info" id="debugInfo">
+            Debug information will appear here...
+        </div>
+    </div>
+
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js"></script>
+
+    <script>
+        const video = document.getElementById('video');
+        const poseCanvas = document.getElementById('poseCanvas');
+        const statusDiv = document.getElementById('status');
+        const debugDiv = document.getElementById('debugInfo');
+        const progressFill = document.getElementById('progressFill');
+        
+        let detector = null;
+        let poses = [];
+        let isExtracting = false;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.textContent += `[${timestamp}] ${message}\n`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function setStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function setProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+        }
+
+        function clearDebug() {
+            debugDiv.textContent = '';
+        }
+
+        async function loadVideo() {
+            log('🎥 Loading video...');
+            setStatus('Loading video...', 'info');
+            
+            video.addEventListener('loadeddata', () => {
+                log(`✅ Video loaded: ${video.videoWidth}x${video.videoHeight}, duration: ${video.duration}s`);
+                setStatus('Video loaded successfully', 'success');
+            });
+            
+            video.addEventListener('error', (e) => {
+                log(`❌ Video load error: ${e.message}`);
+                setStatus('Video load failed', 'error');
+            });
+            
+            video.load();
+        }
+
+        async function extractPoses() {
+            if (isExtracting) return;
+            
+            log('🔍 Starting pose extraction...');
+            setStatus('Extracting poses...', 'info');
+            isExtracting = true;
+            poses = [];
+            
+            try {
+                // Load MoveNet model
+                log('📦 Loading MoveNet model...');
+                const model = poseDetection.SupportedModels.MoveNet;
+                const detectorConfig = {
+                    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                };
+                
+                detector = await poseDetection.createDetector(model, detectorConfig);
+                log('✅ MoveNet model loaded successfully');
+                
+                // Extract poses frame by frame
+                const frameRate = 30;
+                const totalFrames = Math.floor(video.duration * frameRate);
+                log(`📊 Extracting poses from ${totalFrames} frames...`);
+                
+                for (let frame = 0; frame < totalFrames; frame++) {
+                    const time = frame / frameRate;
+                    
+                    // Seek to specific time
+                    video.currentTime = time;
+                    
+                    // Wait for seek to complete
+                    await new Promise(resolve => {
+                        const onSeeked = () => {
+                            video.removeEventListener('seeked', onSeeked);
+                            resolve();
+                        };
+                        video.addEventListener('seeked', onSeeked);
+                    });
+                    
+                    // Detect poses in current frame
+                    const pose = await detector.estimatePoses(video);
+                    
+                    if (pose && pose.length > 0) {
+                        const poseData = {
+                            landmarks: pose[0].keypoints.map(kp => ({
+                                x: kp.x / video.videoWidth,
+                                y: kp.y / video.videoHeight,
+                                visibility: kp.score
+                            })),
+                            timestamp: time,
+                            confidence: pose[0].score
+                        };
+                        poses.push(poseData);
+                    } else {
+                        // Create empty pose if no detection
+                        poses.push({
+                            landmarks: [],
+                            timestamp: time,
+                            confidence: 0
+                        });
+                    }
+                    
+                    // Update progress
+                    const progress = (frame / totalFrames) * 100;
+                    setProgress(progress);
+                    
+                    if (frame % 30 === 0) {
+                        log(`📈 Progress: ${Math.round(progress)}% (${frame}/${totalFrames} frames)`);
+                    }
+                }
+                
+                log(`✅ Pose extraction complete: ${poses.length} poses extracted`);
+                log(`📊 Poses with landmarks: ${poses.filter(p => p.landmarks.length > 0).length}`);
+                setStatus(`Pose extraction complete: ${poses.length} poses`, 'success');
+                setProgress(100);
+                
+            } catch (error) {
+                log(`❌ Pose extraction error: ${error.message}`);
+                setStatus('Pose extraction failed', 'error');
+            } finally {
+                isExtracting = false;
+            }
+        }
+
+        function testRendering() {
+            if (poses.length === 0) {
+                log('❌ No poses available. Run pose extraction first.');
+                setStatus('No poses available', 'error');
+                return;
+            }
+            
+            log('🎨 Testing pose rendering...');
+            setStatus('Testing rendering...', 'info');
+            
+            const ctx = poseCanvas.getContext('2d');
+            if (!ctx) {
+                log('❌ Canvas context not available');
+                setStatus('Canvas error', 'error');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+            
+            // Draw current pose
+            const currentTime = video.currentTime;
+            const frame = Math.floor(currentTime * 30);
+            const pose = poses[frame];
+            
+            if (pose && pose.landmarks.length > 0) {
+                log(`🎯 Rendering pose for frame ${frame} (time: ${currentTime.toFixed(2)}s)`);
+                
+                // Draw skeleton
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
+                    [11, 12], [11, 13], [12, 14], [11, 23], [12, 24], [23, 24],
+                    [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [19, 21],
+                    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20], [20, 22],
+                    [23, 25], [25, 27], [27, 29], [27, 31], [29, 31],
+                    [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
+                ];
+                
+                connections.forEach(([start, end]) => {
+                    if (pose.landmarks[start] && pose.landmarks[end] && 
+                        pose.landmarks[start].visibility > 0.3 && pose.landmarks[end].visibility > 0.3) {
+                        ctx.beginPath();
+                        ctx.moveTo(
+                            pose.landmarks[start].x * poseCanvas.width,
+                            pose.landmarks[start].y * poseCanvas.height
+                        );
+                        ctx.lineTo(
+                            pose.landmarks[end].x * poseCanvas.width,
+                            pose.landmarks[end].y * poseCanvas.height
+                        );
+                        ctx.stroke();
+                    }
+                });
+                
+                // Draw keypoints
+                pose.landmarks.forEach((landmark, i) => {
+                    if (landmark.visibility > 0.3) {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.beginPath();
+                        ctx.arc(
+                            landmark.x * poseCanvas.width,
+                            landmark.y * poseCanvas.height,
+                            4, 0, 2 * Math.PI
+                        );
+                        ctx.fill();
+                    }
+                });
+                
+                log(`✅ Pose rendered with ${pose.landmarks.length} landmarks`);
+                setStatus('Pose rendering successful', 'success');
+                
+            } else {
+                log(`❌ No pose data for frame ${frame}`);
+                setStatus('No pose data for current frame', 'error');
+            }
+        }
+
+        // Auto-update overlays when video time changes
+        video.addEventListener('timeupdate', () => {
+            if (poses.length > 0) {
+                testRendering();
+            }
+        });
+
+        // Initialize
+        log('🚀 Pose Extraction Test initialized');
+        log('📝 Instructions:');
+        log('1. Click "Load Video" to load the test video');
+        log('2. Click "Extract Poses" to run pose detection on all frames');
+        log('3. Click "Test Rendering" to test overlay drawing');
+        log('4. Play the video to see real-time pose overlays');
+    </script>
+</body>
+</html>

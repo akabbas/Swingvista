@@ -78,18 +78,32 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       console.log('❌ No analysis data provided to VideoAnalysisDisplay');
     }
     
-    // Debug pose data specifically
-    if (poses && poses.length > 0) {
-      console.log('🔍 POSE DATA DEBUG: First few poses:', poses.slice(0, 3).map((pose, i) => ({
-        frame: i,
-        hasLandmarks: !!pose.landmarks,
-        landmarksCount: pose.landmarks?.length || 0,
-        firstLandmark: pose.landmarks?.[0] || 'none',
-        confidence: pose.confidence
-      })));
-    } else {
-      console.log('❌ No poses data available for overlays');
-    }
+  // Debug pose data specifically
+  if (poses && poses.length > 0) {
+    console.log('🔍 POSE DATA DEBUG: First few poses:', poses.slice(0, 3).map((pose, i) => ({
+      frame: i,
+      hasLandmarks: !!pose.landmarks,
+      landmarksCount: pose.landmarks?.length || 0,
+      firstLandmark: pose.landmarks?.[0] || 'none',
+      confidence: pose.confidence
+    })));
+    console.log('🔍 POSE DATA DEBUG: Total poses available:', poses.length);
+    console.log('🔍 POSE DATA DEBUG: Sample pose structure:', poses[0]);
+  } else {
+    console.log('❌ No poses data available for overlays');
+  }
+  
+  // Debug analysis structure
+  if (analysis) {
+    console.log('🔍 ANALYSIS DEBUG: Analysis structure:', {
+      hasVisualizations: !!analysis.visualizations,
+      visualizationKeys: analysis.visualizations ? Object.keys(analysis.visualizations) : 'none',
+      hasPhases: !!analysis.phases,
+      phasesCount: analysis.phases?.length || 0,
+      hasMetrics: !!analysis.metrics,
+      metricsKeys: analysis.metrics ? Object.keys(analysis.metrics) : 'none'
+    });
+  }
   }, [videoFile, videoUrl, analysis, poses]);
 
   // Simple video loading - no complex state management
@@ -571,6 +585,19 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       const frame = calculateFrame(video);
       lastDrawTime = timestamp;
 
+      // Debug animation loop
+      if (frame % 30 === 0) { // Log every 30 frames (1 second at 30fps)
+        console.log('🎬 ANIMATION LOOP DEBUG:', {
+          frame,
+          videoTime: video.currentTime,
+          isPlaying: videoState.isPlaying,
+          hasAnalysis: !!analysis,
+          hasPoses: !!poses,
+          posesCount: poses?.length || 0,
+          showOverlays
+        });
+      }
+
       // Clear all canvases first
       [poseCanvasRef, planeCanvasRef, phaseCanvasRef, pathCanvasRef].forEach(canvasRef => {
         if (canvasRef.current) {
@@ -584,6 +611,7 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
       // Draw all enabled overlays
       try {
         if (showOverlays.stickFigure && poseCanvasRef.current) {
+          console.log('🎨 Drawing stick figure for frame:', frame);
           drawStickFigure(poseCanvasRef.current, frame);
         }
         if (showOverlays.swingPlane && planeCanvasRef.current) {
@@ -826,8 +854,8 @@ export default function VideoAnalysisDisplay({ videoFile, videoUrl, analysis, is
         {videoState.error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-red-500 mr-2">❌</span>
+            <div className="flex items-center">
+              <span className="text-red-500 mr-2">❌</span>
                 <p className="text-red-700">{videoState.error}</p>
               </div>
               <button

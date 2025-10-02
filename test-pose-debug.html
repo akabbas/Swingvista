@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pose Detection Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        video {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 640px;
+            height: 480px;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Pose Detection Debug Test</h1>
+        <p>This test will help us debug why video overlays aren't rendering properly after analysis.</p>
+        
+        <div class="controls">
+            <button onclick="loadSampleVideo()">Load Sample Video</button>
+            <button onclick="startPoseDetection()">Start Pose Detection</button>
+            <button onclick="testOverlayRendering()">Test Overlay Rendering</button>
+            <button onclick="clearDebug()">Clear Debug Info</button>
+        </div>
+
+        <div class="video-container">
+            <video id="video" controls>
+                <source src="/fixtures/swings/tiger-woods-swing.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <canvas id="poseCanvas" width="640" height="480"></canvas>
+        </div>
+
+        <div id="status" class="status info">
+            Ready to test pose detection. Click "Load Sample Video" to begin.
+        </div>
+
+        <div class="debug-info" id="debugInfo">
+            Debug information will appear here...
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const poseCanvas = document.getElementById('poseCanvas');
+        const statusDiv = document.getElementById('status');
+        const debugDiv = document.getElementById('debugInfo');
+        
+        let poses = [];
+        let isDetecting = false;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.textContent += `[${timestamp}] ${message}\n`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function setStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function clearDebug() {
+            debugDiv.textContent = '';
+        }
+
+        function loadSampleVideo() {
+            log('🎥 Loading sample video...');
+            setStatus('Loading video...', 'info');
+            
+            video.addEventListener('loadeddata', () => {
+                log(`✅ Video loaded: ${video.videoWidth}x${video.videoHeight}, duration: ${video.duration}s`);
+                setStatus('Video loaded successfully', 'success');
+            });
+            
+            video.addEventListener('error', (e) => {
+                log(`❌ Video load error: ${e.message}`);
+                setStatus('Video load failed', 'error');
+            });
+            
+            video.load();
+        }
+
+        async function startPoseDetection() {
+            if (isDetecting) return;
+            
+            log('🔍 Starting pose detection...');
+            setStatus('Detecting poses...', 'info');
+            isDetecting = true;
+            
+            try {
+                // Simulate pose detection by creating mock poses
+                poses = [];
+                const frameCount = Math.floor(video.duration * 30); // 30fps
+                
+                log(`📊 Creating ${frameCount} mock poses...`);
+                
+                for (let i = 0; i < frameCount; i++) {
+                    const time = i / 30;
+                    const progress = i / frameCount;
+                    
+                    // Create a simple moving pose
+                    const pose = {
+                        landmarks: Array.from({ length: 33 }, (_, j) => ({
+                            x: 0.5 + Math.sin(time * 2 + j * 0.1) * 0.1,
+                            y: 0.5 + Math.cos(time * 2 + j * 0.1) * 0.1,
+                            visibility: 0.9
+                        })),
+                        timestamp: time,
+                        confidence: 0.9
+                    };
+                    
+                    poses.push(pose);
+                    
+                    if (i % 30 === 0) {
+                        log(`📈 Progress: ${Math.round(progress * 100)}% (${i}/${frameCount} poses)`);
+                    }
+                }
+                
+                log(`✅ Pose detection complete: ${poses.length} poses created`);
+                setStatus(`Pose detection complete: ${poses.length} poses`, 'success');
+                
+            } catch (error) {
+                log(`❌ Pose detection error: ${error.message}`);
+                setStatus('Pose detection failed', 'error');
+            } finally {
+                isDetecting = false;
+            }
+        }
+
+        function testOverlayRendering() {
+            if (poses.length === 0) {
+                log('❌ No poses available. Run pose detection first.');
+                setStatus('No poses available', 'error');
+                return;
+            }
+            
+            log('🎨 Testing overlay rendering...');
+            setStatus('Testing overlays...', 'info');
+            
+            const ctx = poseCanvas.getContext('2d');
+            if (!ctx) {
+                log('❌ Canvas context not available');
+                setStatus('Canvas error', 'error');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+            
+            // Draw test overlay
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.fillRect(10, 10, 100, 50);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.fillText('TEST OVERLAY', 15, 35);
+            
+            // Draw pose data
+            const currentTime = video.currentTime;
+            const frame = Math.floor(currentTime * 30);
+            const pose = poses[frame];
+            
+            if (pose) {
+                log(`🎯 Drawing pose for frame ${frame} (time: ${currentTime.toFixed(2)}s)`);
+                
+                // Draw skeleton
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                
+                const connections = [
+                    [11, 12], [11, 13], [12, 14], [11, 23], [12, 24], [23, 24],
+                    [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
+                    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22],
+                    [23, 25], [25, 27], [27, 29], [27, 31],
+                    [24, 26], [26, 28], [28, 30], [28, 32]
+                ];
+                
+                connections.forEach(([start, end]) => {
+                    if (pose.landmarks[start] && pose.landmarks[end]) {
+                        ctx.beginPath();
+                        ctx.moveTo(
+                            pose.landmarks[start].x * poseCanvas.width,
+                            pose.landmarks[start].y * poseCanvas.height
+                        );
+                        ctx.lineTo(
+                            pose.landmarks[end].x * poseCanvas.width,
+                            pose.landmarks[end].y * poseCanvas.height
+                        );
+                        ctx.stroke();
+                    }
+                });
+                
+                // Draw keypoints
+                pose.landmarks.forEach((landmark, i) => {
+                    if (landmark.visibility > 0.5) {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.beginPath();
+                        ctx.arc(
+                            landmark.x * poseCanvas.width,
+                            landmark.y * poseCanvas.height,
+                            4, 0, 2 * Math.PI
+                        );
+                        ctx.fill();
+                    }
+                });
+                
+                log(`✅ Overlay rendered with ${pose.landmarks.length} landmarks`);
+                setStatus('Overlay rendering successful', 'success');
+                
+            } else {
+                log(`❌ No pose data for frame ${frame}`);
+                setStatus('No pose data for current frame', 'error');
+            }
+        }
+
+        // Auto-update overlays when video time changes
+        video.addEventListener('timeupdate', () => {
+            if (poses.length > 0) {
+                testOverlayRendering();
+            }
+        });
+
+        // Initialize
+        log('🚀 Pose Detection Debug Test initialized');
+        log('📝 Instructions:');
+        log('1. Click "Load Sample Video" to load the test video');
+        log('2. Click "Start Pose Detection" to create mock pose data');
+        log('3. Click "Test Overlay Rendering" to test overlay drawing');
+        log('4. Play the video to see real-time overlay updates');
+    </script>
+</body>
+</html>
