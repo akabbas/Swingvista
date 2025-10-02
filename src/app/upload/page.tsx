@@ -623,6 +623,26 @@ export default function UploadPage() {
         videoSeeking: video.seeking
       });
       
+      // Test: Draw rectangles to verify canvas is working (ALWAYS VISIBLE)
+      ctx.fillStyle = 'red';
+      ctx.fillRect(10, 10, 50, 50);
+      
+      // Add a more prominent test indicator
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(canvas.width - 60, 10, 50, 50);
+      
+      // Add text indicator
+      ctx.fillStyle = 'white';
+      ctx.font = '16px Arial';
+      ctx.fillText('CANVAS', canvas.width - 55, 35);
+      
+      console.log('🔴 Test rectangles drawn at (10,10) and top-right corner', {
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        canvasStyle: canvas.style.cssText,
+        canvasPosition: canvas.getBoundingClientRect()
+      });
+      
       // Try to get pose for current frame, with fallback to nearest frame
       let pose = getNormalizedPose(posesForOverlay[frameIndex]);
       
@@ -654,12 +674,6 @@ export default function UploadPage() {
       // Draw stick figure if enabled
       if (showStickFigure) {
         console.log('🎯 Drawing stick figure for frame:', frameIndex);
-        
-        // Test: Draw a simple rectangle to verify canvas is working
-        ctx.fillStyle = 'red';
-        ctx.fillRect(10, 10, 50, 50);
-        console.log('🔴 Test rectangle drawn at (10,10)');
-        
         drawStickFigure(ctx, pose.landmarks, canvas.width, canvas.height);
         
         // Add a small indicator that stick figure is active
