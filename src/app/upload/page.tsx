@@ -230,9 +230,25 @@ export default function UploadPage() {
             pose = Array.isArray(detectedPoses) ? detectedPoses[0] : detectedPoses;
           }
           
-          // Log successful detection
+          // Log successful detection with more details
           if (pose && (pose as any).landmarks && (pose as any).landmarks.length > 0) {
-            console.log(`✅ Frame ${frame}: Detected ${(pose as any).landmarks.length} landmarks`);
+            const landmarks = (pose as any).landmarks;
+            const visibleLandmarks = landmarks.filter((l: any) => l && l.visibility > 0.3).length;
+            console.log(`✅ Frame ${frame}: Detected ${landmarks.length} landmarks (${visibleLandmarks} visible)`);
+            
+            // Debug first few frames to see if pose is tracking golfer
+            if (frame < 3) {
+              const firstLandmark = landmarks[0];
+              if (firstLandmark) {
+                console.log(`🎯 Frame ${frame} pose sample:`, {
+                  x: firstLandmark.x,
+                  y: firstLandmark.y,
+                  visibility: firstLandmark.visibility,
+                  pixelX: firstLandmark.x * video.videoWidth,
+                  pixelY: firstLandmark.y * video.videoHeight
+                });
+              }
+            }
           } else {
             console.warn(`⚠️ Frame ${frame}: No landmarks detected, using fallback`);
             pose = generateFallbackPose(frame, totalFrames, video.duration);
@@ -588,17 +604,39 @@ export default function UploadPage() {
 
     const normalizeLandmarks = (landmarks: any[] = []) =>
       landmarks.map((lm: any) => ({
-        x: Math.max(0, Math.min(1, lm?.x ?? 0.5)),
-        y: Math.max(0, Math.min(1, lm?.y ?? 0.5)),
+        x: Math.max(0, Math.min(1, lm?.x ?? 0)),
+        y: Math.max(0, Math.min(1, lm?.y ?? 0)),
         z: lm?.z ?? 0,
         visibility: Math.max(0, Math.min(1, lm?.visibility ?? 0))
       }));
 
     const getNormalizedPose = (rawPose: any) => {
       if (!rawPose?.landmarks) return null;
+      
+      const normalizedLandmarks = normalizeLandmarks(rawPose.landmarks);
+      
+      // Check if pose has enough visible landmarks to be useful
+      const visibleLandmarks = normalizedLandmarks.filter(lm => lm.visibility > 0.3).length;
+      if (visibleLandmarks < 5) {
+        console.warn('⚠️ Pose has too few visible landmarks:', visibleLandmarks);
+        return null;
+      }
+      
+      // Check if pose looks like a person (has key body parts)
+      const hasHead = normalizedLandmarks[0] && normalizedLandmarks[0].visibility > 0.3;
+      const hasShoulders = (normalizedLandmarks[11] && normalizedLandmarks[11].visibility > 0.3) || 
+                          (normalizedLandmarks[12] && normalizedLandmarks[12].visibility > 0.3);
+      const hasHips = (normalizedLandmarks[23] && normalizedLandmarks[23].visibility > 0.3) || 
+                     (normalizedLandmarks[24] && normalizedLandmarks[24].visibility > 0.3);
+      
+      if (!hasHead || !hasShoulders || !hasHips) {
+        console.warn('⚠️ Pose does not look like a person (missing key body parts)');
+        return null;
+      }
+      
       return {
         ...rawPose,
-        landmarks: normalizeLandmarks(rawPose.landmarks)
+        landmarks: normalizedLandmarks
       };
     };
 
@@ -676,6 +714,26 @@ export default function UploadPage() {
       if (!pose || !pose.landmarks) {
         console.log('⚠️ No pose data available for frame:', frameIndex, 'or nearby frames');
         return;
+      }
+      
+      // Debug: Check if pose data looks reasonable
+      const firstLandmark = pose.landmarks[0];
+      if (firstLandmark) {
+        console.log('🎯 POSE DEBUG:', {
+          frameIndex,
+          landmarksCount: pose.landmarks.length,
+          firstLandmark: {
+            x: firstLandmark.x,
+            y: firstLandmark.y,
+            visibility: firstLandmark.visibility
+          },
+          pixelCoords: {
+            x: firstLandmark.x * canvas.width,
+            y: firstLandmark.y * canvas.height
+          },
+          canvasSize: `${canvas.width}x${canvas.height}`,
+          videoSize: `${video.videoWidth}x${video.videoHeight}`
+        });
       }
       
       // Draw stick figure if enabled
