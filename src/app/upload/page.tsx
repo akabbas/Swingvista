@@ -728,25 +728,19 @@ export default function UploadPage() {
       console.log('🎛️ VISUALIZATION TOGGLES STATUS:', { showSwingPlane, showStickFigure, showHandTrails, showClubPath, showPlaneTunnel });
     };
 
-    // Debounced overlay drawing to prevent conflicts with video controls
-    let overlayTimeout: NodeJS.Timeout | null = null;
+    // Overlay drawing state
     let overlayRaf: number | null = null;
-    const debouncedDrawOverlay = () => {
-      if (overlayTimeout) {
-        clearTimeout(overlayTimeout);
-      }
-      overlayTimeout = setTimeout(() => {
-        try {
-          drawPoseOverlay();
-        } catch (error) {
-          console.warn('⚠️ Overlay drawing failed:', error);
-        }
-      }, 16); // ~60fps for smoother overlay updates
-    };
 
     // Initial setup and listeners
+    let lastDrawTime = 0;
     const onTimeUpdate = () => {
-      // Draw immediately for smooth playback
+      // Throttle drawing to prevent excessive redraws
+      const now = Date.now();
+      if (now - lastDrawTime < 33) { // ~30fps max
+        return;
+      }
+      lastDrawTime = now;
+      
       try {
         drawPoseOverlay();
       } catch (error) {
@@ -787,27 +781,16 @@ export default function UploadPage() {
       }
     };
     const onPlay = () => {
-      // Start rAF loop for smooth overlays during playback
+      // Clear any existing RAF loop
       if (overlayRaf) {
         cancelAnimationFrame(overlayRaf);
         overlayRaf = null;
       }
-      const render = () => {
-        try {
-          drawPoseOverlay();
-        } catch (error) {
-          console.warn('⚠️ Overlay drawing failed in rAF:', error);
-        }
-        overlayRaf = requestAnimationFrame(render);
-      };
-      overlayRaf = requestAnimationFrame(render);
+      // Don't start aggressive RAF loop - let timeupdate handle it
+      console.log('▶️ Video playing - overlays will update on timeupdate events');
     };
     const onPause = () => {
-      // Clear any pending overlay updates when pausing
-      if (overlayTimeout) {
-        clearTimeout(overlayTimeout);
-        overlayTimeout = null;
-      }
+      // Clear any RAF loops when pausing
       if (overlayRaf) {
         cancelAnimationFrame(overlayRaf);
         overlayRaf = null;
@@ -880,11 +863,7 @@ export default function UploadPage() {
     }
     
     return () => {
-      // Clear any pending overlay updates
-      if (overlayTimeout) {
-        clearTimeout(overlayTimeout);
-        overlayTimeout = null;
-      }
+      // Clear any RAF loops
       
       window.removeEventListener('resize', onWindowResize);
       video.removeEventListener('timeupdate', onTimeUpdate);
