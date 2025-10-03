@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Overlay Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        video {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 640px;
+            height: 480px;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Clean Overlay Rendering Test</h1>
+        <p>This test verifies that the overlay rendering logic works correctly with mock pose data.</p>
+        
+        <div class="video-container">
+            <video id="video" controls>
+                <source src="/fixtures/swings/tiger-woods-swing.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <canvas id="poseCanvas" width="640" height="480"></canvas>
+        </div>
+
+        <div class="controls">
+            <button onclick="loadVideo()">Load Video</button>
+            <button onclick="testOverlayRendering()">Test Overlay Rendering</button>
+            <button onclick="clearDebug()">Clear Debug</button>
+        </div>
+
+        <div class="debug-info" id="debugInfo">
+            Debug information will appear here...
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const poseCanvas = document.getElementById('poseCanvas');
+        const debugDiv = document.getElementById('debugInfo');
+        
+        let poses = [];
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.textContent += `[${timestamp}] ${message}\n`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearDebug() {
+            debugDiv.textContent = '';
+        }
+
+        function loadVideo() {
+            log('🎥 Loading video...');
+            video.addEventListener('loadeddata', () => {
+                log(`✅ Video loaded: ${video.videoWidth}x${video.videoHeight}, duration: ${video.duration}s`);
+                createMockPoses();
+            });
+            video.load();
+        }
+
+        function createMockPoses() {
+            log('🎭 Creating mock pose data...');
+            poses = [];
+            const frameCount = Math.floor(video.duration * 30); // 30fps
+            
+            for (let i = 0; i < frameCount; i++) {
+                const time = i / 30;
+                const progress = i / frameCount;
+                
+                // Create a moving pose that follows a golf swing motion
+                const swingPhase = progress * Math.PI; // 0 to π
+                const centerX = 0.5 + Math.sin(swingPhase) * 0.1;
+                const centerY = 0.5 + Math.cos(swingPhase) * 0.05;
+                
+                const pose = {
+                    landmarks: Array.from({ length: 33 }, (_, j) => {
+                        // Create a realistic pose structure
+                        const angle = (j / 33) * Math.PI * 2;
+                        const radius = 0.1 + Math.sin(swingPhase + angle) * 0.05;
+                        
+                        return {
+                            x: centerX + Math.cos(angle) * radius,
+                            y: centerY + Math.sin(angle) * radius,
+                            z: 0,
+                            visibility: 0.9
+                        };
+                    }),
+                    timestamp: time * 1000,
+                    confidence: 0.9
+                };
+                
+                poses.push(pose);
+            }
+            
+            log(`✅ Created ${poses.length} mock poses`);
+            log(`📊 First pose sample: ${JSON.stringify(poses[0], null, 2)}`);
+        }
+
+        function testOverlayRendering() {
+            if (poses.length === 0) {
+                log('❌ No poses available. Load video first.');
+                return;
+            }
+            
+            log('🎨 Testing overlay rendering...');
+            
+            const ctx = poseCanvas.getContext('2d');
+            if (!ctx) {
+                log('❌ Canvas context not available');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+            
+            // Get current frame
+            const currentTime = video.currentTime;
+            const frame = Math.floor(currentTime * 30);
+            const pose = poses[frame];
+            
+            log(`🎯 Rendering frame ${frame} (time: ${currentTime.toFixed(2)}s)`);
+            
+            if (pose && pose.landmarks && pose.landmarks.length > 0) {
+                // Draw skeleton connections
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
+                    [11, 12], [11, 13], [12, 14], [11, 23], [12, 24], [23, 24],
+                    [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [19, 21],
+                    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20], [20, 22],
+                    [23, 25], [25, 27], [27, 29], [27, 31], [29, 31],
+                    [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
+                ];
+                
+                // Draw connections
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 3;
+                
+                connections.forEach(([start, end]) => {
+                    if (pose.landmarks[start] && pose.landmarks[end] && 
+                        (pose.landmarks[start].visibility || 0) > 0.3 && 
+                        (pose.landmarks[end].visibility || 0) > 0.3) {
+                        ctx.beginPath();
+                        ctx.moveTo(
+                            pose.landmarks[start].x * poseCanvas.width,
+                            pose.landmarks[start].y * poseCanvas.height
+                        );
+                        ctx.lineTo(
+                            pose.landmarks[end].x * poseCanvas.width,
+                            pose.landmarks[end].y * poseCanvas.height
+                        );
+                        ctx.stroke();
+                    }
+                });
+                
+                // Draw keypoints
+                pose.landmarks.forEach((landmark, i) => {
+                    if ((landmark.visibility || 0) > 0.3) {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.beginPath();
+                        ctx.arc(
+                            landmark.x * poseCanvas.width,
+                            landmark.y * poseCanvas.height,
+                            4, 0, 2 * Math.PI
+                        );
+                        ctx.fill();
+                    }
+                });
+                
+                log(`✅ Overlay rendered with ${pose.landmarks.length} landmarks`);
+                
+            } else {
+                log(`❌ No pose data for frame ${frame}`);
+            }
+        }
+
+        // Auto-update overlays when video time changes
+        video.addEventListener('timeupdate', () => {
+            if (poses.length > 0) {
+                testOverlayRendering();
+            }
+        });
+
+        // Initialize
+        log('🚀 Clean Overlay Test initialized');
+        log('📝 Instructions:');
+        log('1. Click "Load Video" to load the test video');
+        log('2. Click "Test Overlay Rendering" to test overlay drawing');
+        log('3. Play the video to see real-time overlay updates');
+    </script>
+</body>
+</html>
