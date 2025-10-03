@@ -18,6 +18,14 @@ export default function CleanVideoAnalysisDisplay({
   isAnalyzing, 
   poses 
 }: CleanVideoAnalysisDisplayProps) {
+  console.log('🎬 CLEAN VIDEO DISPLAY: Props received:', {
+    hasVideoFile: !!videoFile,
+    hasVideoUrl: !!videoUrl,
+    hasAnalysis: !!analysis,
+    isAnalyzing,
+    posesCount: poses?.length || 0,
+    poses: poses ? 'exists' : 'null'
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -53,10 +61,22 @@ export default function CleanVideoAnalysisDisplay({
 
   // Draw pose overlays
   const drawPoseOverlay = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
-    if (!poses || poses.length === 0) return;
+    console.log('🎨 DRAW POSE OVERLAY: Frame', frame, 'Poses available:', poses?.length);
+    
+    if (!poses || poses.length === 0) {
+      console.log('❌ No poses available for overlay');
+      return;
+    }
 
     const pose = poses[frame];
-    if (!pose || !pose.landmarks || pose.landmarks.length === 0) return;
+    console.log('🎨 Pose for frame', frame, ':', pose ? 'exists' : 'null');
+    
+    if (!pose || !pose.landmarks || pose.landmarks.length === 0) {
+      console.log('❌ No landmarks for frame', frame);
+      return;
+    }
+    
+    console.log('🎨 Drawing overlay with', pose.landmarks.length, 'landmarks');
 
     const canvas = poseCanvasRef.current;
     if (!canvas) return;
@@ -177,29 +197,48 @@ export default function CleanVideoAnalysisDisplay({
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
+    console.log('🎨 DRAW OVERLAYS CALLED:', {
+      hasCanvas: !!poseCanvasRef.current,
+      hasVideo: !!videoRef.current,
+      showOverlays,
+      posesCount: poses?.length || 0,
+      overlaySettings
+    });
+    
     const canvas = poseCanvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !showOverlays) return;
+    if (!canvas || !video || !showOverlays) {
+      console.log('❌ Draw overlays skipped:', { canvas: !!canvas, video: !!video, showOverlays });
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('❌ No canvas context');
+      return;
+    }
 
     // Set canvas size to match video
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
+    console.log('🎨 Canvas size set to:', canvas.width, 'x', canvas.height);
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
+    console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
 
     if (overlaySettings.stickFigure) {
+      console.log('🎨 Drawing stick figure...');
       drawPoseOverlay(ctx, frame);
     }
     if (overlaySettings.swingPlane) {
+      console.log('🎨 Drawing swing plane...');
       drawSwingPlane(ctx, frame);
     }
     if (overlaySettings.phaseMarkers) {
+      console.log('🎨 Drawing phase markers...');
       drawPhaseMarkers(ctx, frame);
     }
-  }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers]);
+  }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers, poses]);
 
   // Update overlays when video time changes
   useEffect(() => {

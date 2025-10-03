@@ -237,6 +237,7 @@ export default function CleanUploadPage() {
       });
       
       console.log('🏌️ UPLOAD ANALYSIS: Extracted poses:', extracted.length);
+      console.log('🏌️ UPLOAD ANALYSIS: First pose sample:', extracted[0]);
       dispatch({ type: 'SET_POSES', payload: extracted });
 
       // Step 2: Analyze golf swing
