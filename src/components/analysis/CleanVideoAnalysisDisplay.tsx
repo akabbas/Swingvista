@@ -124,27 +124,9 @@ export default function CleanVideoAnalysisDisplay({
       [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
     ];
 
-    // Calculate body scale based on shoulder width for more accurate proportions
-    const leftShoulder = pose.landmarks[11];
-    const rightShoulder = pose.landmarks[12];
-    let bodyScale = 1.0;
-    
-    if (leftShoulder && rightShoulder && 
-        (leftShoulder.visibility || 0) > 0.3 && (rightShoulder.visibility || 0) > 0.3) {
-      const shoulderDistance = Math.sqrt(
-        Math.pow(rightShoulder.x - leftShoulder.x, 2) + 
-        Math.pow(rightShoulder.y - leftShoulder.y, 2)
-      );
-      // Normalize shoulder width to get a reasonable scale factor
-      bodyScale = Math.max(0.5, Math.min(2.0, shoulderDistance * 3));
-      console.log('🎨 Body scale calculated:', bodyScale, 'shoulder distance:', shoulderDistance);
-    } else {
-      console.log('🎨 Using default body scale:', bodyScale);
-    }
-
-    // Draw connections with adjusted scaling
+    // Draw connections - simple and accurate
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = Math.max(2, 4 * bodyScale);
+    ctx.lineWidth = 3;
     
     connections.forEach(([start, end]) => {
       if (pose.landmarks[start] && pose.landmarks[end] && 
@@ -163,28 +145,15 @@ export default function CleanVideoAnalysisDisplay({
       }
     });
 
-    // Draw keypoints with adjusted scaling
-    pose.landmarks.forEach((landmark: any, index: number) => {
+    // Draw keypoints - simple and accurate
+    pose.landmarks.forEach((landmark: any) => {
       if ((landmark.visibility || 0) > 0.3) {
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
-        
-        // Make key points proportional to body size
-        let pointSize = 4;
-        if (index === 11 || index === 12) { // Shoulders
-          pointSize = 8 * bodyScale;
-        } else if (index === 15 || index === 16) { // Wrists
-          pointSize = 6 * bodyScale;
-        } else if (index === 23 || index === 24) { // Hips
-          pointSize = 7 * bodyScale;
-        } else {
-          pointSize = 5 * bodyScale;
-        }
-        
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          Math.max(2, pointSize), 0, 2 * Math.PI
+          4, 0, 2 * Math.PI
         );
         ctx.fill();
       }
@@ -318,42 +287,30 @@ export default function CleanVideoAnalysisDisplay({
     let clubHeadY = 0.5; // Default center
     let method = 'default';
 
-    // Method 1: Use wrists if both are visible - small extension for club head
+    // Method 1: Use wrists if both are visible - NO extension, just use wrists
     if (leftWrist && rightWrist && 
         (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
-      const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
-      const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
-      
-      // Small extension beyond wrists to approximate club head
-      // Club head is typically just beyond the hands
-      const extensionFactor = 0.05; // Much smaller extension
-      clubHeadX = wristCenterX;
-      clubHeadY = wristCenterY - extensionFactor; // Just slightly below wrists
-      method = 'wrists+small';
+      clubHeadX = (leftWrist.x + rightWrist.x) / 2;
+      clubHeadY = (leftWrist.y + rightWrist.y) / 2;
+      method = 'wrists';
     }
     // Method 2: Use shoulders if wrists not available
     else if (leftShoulder && rightShoulder && 
              (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
-      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-      
-      // Small extension from shoulders
-      clubHeadX = shoulderCenterX;
-      clubHeadY = shoulderCenterY - 0.1; // Just slightly below shoulders
-      method = 'shoulders+small';
+      clubHeadX = (leftShoulder.x + rightShoulder.x) / 2;
+      clubHeadY = (leftShoulder.y + rightShoulder.y) / 2;
+      method = 'shoulders';
     }
     // Method 3: Use single wrist if only one is visible
     else if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
-      // Small extension from left wrist
       clubHeadX = leftWrist.x;
-      clubHeadY = leftWrist.y - 0.05; // Just slightly below
-      method = 'leftWrist+small';
+      clubHeadY = leftWrist.y;
+      method = 'leftWrist';
     }
     else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
-      // Small extension from right wrist
       clubHeadX = rightWrist.x;
-      clubHeadY = rightWrist.y - 0.05; // Just slightly below
-      method = 'rightWrist+small';
+      clubHeadY = rightWrist.y;
+      method = 'rightWrist';
     }
 
     console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, method });
@@ -379,33 +336,27 @@ export default function CleanVideoAnalysisDisplay({
       let pastClubY = 0.5;
       let hasValidPoint = false;
       
-      // Use same small extension logic for past frames
+      // Use same simple logic for past frames - NO extensions
       if (pastLeftWrist && pastRightWrist && 
           (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
-        const pastWristCenterX = (pastLeftWrist.x + pastRightWrist.x) / 2;
-        const pastWristCenterY = (pastLeftWrist.y + pastRightWrist.y) / 2;
-        
-        pastClubX = pastWristCenterX;
-        pastClubY = pastWristCenterY - 0.05; // Small extension
+        pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
+        pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
         hasValidPoint = true;
       }
       else if (pastLeftShoulder && pastRightShoulder && 
                (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
-        const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
-        const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
-        
-        pastClubX = pastShoulderCenterX;
-        pastClubY = pastShoulderCenterY - 0.1; // Small extension
+        pastClubX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
+        pastClubY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
         hasValidPoint = true;
       }
       else if (pastLeftWrist && (pastLeftWrist.visibility || 0) > 0.1) {
         pastClubX = pastLeftWrist.x;
-        pastClubY = pastLeftWrist.y - 0.05; // Small extension
+        pastClubY = pastLeftWrist.y;
         hasValidPoint = true;
       }
       else if (pastRightWrist && (pastRightWrist.visibility || 0) > 0.1) {
         pastClubX = pastRightWrist.x;
-        pastClubY = pastRightWrist.y - 0.05; // Small extension
+        pastClubY = pastRightWrist.y;
         hasValidPoint = true;
       }
       
