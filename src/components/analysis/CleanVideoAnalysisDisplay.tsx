@@ -70,7 +70,14 @@ export default function CleanVideoAnalysisDisplay({
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const newTime = videoRef.current.currentTime;
+      setCurrentTime(newTime);
+      
+      // Debug video playback
+      const frame = Math.floor(newTime * 30); // Assuming 30fps
+      if (frame % 10 === 0) { // Log every 10 frames to avoid console spam
+        console.log(`🎬 VIDEO TIME UPDATE: time=${newTime.toFixed(2)}s, frame=${frame}, playing=${!videoRef.current.paused}`);
+      }
     }
   }, []);
 
@@ -625,18 +632,51 @@ export default function CleanVideoAnalysisDisplay({
     }
   }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers, drawClubPath, poses]);
 
-  // Update overlays when video time changes
+  // Animation loop for smooth overlay rendering
   useEffect(() => {
-    drawOverlays();
-  }, [currentTime, drawOverlays]);
+    let animationFrameId: number;
+    let lastDrawTime = 0;
+    const FRAME_INTERVAL = 1000 / 60; // Target 60fps for smooth animation
+    
+    function animationLoop(timestamp: number) {
+      // Only draw if enough time has passed since last draw
+      if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
+        drawOverlays();
+        lastDrawTime = timestamp;
+      }
+      
+      // Continue the animation loop
+      animationFrameId = requestAnimationFrame(animationLoop);
+    }
+    
+    // Start the animation loop
+    console.log('🎬 Starting animation loop for overlays');
+    animationFrameId = requestAnimationFrame(animationLoop);
+    
+    // Cleanup function
+    return () => {
+      console.log('🎬 Stopping animation loop');
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [drawOverlays]);
 
-  // Trigger overlays when video loads
+  // Trigger initial overlay draw when video loads and auto-play
   useEffect(() => {
     if (videoRef.current && poses && poses.length > 0) {
       console.log('🎨 VIDEO LOADED - Triggering initial overlay draw');
+      
+      // Auto-play the video after a short delay
       setTimeout(() => {
         drawOverlays();
-      }, 100); // Small delay to ensure video is ready
+        
+        // Auto-play video
+        if (videoRef.current) {
+          console.log('🎬 Auto-playing video');
+          videoRef.current.play()
+            .then(() => console.log('🎬 Video playback started'))
+            .catch(err => console.error('🎬 Auto-play failed:', err));
+        }
+      }, 500); // Slightly longer delay to ensure video is ready
     }
   }, [poses, drawOverlays]);
 
