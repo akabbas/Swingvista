@@ -28,6 +28,7 @@ export default function CleanVideoAnalysisDisplay({
   });
   const videoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
+  const clubPathCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(0.5); // Default to 0.5x speed for golf analysis
@@ -461,7 +462,7 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
 
-    const canvas = poseCanvasRef.current;
+    const canvas = clubPathCanvasRef.current;
     if (!canvas) {
       console.log('❌ No canvas for club path');
       return;
@@ -472,9 +473,8 @@ export default function CleanVideoAnalysisDisplay({
     
     console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, confidence, method });
 
-    // Clear any previous search rectangles that might be left over
-    // This ensures we don't get accumulating yellow boxes
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // We don't need to clear here anymore as the main drawOverlays function
+    // handles clearing each canvas before drawing
     
     // Draw club path trail (show last 30 frames for better visibility)
     ctx.strokeStyle = '#ff00ff';
@@ -536,41 +536,53 @@ export default function CleanVideoAnalysisDisplay({
       overlaySettings
     });
     
-    const canvas = poseCanvasRef.current;
+    const poseCanvas = poseCanvasRef.current;
+    const clubPathCanvas = clubPathCanvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !showOverlays) {
-      console.log('❌ Draw overlays skipped:', { canvas: !!canvas, video: !!video, showOverlays });
+    if (!poseCanvas || !clubPathCanvas || !video || !showOverlays) {
+      console.log('❌ Draw overlays skipped:', { 
+        poseCanvas: !!poseCanvas, 
+        clubPathCanvas: !!clubPathCanvas,
+        video: !!video, 
+        showOverlays 
+      });
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+    const poseCtx = poseCanvas.getContext('2d');
+    const clubPathCtx = clubPathCanvas.getContext('2d');
+    if (!poseCtx || !clubPathCtx) {
       console.log('❌ No canvas context');
       return;
     }
 
-    // Set canvas size to match video
+    // Set canvas sizes to match video
     const videoWidth = video.videoWidth || 640;
     const videoHeight = video.videoHeight || 480;
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
+    poseCanvas.width = videoWidth;
+    poseCanvas.height = videoHeight;
+    clubPathCanvas.width = videoWidth;
+    clubPathCanvas.height = videoHeight;
     
     // Set CSS size to match video display size exactly
     const videoRect = video.getBoundingClientRect();
     const containerRect = video.parentElement?.getBoundingClientRect();
     
     if (containerRect) {
-      // Position canvas relative to its container, not the video
-      canvas.style.position = 'absolute';
-      canvas.style.top = '0px';
-      canvas.style.left = '0px';
-      canvas.style.width = containerRect.width + 'px';
-      canvas.style.height = containerRect.height + 'px';
-      canvas.style.zIndex = '10';
+      // Position both canvases relative to their container, not the video
+      const canvases = [poseCanvas, clubPathCanvas];
+      canvases.forEach((canvas, index) => {
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0px';
+        canvas.style.left = '0px';
+        canvas.style.width = containerRect.width + 'px';
+        canvas.style.height = containerRect.height + 'px';
+        canvas.style.zIndex = `${10 + index}`; // Stack canvases with different z-indices
+      });
     }
     
-    console.log('🎨 Canvas size set to:', canvas.width, 'x', canvas.height);
-    console.log('🎨 Canvas CSS size:', canvas.style.width, 'x', canvas.style.height);
+    console.log('🎨 Pose canvas size set to:', poseCanvas.width, 'x', poseCanvas.height);
+    console.log('🎨 Club path canvas size set to:', clubPathCanvas.width, 'x', clubPathCanvas.height);
     console.log('🎨 Video rect:', videoRect.width, 'x', videoRect.height);
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
@@ -578,32 +590,36 @@ export default function CleanVideoAnalysisDisplay({
     console.log('🎨 Poses array length:', poses?.length);
     console.log('🎨 Frame within bounds:', frame < (poses?.length || 0));
 
+    // Clear both canvases
+    poseCtx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+    clubPathCtx.clearRect(0, 0, clubPathCanvas.width, clubPathCanvas.height);
+
     // ALWAYS draw test indicators regardless of overlay settings
     console.log('🎨 Drawing test indicators...');
-    drawTestIndicators(ctx, canvas);
+    drawTestIndicators(poseCtx, poseCanvas);
 
     if (overlaySettings.stickFigure) {
       console.log('🎨 Drawing stick figure...');
       // Ensure frame is within bounds
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
       console.log('🎨 Safe frame for stick figure:', safeFrame);
-      drawPoseOverlay(ctx, safeFrame);
+      drawPoseOverlay(poseCtx, safeFrame);
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawSwingPlane(ctx, safeFrame);
+      drawSwingPlane(poseCtx, safeFrame);
     }
     if (overlaySettings.phaseMarkers) {
       console.log('🎨 Drawing phase markers...');
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawPhaseMarkers(ctx, safeFrame);
+      drawPhaseMarkers(poseCtx, safeFrame);
     }
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawClubPath(ctx, safeFrame);
+      drawClubPath(clubPathCtx, safeFrame);
     } else {
       console.log('🎨 Club path disabled in settings');
     }
@@ -667,6 +683,7 @@ export default function CleanVideoAnalysisDisplay({
             className="w-full h-auto"
             style={{ maxHeight: '500px' }}
           />
+          {/* Pose Canvas - for stick figure, swing plane, phase markers */}
           <canvas
             ref={poseCanvasRef}
             className="absolute top-0 left-0 pointer-events-none"
@@ -675,6 +692,17 @@ export default function CleanVideoAnalysisDisplay({
               height: '100%',
               maxHeight: '500px',
               zIndex: 10
+            }}
+          />
+          {/* Club Path Canvas - for club path only */}
+          <canvas
+            ref={clubPathCanvasRef}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{ 
+              width: '100%', 
+              height: '100%',
+              maxHeight: '500px',
+              zIndex: 11
             }}
           />
         </div>
