@@ -256,28 +256,53 @@ export default function CleanVideoAnalysisDisplay({
 
   // Draw club path
   const drawClubPath = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
-    if (!poses || poses.length === 0) return;
+    console.log('🎨 DRAW CLUB PATH: Frame', frame, 'Poses available:', poses?.length);
+    
+    if (!poses || poses.length === 0) {
+      console.log('❌ No poses for club path');
+      return;
+    }
 
     const canvas = poseCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('❌ No canvas for club path');
+      return;
+    }
 
     // Get wrist positions to approximate club path
     const leftWrist = poses[frame]?.landmarks[15];
     const rightWrist = poses[frame]?.landmarks[16];
 
-    if (!leftWrist || !rightWrist || 
-        (leftWrist.visibility || 0) < 0.3 || (rightWrist.visibility || 0) < 0.3) return;
+    console.log('🎨 Club path wrists:', {
+      leftWrist: leftWrist ? { x: leftWrist.x, y: leftWrist.y, visibility: leftWrist.visibility } : 'none',
+      rightWrist: rightWrist ? { x: rightWrist.x, y: rightWrist.y, visibility: rightWrist.visibility } : 'none'
+    });
+
+    if (!leftWrist || !rightWrist) {
+      console.log('❌ No wrist landmarks for club path');
+      return;
+    }
+
+    // Lower visibility threshold for club path
+    if ((leftWrist.visibility || 0) < 0.1 || (rightWrist.visibility || 0) < 0.1) {
+      console.log('❌ Wrist visibility too low for club path');
+      return;
+    }
 
     // Calculate club head position (approximate from wrists)
     const clubHeadX = (leftWrist.x + rightWrist.x) / 2;
     const clubHeadY = (leftWrist.y + rightWrist.y) / 2;
 
-    // Draw club path trail (show last 10 frames)
+    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY });
+
+    // Draw club path trail (show last 20 frames for better visibility)
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 5; // Make it thicker
     ctx.beginPath();
     
-    const startFrame = Math.max(0, frame - 10);
+    const startFrame = Math.max(0, frame - 20);
+    let pathPoints = 0;
+    
     for (let i = startFrame; i <= frame; i++) {
       const pastPose = poses[i];
       if (!pastPose?.landmarks) continue;
@@ -286,30 +311,35 @@ export default function CleanVideoAnalysisDisplay({
       const pastRightWrist = pastPose.landmarks[16];
       
       if (pastLeftWrist && pastRightWrist && 
-          (pastLeftWrist.visibility || 0) > 0.3 && (pastRightWrist.visibility || 0) > 0.3) {
+          (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
         
         const pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
         const pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
         
-        if (i === startFrame) {
+        if (pathPoints === 0) {
           ctx.moveTo(pastClubX * canvas.width, pastClubY * canvas.height);
         } else {
           ctx.lineTo(pastClubX * canvas.width, pastClubY * canvas.height);
         }
+        pathPoints++;
       }
     }
+    
+    console.log('🎨 Club path points drawn:', pathPoints);
     ctx.stroke();
 
-    // Draw current club head position
+    // Draw current club head position (make it bigger)
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
-    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 8, 0, 2 * Math.PI);
+    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 12, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw club path label
+    // Draw club path label with background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(10, canvas.height - 80, 150, 30);
     ctx.fillStyle = '#ff00ff';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('CLUB PATH', 10, canvas.height - 60);
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText('CLUB PATH', 15, canvas.height - 60);
   }, [poses]);
 
   // Main drawing function
@@ -380,7 +410,10 @@ export default function CleanVideoAnalysisDisplay({
     }
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
+      console.log('🎨 Club path settings:', overlaySettings.clubPath);
       drawClubPath(ctx, frame);
+    } else {
+      console.log('🎨 Club path disabled in settings');
     }
   }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers, drawClubPath, poses]);
 
