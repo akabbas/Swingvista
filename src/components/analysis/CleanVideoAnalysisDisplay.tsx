@@ -455,6 +455,8 @@ export default function CleanVideoAnalysisDisplay({
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
     console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
+    console.log('🎨 Poses array length:', poses?.length);
+    console.log('🎨 Frame within bounds:', frame < (poses?.length || 0));
 
     // ALWAYS draw test indicators regardless of overlay settings
     console.log('🎨 Drawing test indicators...');
@@ -462,20 +464,26 @@ export default function CleanVideoAnalysisDisplay({
 
     if (overlaySettings.stickFigure) {
       console.log('🎨 Drawing stick figure...');
-      drawPoseOverlay(ctx, frame);
+      // Ensure frame is within bounds
+      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      console.log('🎨 Safe frame for stick figure:', safeFrame);
+      drawPoseOverlay(ctx, safeFrame);
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
-      drawSwingPlane(ctx, frame);
+      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      drawSwingPlane(ctx, safeFrame);
     }
     if (overlaySettings.phaseMarkers) {
       console.log('🎨 Drawing phase markers...');
-      drawPhaseMarkers(ctx, frame);
+      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      drawPhaseMarkers(ctx, safeFrame);
     }
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
-      drawClubPath(ctx, frame);
+      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      drawClubPath(ctx, safeFrame);
     } else {
       console.log('🎨 Club path disabled in settings');
     }
