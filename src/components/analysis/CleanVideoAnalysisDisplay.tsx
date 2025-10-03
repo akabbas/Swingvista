@@ -267,10 +267,19 @@ export default function CleanVideoAnalysisDisplay({
     canvas.width = videoWidth;
     canvas.height = videoHeight;
     
-    // Also set CSS size to match video display size
+    // Set CSS size to match video display size exactly
     const videoRect = video.getBoundingClientRect();
-    canvas.style.width = videoRect.width + 'px';
-    canvas.style.height = videoRect.height + 'px';
+    const containerRect = video.parentElement?.getBoundingClientRect();
+    
+    if (containerRect) {
+      // Position canvas relative to its container, not the video
+      canvas.style.position = 'absolute';
+      canvas.style.top = '0px';
+      canvas.style.left = '0px';
+      canvas.style.width = containerRect.width + 'px';
+      canvas.style.height = containerRect.height + 'px';
+      canvas.style.zIndex = '10';
+    }
     
     console.log('🎨 Canvas size set to:', canvas.width, 'x', canvas.height);
     console.log('🎨 Canvas CSS size:', canvas.style.width, 'x', canvas.style.height);
@@ -351,12 +360,13 @@ export default function CleanVideoAnalysisDisplay({
           />
           <canvas
             ref={poseCanvasRef}
-            className="absolute top-0 left-0 pointer-events-none z-10"
+            className="absolute top-0 left-0 pointer-events-none"
             style={{ 
               width: '100%', 
               height: '100%',
               maxHeight: '500px',
-              border: '2px solid red' // Temporary border to see canvas
+              border: '3px solid red', // Temporary border to see canvas
+              zIndex: 10
             }}
           />
         </div>
@@ -395,6 +405,19 @@ export default function CleanVideoAnalysisDisplay({
               console.log('🎨 DEBUG: Video dimensions:', video?.videoWidth, 'x', video?.videoHeight);
               console.log('🎨 DEBUG: Canvas position:', canvas?.getBoundingClientRect());
               console.log('🎨 DEBUG: Video position:', video?.getBoundingClientRect());
+              
+              // Force canvas to be visible
+              if (canvas) {
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0px';
+                canvas.style.left = '0px';
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                canvas.style.zIndex = '999';
+                canvas.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                console.log('🎨 FORCED CANVAS VISIBILITY');
+              }
+              
               drawOverlays();
             }}
             className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
