@@ -304,12 +304,12 @@ export default function CleanVideoAnalysisDisplay({
       const wristCenterX = (leftWrist.x + rightWrist.x) / 2 * tempCanvas.width;
       const wristCenterY = (leftWrist.y + rightWrist.y) / 2 * tempCanvas.height;
       
-      // Search area extends below wrists (where club head would be)
-      // Make search area larger to ensure we find the club head
-      searchX = Math.max(0, wristCenterX - tempCanvas.width * 0.4);
-      searchY = Math.max(0, wristCenterY - tempCanvas.height * 0.1);
-      searchWidth = Math.min(tempCanvas.width - searchX, tempCanvas.width * 0.8);
-      searchHeight = Math.min(tempCanvas.height - searchY, tempCanvas.height * 0.7);
+      // Search area extends in all directions from wrists to capture full swing arc
+      // Make search area much larger to ensure we find the club head at all positions
+      searchX = Math.max(0, wristCenterX - tempCanvas.width * 0.5);
+      searchY = Math.max(0, wristCenterY - tempCanvas.height * 0.5); // Look above wrists too for backswing
+      searchWidth = Math.min(tempCanvas.width - searchX, tempCanvas.width * 0.9);
+      searchHeight = Math.min(tempCanvas.height - searchY, tempCanvas.height * 0.9);
       method = 'wrist_guided_search';
       
       console.log(`🔍 Searching for club head in area: (${searchX.toFixed(0)},${searchY.toFixed(0)}) - ${searchWidth.toFixed(0)}x${searchHeight.toFixed(0)}`);
@@ -327,12 +327,21 @@ export default function CleanVideoAnalysisDisplay({
       let maxEdgeStrength = 0;
       let confidence = 0;
       
-      // Draw search area for debugging (on the main canvas)
-      const mainCtx = poseCanvasRef.current?.getContext('2d');
-      if (mainCtx) {
-        mainCtx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-        mainCtx.lineWidth = 2;
-        mainCtx.strokeRect(searchX, searchY, searchWidth, searchHeight);
+      // Only draw search area for current frame, not past frames
+      // This prevents accumulating yellow boxes
+      if (frame === Math.floor(videoRef.current.currentTime * 30)) {
+        const mainCtx = poseCanvasRef.current?.getContext('2d');
+        if (mainCtx) {
+          // Draw search area for debugging
+          mainCtx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+          mainCtx.lineWidth = 2;
+          mainCtx.strokeRect(searchX, searchY, searchWidth, searchHeight);
+          
+          // Add label to search area
+          mainCtx.fillStyle = 'rgba(255, 255, 0, 0.7)';
+          mainCtx.font = '14px Arial';
+          mainCtx.fillText('Club Search Area', searchX + 5, searchY + 20);
+        }
       }
       
       // Analyze pixels to find club head (looking for high contrast, motion, etc.)
@@ -463,6 +472,10 @@ export default function CleanVideoAnalysisDisplay({
     
     console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, confidence, method });
 
+    // Clear any previous search rectangles that might be left over
+    // This ensures we don't get accumulating yellow boxes
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     // Draw club path trail (show last 30 frames for better visibility)
     ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = 6; // Make it thick for visibility
