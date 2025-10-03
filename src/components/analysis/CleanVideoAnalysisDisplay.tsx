@@ -269,38 +269,58 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
 
-    // Get wrist positions to approximate club path
+    // Use multiple body points to estimate club path when club isn't visible
     const leftWrist = poses[frame]?.landmarks[15];
     const rightWrist = poses[frame]?.landmarks[16];
+    const leftShoulder = poses[frame]?.landmarks[11];
+    const rightShoulder = poses[frame]?.landmarks[12];
 
-    console.log('🎨 Club path wrists:', {
+    console.log('🎨 Club path body points:', {
       leftWrist: leftWrist ? { x: leftWrist.x, y: leftWrist.y, visibility: leftWrist.visibility } : 'none',
-      rightWrist: rightWrist ? { x: rightWrist.x, y: rightWrist.y, visibility: rightWrist.visibility } : 'none'
+      rightWrist: rightWrist ? { x: rightWrist.x, y: rightWrist.y, visibility: rightWrist.visibility } : 'none',
+      leftShoulder: leftShoulder ? { x: leftShoulder.x, y: leftShoulder.y, visibility: leftShoulder.visibility } : 'none',
+      rightShoulder: rightShoulder ? { x: rightShoulder.x, y: rightShoulder.y, visibility: rightShoulder.visibility } : 'none'
     });
 
-    if (!leftWrist || !rightWrist) {
-      console.log('❌ No wrist landmarks for club path');
-      return;
+    // Calculate club head position using multiple methods
+    let clubHeadX = 0.5; // Default center
+    let clubHeadY = 0.5; // Default center
+    let method = 'default';
+
+    // Method 1: Use wrists if both are visible
+    if (leftWrist && rightWrist && 
+        (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
+      clubHeadX = (leftWrist.x + rightWrist.x) / 2;
+      clubHeadY = (leftWrist.y + rightWrist.y) / 2;
+      method = 'wrists';
+    }
+    // Method 2: Use shoulders if wrists not available
+    else if (leftShoulder && rightShoulder && 
+             (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
+      clubHeadX = (leftShoulder.x + rightShoulder.x) / 2;
+      clubHeadY = (leftShoulder.y + rightShoulder.y) / 2;
+      method = 'shoulders';
+    }
+    // Method 3: Use single wrist if only one is visible
+    else if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
+      clubHeadX = leftWrist.x;
+      clubHeadY = leftWrist.y;
+      method = 'leftWrist';
+    }
+    else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
+      clubHeadX = rightWrist.x;
+      clubHeadY = rightWrist.y;
+      method = 'rightWrist';
     }
 
-    // Lower visibility threshold for club path
-    if ((leftWrist.visibility || 0) < 0.1 || (rightWrist.visibility || 0) < 0.1) {
-      console.log('❌ Wrist visibility too low for club path');
-      return;
-    }
+    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, method });
 
-    // Calculate club head position (approximate from wrists)
-    const clubHeadX = (leftWrist.x + rightWrist.x) / 2;
-    const clubHeadY = (leftWrist.y + rightWrist.y) / 2;
-
-    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY });
-
-    // Draw club path trail (show last 20 frames for better visibility)
+    // Draw club path trail (show last 30 frames for better visibility)
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 5; // Make it thicker
+    ctx.lineWidth = 6; // Make it even thicker
     ctx.beginPath();
     
-    const startFrame = Math.max(0, frame - 20);
+    const startFrame = Math.max(0, frame - 30);
     let pathPoints = 0;
     
     for (let i = startFrame; i <= frame; i++) {
@@ -309,13 +329,38 @@ export default function CleanVideoAnalysisDisplay({
       
       const pastLeftWrist = pastPose.landmarks[15];
       const pastRightWrist = pastPose.landmarks[16];
+      const pastLeftShoulder = pastPose.landmarks[11];
+      const pastRightShoulder = pastPose.landmarks[12];
       
+      let pastClubX = 0.5;
+      let pastClubY = 0.5;
+      let hasValidPoint = false;
+      
+      // Use same logic for past frames
       if (pastLeftWrist && pastRightWrist && 
           (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
-        
-        const pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
-        const pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
-        
+        pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
+        pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        hasValidPoint = true;
+      }
+      else if (pastLeftShoulder && pastRightShoulder && 
+               (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
+        pastClubX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
+        pastClubY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+        hasValidPoint = true;
+      }
+      else if (pastLeftWrist && (pastLeftWrist.visibility || 0) > 0.1) {
+        pastClubX = pastLeftWrist.x;
+        pastClubY = pastLeftWrist.y;
+        hasValidPoint = true;
+      }
+      else if (pastRightWrist && (pastRightWrist.visibility || 0) > 0.1) {
+        pastClubX = pastRightWrist.x;
+        pastClubY = pastRightWrist.y;
+        hasValidPoint = true;
+      }
+      
+      if (hasValidPoint) {
         if (pathPoints === 0) {
           ctx.moveTo(pastClubX * canvas.width, pastClubY * canvas.height);
         } else {
@@ -331,15 +376,16 @@ export default function CleanVideoAnalysisDisplay({
     // Draw current club head position (make it bigger)
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
-    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 12, 0, 2 * Math.PI);
+    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 15, 0, 2 * Math.PI);
     ctx.fill();
 
     // Draw club path label with background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(10, canvas.height - 80, 150, 30);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(10, canvas.height - 100, 200, 40);
     ctx.fillStyle = '#ff00ff';
     ctx.font = 'bold 18px Arial';
-    ctx.fillText('CLUB PATH', 15, canvas.height - 60);
+    ctx.fillText(`CLUB PATH (${method})`, 15, canvas.height - 75);
+    ctx.fillText(`Points: ${pathPoints}`, 15, canvas.height - 55);
   }, [poses]);
 
   // Main drawing function
