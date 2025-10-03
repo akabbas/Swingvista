@@ -287,30 +287,52 @@ export default function CleanVideoAnalysisDisplay({
     let clubHeadY = 0.5; // Default center
     let method = 'default';
 
-    // Method 1: Use wrists if both are visible
+    // Method 1: Use wrists if both are visible - extend beyond wrists to approximate club head
     if (leftWrist && rightWrist && 
         (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
-      clubHeadX = (leftWrist.x + rightWrist.x) / 2;
-      clubHeadY = (leftWrist.y + rightWrist.y) / 2;
-      method = 'wrists';
+      const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
+      const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
+      
+      // Extend beyond wrists to approximate club head position
+      // Club head is typically 2-3 feet beyond the hands
+      const extensionFactor = 0.3; // Adjust this to make it more accurate
+      const directionX = rightWrist.x - leftWrist.x;
+      const directionY = rightWrist.y - leftWrist.y;
+      const length = Math.sqrt(directionX * directionX + directionY * directionY);
+      
+      if (length > 0) {
+        clubHeadX = wristCenterX + (directionX / length) * extensionFactor;
+        clubHeadY = wristCenterY + (directionY / length) * extensionFactor;
+      } else {
+        clubHeadX = wristCenterX;
+        clubHeadY = wristCenterY - extensionFactor; // Default to above wrists
+      }
+      method = 'wrists+extension';
     }
-    // Method 2: Use shoulders if wrists not available
+    // Method 2: Use shoulders if wrists not available - extend further for club head
     else if (leftShoulder && rightShoulder && 
              (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
-      clubHeadX = (leftShoulder.x + rightShoulder.x) / 2;
-      clubHeadY = (leftShoulder.y + rightShoulder.y) / 2;
-      method = 'shoulders';
+      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
+      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
+      
+      // Extend further from shoulders to approximate club head
+      const extensionFactor = 0.4;
+      clubHeadX = shoulderCenterX;
+      clubHeadY = shoulderCenterY - extensionFactor; // Club head is typically below shoulders
+      method = 'shoulders+extension';
     }
-    // Method 3: Use single wrist if only one is visible
+    // Method 3: Use single wrist if only one is visible - extend in swing direction
     else if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
-      clubHeadX = leftWrist.x;
-      clubHeadY = leftWrist.y;
-      method = 'leftWrist';
+      // Extend from left wrist (assuming right-handed golfer)
+      clubHeadX = leftWrist.x + 0.2; // Extend to the right
+      clubHeadY = leftWrist.y - 0.3; // Extend downward
+      method = 'leftWrist+extension';
     }
     else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
-      clubHeadX = rightWrist.x;
-      clubHeadY = rightWrist.y;
-      method = 'rightWrist';
+      // Extend from right wrist (assuming right-handed golfer)
+      clubHeadX = rightWrist.x + 0.2; // Extend to the right
+      clubHeadY = rightWrist.y - 0.3; // Extend downward
+      method = 'rightWrist+extension';
     }
 
     console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, method });
@@ -336,27 +358,44 @@ export default function CleanVideoAnalysisDisplay({
       let pastClubY = 0.5;
       let hasValidPoint = false;
       
-      // Use same logic for past frames
+      // Use same extension logic for past frames
       if (pastLeftWrist && pastRightWrist && 
           (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
-        pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
-        pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        const pastWristCenterX = (pastLeftWrist.x + pastRightWrist.x) / 2;
+        const pastWristCenterY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        
+        const extensionFactor = 0.3;
+        const directionX = pastRightWrist.x - pastLeftWrist.x;
+        const directionY = pastRightWrist.y - pastLeftWrist.y;
+        const length = Math.sqrt(directionX * directionX + directionY * directionY);
+        
+        if (length > 0) {
+          pastClubX = pastWristCenterX + (directionX / length) * extensionFactor;
+          pastClubY = pastWristCenterY + (directionY / length) * extensionFactor;
+        } else {
+          pastClubX = pastWristCenterX;
+          pastClubY = pastWristCenterY - extensionFactor;
+        }
         hasValidPoint = true;
       }
       else if (pastLeftShoulder && pastRightShoulder && 
                (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
-        pastClubX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
-        pastClubY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+        const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
+        const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+        
+        const extensionFactor = 0.4;
+        pastClubX = pastShoulderCenterX;
+        pastClubY = pastShoulderCenterY - extensionFactor;
         hasValidPoint = true;
       }
       else if (pastLeftWrist && (pastLeftWrist.visibility || 0) > 0.1) {
-        pastClubX = pastLeftWrist.x;
-        pastClubY = pastLeftWrist.y;
+        pastClubX = pastLeftWrist.x + 0.2;
+        pastClubY = pastLeftWrist.y - 0.3;
         hasValidPoint = true;
       }
       else if (pastRightWrist && (pastRightWrist.visibility || 0) > 0.1) {
-        pastClubX = pastRightWrist.x;
-        pastClubY = pastRightWrist.y;
+        pastClubX = pastRightWrist.x + 0.2;
+        pastClubY = pastRightWrist.y - 0.3;
         hasValidPoint = true;
       }
       
