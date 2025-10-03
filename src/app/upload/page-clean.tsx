@@ -345,15 +345,16 @@ export default function CleanUploadPage() {
           </div>
         )}
 
-        {/* Video Analysis Display - Clean Layout */}
-        {state.file && videoUrl && (
+        {/* Video Analysis Display - Only show after analysis is complete */}
+        {state.file && videoUrl && state.result && !state.isAnalyzing && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Video Analysis</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Video Analysis with Overlays</h2>
+            <p className="text-gray-600 mb-4">Your analyzed golf swing with pose detection overlays</p>
             <CleanVideoAnalysisDisplay
               videoFile={state.file}
               videoUrl={videoUrl}
               analysis={state.result?.realAnalysis || state.result}
-              isAnalyzing={state.isAnalyzing}
+              isAnalyzing={false}
               poses={state.poses || undefined}
             />
           </div>

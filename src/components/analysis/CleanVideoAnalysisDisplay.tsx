@@ -31,6 +31,19 @@ export default function CleanVideoAnalysisDisplay({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [showOverlays, setShowOverlays] = useState(true);
+  
+  // Debug showOverlays state changes
+  useEffect(() => {
+    console.log('🎨 SHOW OVERLAYS STATE CHANGED:', showOverlays);
+  }, [showOverlays]);
+  
+  // Force overlays to be enabled when component mounts
+  useEffect(() => {
+    if (!showOverlays) {
+      console.log('🎨 FORCING OVERLAYS TO BE ENABLED');
+      setShowOverlays(true);
+    }
+  }, []);
   const [overlaySettings, setOverlaySettings] = useState({
     stickFigure: true,
     swingPlane: true,
@@ -84,12 +97,18 @@ export default function CleanVideoAnalysisDisplay({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw a test indicator to verify canvas positioning
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 100, 30);
+    // Draw a prominent test indicator to verify canvas positioning
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    ctx.fillRect(10, 10, 200, 50);
     ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.fillText('OVERLAY TEST', 15, 30);
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText('OVERLAY TEST - CANVAS WORKING', 15, 35);
+    
+    // Draw a green circle to show canvas is active
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.beginPath();
+    ctx.arc(canvas.width - 30, 30, 20, 0, 2 * Math.PI);
+    ctx.fill();
 
     // Draw skeleton connections
     const connections = [
