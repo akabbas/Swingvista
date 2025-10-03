@@ -73,6 +73,29 @@ export default function CleanVideoAnalysisDisplay({
   }, []);
 
   // Draw pose overlays
+  // Draw test indicators to verify canvas is working
+  const drawTestIndicators = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    // Draw a prominent test indicator to verify canvas positioning
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    ctx.fillRect(10, 10, 200, 50);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText('OVERLAY TEST - CANVAS WORKING', 15, 35);
+    
+    // Draw a green circle to show canvas is active
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.beginPath();
+    ctx.arc(canvas.width - 30, 30, 20, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw frame info
+    ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
+    ctx.fillRect(10, canvas.height - 40, 300, 30);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText(`Frame: ${Math.floor((videoRef.current?.currentTime || 0) * 30)}`, 15, canvas.height - 20);
+  }, []);
+
   const drawPoseOverlay = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
     console.log('🎨 DRAW POSE OVERLAY: Frame', frame, 'Poses available:', poses?.length);
     
@@ -90,25 +113,6 @@ export default function CleanVideoAnalysisDisplay({
     }
     
     console.log('🎨 Drawing overlay with', pose.landmarks.length, 'landmarks');
-
-    const canvas = poseCanvasRef.current;
-    if (!canvas) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw a prominent test indicator to verify canvas positioning
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-    ctx.fillRect(10, 10, 200, 50);
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText('OVERLAY TEST - CANVAS WORKING', 15, 35);
-    
-    // Draw a green circle to show canvas is active
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-    ctx.beginPath();
-    ctx.arc(canvas.width - 30, 30, 20, 0, 2 * Math.PI);
-    ctx.fill();
 
     // Draw skeleton connections
     const connections = [
@@ -262,6 +266,10 @@ export default function CleanVideoAnalysisDisplay({
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
     console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
 
+    // ALWAYS draw test indicators regardless of overlay settings
+    console.log('🎨 Drawing test indicators...');
+    drawTestIndicators(ctx, canvas);
+
     if (overlaySettings.stickFigure) {
       console.log('🎨 Drawing stick figure...');
       drawPoseOverlay(ctx, frame);
@@ -280,6 +288,16 @@ export default function CleanVideoAnalysisDisplay({
   useEffect(() => {
     drawOverlays();
   }, [currentTime, drawOverlays]);
+
+  // Trigger overlays when video loads
+  useEffect(() => {
+    if (videoRef.current && poses && poses.length > 0) {
+      console.log('🎨 VIDEO LOADED - Triggering initial overlay draw');
+      setTimeout(() => {
+        drawOverlays();
+      }, 100); // Small delay to ensure video is ready
+    }
+  }, [poses, drawOverlays]);
 
   // Setup video
   useEffect(() => {
@@ -350,6 +368,16 @@ export default function CleanVideoAnalysisDisplay({
           >
             {showOverlays ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
             {showOverlays ? 'Hide Overlays' : 'Show Overlays'}
+          </button>
+          
+          <button
+            onClick={() => {
+              console.log('🎨 MANUAL OVERLAY TRIGGER');
+              drawOverlays();
+            }}
+            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Test Overlays
           </button>
         </div>
 
