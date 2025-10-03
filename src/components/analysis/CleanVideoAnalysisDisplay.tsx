@@ -124,9 +124,27 @@ export default function CleanVideoAnalysisDisplay({
       [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
     ];
 
-    // Draw connections
+    // Calculate body scale based on shoulder width for more accurate proportions
+    const leftShoulder = pose.landmarks[11];
+    const rightShoulder = pose.landmarks[12];
+    let bodyScale = 1.0;
+    
+    if (leftShoulder && rightShoulder && 
+        (leftShoulder.visibility || 0) > 0.3 && (rightShoulder.visibility || 0) > 0.3) {
+      const shoulderDistance = Math.sqrt(
+        Math.pow(rightShoulder.x - leftShoulder.x, 2) + 
+        Math.pow(rightShoulder.y - leftShoulder.y, 2)
+      );
+      // Normalize shoulder width to get a reasonable scale factor
+      bodyScale = Math.max(0.5, Math.min(2.0, shoulderDistance * 3));
+      console.log('🎨 Body scale calculated:', bodyScale, 'shoulder distance:', shoulderDistance);
+    } else {
+      console.log('🎨 Using default body scale:', bodyScale);
+    }
+
+    // Draw connections with adjusted scaling
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = Math.max(2, 4 * bodyScale);
     
     connections.forEach(([start, end]) => {
       if (pose.landmarks[start] && pose.landmarks[end] && 
@@ -145,15 +163,28 @@ export default function CleanVideoAnalysisDisplay({
       }
     });
 
-    // Draw keypoints
-    pose.landmarks.forEach((landmark: any) => {
+    // Draw keypoints with adjusted scaling
+    pose.landmarks.forEach((landmark: any, index: number) => {
       if ((landmark.visibility || 0) > 0.3) {
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
+        
+        // Make key points proportional to body size
+        let pointSize = 4;
+        if (index === 11 || index === 12) { // Shoulders
+          pointSize = 8 * bodyScale;
+        } else if (index === 15 || index === 16) { // Wrists
+          pointSize = 6 * bodyScale;
+        } else if (index === 23 || index === 24) { // Hips
+          pointSize = 7 * bodyScale;
+        } else {
+          pointSize = 5 * bodyScale;
+        }
+        
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          6, 0, 2 * Math.PI
+          Math.max(2, pointSize), 0, 2 * Math.PI
         );
         ctx.fill();
       }
