@@ -84,6 +84,13 @@ export default function CleanVideoAnalysisDisplay({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw a test indicator to verify canvas positioning
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    ctx.fillRect(10, 10, 100, 30);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText('OVERLAY TEST', 15, 30);
+
     // Draw skeleton connections
     const connections = [
       // Face
@@ -219,9 +226,19 @@ export default function CleanVideoAnalysisDisplay({
     }
 
     // Set canvas size to match video
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const videoWidth = video.videoWidth || 640;
+    const videoHeight = video.videoHeight || 480;
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    
+    // Also set CSS size to match video display size
+    const videoRect = video.getBoundingClientRect();
+    canvas.style.width = videoRect.width + 'px';
+    canvas.style.height = videoRect.height + 'px';
+    
     console.log('🎨 Canvas size set to:', canvas.width, 'x', canvas.height);
+    console.log('🎨 Canvas CSS size:', canvas.style.width, 'x', canvas.style.height);
+    console.log('🎨 Video rect:', videoRect.width, 'x', videoRect.height);
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
     console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
@@ -274,20 +291,24 @@ export default function CleanVideoAnalysisDisplay({
   return (
     <div className="space-y-4">
       {/* Video Player */}
-      <div className="relative bg-black rounded-lg overflow-hidden">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          controls
-          className="w-full h-auto"
-          style={{ maxHeight: '500px' }}
-        />
-        <canvas
-          ref={poseCanvasRef}
-          className="absolute top-0 left-0 w-full h-full pointer-events-none"
-          style={{ maxHeight: '500px' }}
-        />
-      </div>
+        <div className="relative bg-black rounded-lg overflow-hidden">
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            controls
+            className="w-full h-auto"
+            style={{ maxHeight: '500px' }}
+          />
+          <canvas
+            ref={poseCanvasRef}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{ 
+              width: '100%', 
+              height: '100%',
+              maxHeight: '500px'
+            }}
+          />
+        </div>
 
       {/* Controls */}
       <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
