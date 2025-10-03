@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { Play, Pause, RotateCcw, Eye, EyeOff, Settings } from 'lucide-react';
+import { Play, Pause, Eye, EyeOff } from 'lucide-react';
 
 interface CleanVideoAnalysisDisplayProps {
   videoFile: File;

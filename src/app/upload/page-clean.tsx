@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useReducer, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Upload, Play, Pause, RotateCcw, Download, Eye, EyeOff } from 'lucide-react';
+import { Upload, Play, Pause, RotateCcw } from 'lucide-react';
 import CleanVideoAnalysisDisplay from '@/components/analysis/CleanVideoAnalysisDisplay';
 import { analyzeGolfSwing } from '@/lib/unified-analysis';
 import { extractPosesFromVideo } from '@/lib/video-poses';
