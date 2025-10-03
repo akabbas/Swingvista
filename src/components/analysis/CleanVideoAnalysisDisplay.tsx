@@ -73,33 +73,13 @@ export default function CleanVideoAnalysisDisplay({
   }, []);
 
   // Draw pose overlays
-  // Draw test indicators to verify canvas is working
+  // Draw test indicators to verify canvas is working (minimal version)
   const drawTestIndicators = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
-    // Draw a HUGE red overlay to test canvas visibility
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw a prominent test indicator to verify canvas positioning
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.9)';
-    ctx.fillRect(10, 10, 300, 80);
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText('CANVAS OVERLAY TEST', 20, 40);
-    ctx.fillText('IF YOU SEE THIS, CANVAS WORKS!', 20, 70);
-    
-    // Draw a green circle to show canvas is active
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+    // Just a small indicator in corner to show canvas is working
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
     ctx.beginPath();
-    ctx.arc(canvas.width - 50, 50, 30, 0, 2 * Math.PI);
+    ctx.arc(canvas.width - 20, 20, 8, 0, 2 * Math.PI);
     ctx.fill();
-    
-    // Draw frame info
-    ctx.fillStyle = 'rgba(0, 0, 255, 0.9)';
-    ctx.fillRect(10, canvas.height - 60, 400, 50);
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(`Frame: ${Math.floor((videoRef.current?.currentTime || 0) * 30)}`, 20, canvas.height - 30);
-    ctx.fillText(`Canvas: ${canvas.width}x${canvas.height}`, 20, canvas.height - 10);
   }, []);
 
   const drawPoseOverlay = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
@@ -145,7 +125,7 @@ export default function CleanVideoAnalysisDisplay({
 
     // Draw connections
     ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     
     connections.forEach(([start, end]) => {
       if (pose.landmarks[start] && pose.landmarks[end] && 
@@ -172,7 +152,7 @@ export default function CleanVideoAnalysisDisplay({
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          4, 0, 2 * Math.PI
+          6, 0, 2 * Math.PI
         );
         ctx.fill();
       }
@@ -365,7 +345,6 @@ export default function CleanVideoAnalysisDisplay({
               width: '100%', 
               height: '100%',
               maxHeight: '500px',
-              border: '3px solid red', // Temporary border to see canvas
               zIndex: 10
             }}
           />
@@ -397,32 +376,11 @@ export default function CleanVideoAnalysisDisplay({
           <button
             onClick={() => {
               console.log('🎨 MANUAL OVERLAY TRIGGER');
-              const canvas = poseCanvasRef.current;
-              const video = videoRef.current;
-              console.log('🎨 DEBUG: Canvas element:', canvas);
-              console.log('🎨 DEBUG: Video element:', video);
-              console.log('🎨 DEBUG: Canvas dimensions:', canvas?.width, 'x', canvas?.height);
-              console.log('🎨 DEBUG: Video dimensions:', video?.videoWidth, 'x', video?.videoHeight);
-              console.log('🎨 DEBUG: Canvas position:', canvas?.getBoundingClientRect());
-              console.log('🎨 DEBUG: Video position:', video?.getBoundingClientRect());
-              
-              // Force canvas to be visible
-              if (canvas) {
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0px';
-                canvas.style.left = '0px';
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                canvas.style.zIndex = '999';
-                canvas.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-                console.log('🎨 FORCED CANVAS VISIBILITY');
-              }
-              
               drawOverlays();
             }}
             className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
-            Test Overlays
+            Refresh Overlays
           </button>
         </div>
 
