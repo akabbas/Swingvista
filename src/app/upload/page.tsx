@@ -718,8 +718,16 @@ export default function UploadPage() {
           </h1>
           <p className="text-lg text-gray-600">
             Upload your golf swing video for detailed analysis and feedback
-            </p>
-                </div>
+          </p>
+          <div className="mt-4">
+            <a 
+              href="/upload-clean" 
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              🎯 Try Clean Version
+            </a>
+          </div>
+        </div>
 
         <div className="max-w-4xl mx-auto">
           {/* Upload Section */}
