@@ -114,6 +114,13 @@ export default function CleanVideoAnalysisDisplay({
     
     console.log('🎨 Drawing overlay with', pose.landmarks.length, 'landmarks');
 
+    // Get canvas reference
+    const canvas = poseCanvasRef.current;
+    if (!canvas) {
+      console.log('❌ No canvas ref in drawPoseOverlay');
+      return;
+    }
+
     // Draw skeleton connections
     const connections = [
       // Face
