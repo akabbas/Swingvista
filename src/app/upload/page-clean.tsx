@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useReducer, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Upload, Play, Pause, RotateCcw } from 'lucide-react';
+import React, { useReducer, useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import { Upload, Play, Pause, RotateCcw, User } from 'lucide-react';
 import CleanVideoAnalysisDisplay from '@/components/analysis/CleanVideoAnalysisDisplay';
 import { analyzeGolfSwing } from '@/lib/unified-analysis';
 import { extractPosesFromVideo } from '@/lib/video-poses';
@@ -162,12 +162,42 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Sample videos available for analysis
+interface SampleVideo {
+  id: string;
+  name: string;
+  url: string;
+  description: string;
+}
+
+const sampleVideos: SampleVideo[] = [
+  {
+    id: 'tiger-woods',
+    name: 'Tiger Woods',
+    url: '/fixtures/swings/tiger-woods-swing.mp4',
+    description: 'Classic Tiger Woods swing with perfect form'
+  },
+  {
+    id: 'tiger-woods-slow',
+    name: 'Tiger Woods (Slow Motion)',
+    url: '/fixtures/swings/tiger-woods-swing-slow.mp4',
+    description: 'Slow motion analysis of Tiger Woods swing'
+  }
+];
+
 export default function CleanUploadPage() {
   const [state, dispatch] = useReducer(uploadReducer, initialState);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedSampleVideo, setSelectedSampleVideo] = useState<SampleVideo | null>(null);
 
-  // Create video URL from file
+  // Create video URL from file or use sample video
   const videoUrl = useMemo(() => {
+    // If a sample video is selected, use its URL
+    if (selectedSampleVideo) {
+      return selectedSampleVideo.url;
+    }
+    
+    // Otherwise use the uploaded file
     if (!state.file) return null;
     try {
       return URL.createObjectURL(state.file);
@@ -175,7 +205,7 @@ export default function CleanUploadPage() {
       console.error('Failed to create video URL:', error);
       return null;
     }
-  }, [state.file]);
+  }, [state.file, selectedSampleVideo]);
 
   // Update video URL in state
   useEffect(() => {
@@ -188,6 +218,7 @@ export default function CleanUploadPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setSelectedSampleVideo(null);
   }, []);
 
   // File change handler
@@ -208,13 +239,50 @@ export default function CleanUploadPage() {
       }
     }
     
+    // Clear any selected sample video when uploading a file
+    setSelectedSampleVideo(null);
+    
     dispatch({ type: 'SET_FILE', payload: file });
     dispatch({ type: 'SET_ERROR', payload: null });
   }, []);
 
-  // Analysis handler
+  // Sample video selection handler
+  const selectSampleVideo = useCallback(async (video: SampleVideo) => {
+    setSelectedSampleVideo(video);
+    dispatch({ type: 'SET_FILE', payload: null });
+    dispatch({ type: 'SET_ERROR', payload: null });
+    
+    console.log(`🏌️ SAMPLE VIDEO: Selected ${video.name}:`, video.url);
+    
+    // Automatically start analysis for sample videos
+    setTimeout(() => {
+      analyzeSelectedVideo(video.url);
+    }, 500);
+  }, []);
+  
+  // Fetch a sample video and convert to File object
+  const fetchSampleVideo = useCallback(async (url: string): Promise<File | null> => {
+    try {
+      dispatch({ type: 'SET_STEP', payload: 'Fetching sample video...' });
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sample video: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const filename = url.split('/').pop() || 'sample-video.mp4';
+      return new File([blob], filename, { type: 'video/mp4' });
+    } catch (error) {
+      console.error('Error fetching sample video:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample video' });
+      return null;
+    }
+  }, []);
+
+  // Analysis handler for uploaded files
   const analyzeVideo = useCallback(async () => {
-    if (!state.file) return;
+    if (!state.file && !selectedSampleVideo) return;
 
     dispatch({ type: 'SET_ANALYZING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -222,11 +290,25 @@ export default function CleanUploadPage() {
     dispatch({ type: 'SET_PROGRESS', payload: 0 });
 
     try {
+      // Use the uploaded file or fetch the sample video
+      let fileToAnalyze = state.file;
+      
+      if (!fileToAnalyze && selectedSampleVideo) {
+        fileToAnalyze = await fetchSampleVideo(selectedSampleVideo.url);
+        if (!fileToAnalyze) {
+          throw new Error('Failed to load sample video');
+        }
+      }
+      
       // Step 1: Extract poses
       dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
       dispatch({ type: 'SET_PROGRESS', payload: 20 });
       
-      const extracted = await extractPosesFromVideo(state.file, {
+      if (!fileToAnalyze) {
+        throw new Error('No file to analyze');
+      }
+      
+      const extracted = await extractPosesFromVideo(fileToAnalyze, {
         sampleFps: 30,
         maxFrames: 1000,
         minConfidence: 0.3,
@@ -244,7 +326,12 @@ export default function CleanUploadPage() {
       dispatch({ type: 'SET_STEP', payload: 'Analyzing golf swing...' });
       dispatch({ type: 'SET_PROGRESS', payload: 60 });
       
-      const analysis = await analyzeGolfSwing(state.file, (step, progress) => {
+      // TypeScript check to ensure fileToAnalyze is not null
+      if (!fileToAnalyze) {
+        throw new Error('No file to analyze');
+      }
+      
+      const analysis = await analyzeGolfSwing(fileToAnalyze, (step, progress) => {
         dispatch({ type: 'SET_STEP', payload: step });
         dispatch({ type: 'SET_PROGRESS', payload: 60 + (progress * 0.3) });
       });
@@ -260,7 +347,66 @@ export default function CleanUploadPage() {
     } finally {
       dispatch({ type: 'SET_ANALYZING', payload: false });
     }
-  }, [state.file]);
+  }, [state.file, selectedSampleVideo, fetchSampleVideo]);
+  
+  // Analysis handler for sample videos
+  const analyzeSelectedVideo = useCallback(async (videoUrl: string) => {
+    dispatch({ type: 'SET_ANALYZING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
+    dispatch({ type: 'SET_STEP', payload: 'Starting analysis of sample video...' });
+    dispatch({ type: 'SET_PROGRESS', payload: 0 });
+    
+    try {
+      // Fetch the sample video
+      const fileToAnalyze = await fetchSampleVideo(videoUrl);
+      if (!fileToAnalyze) {
+        throw new Error('Failed to load sample video');
+      }
+      
+      // Step 1: Extract poses
+      dispatch({ type: 'SET_STEP', payload: 'Extracting poses from sample video...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 20 });
+      
+      const extracted = await extractPosesFromVideo(fileToAnalyze, {
+        sampleFps: 30,
+        maxFrames: 1000,
+        minConfidence: 0.3,
+        qualityThreshold: 0.2
+      }, (progress) => {
+        dispatch({ type: 'SET_STEP', payload: progress.step });
+        dispatch({ type: 'SET_PROGRESS', payload: 20 + (progress.progress * 0.3) });
+      });
+      
+      console.log('🏌️ SAMPLE ANALYSIS: Extracted poses:', extracted.length);
+      console.log('🏌️ SAMPLE ANALYSIS: First pose sample:', extracted[0]);
+      dispatch({ type: 'SET_POSES', payload: extracted });
+
+      // Step 2: Analyze golf swing
+      dispatch({ type: 'SET_STEP', payload: 'Analyzing sample swing...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 60 });
+      
+      // TypeScript check to ensure fileToAnalyze is not null
+      if (!fileToAnalyze) {
+        throw new Error('No file to analyze');
+      }
+      
+      const analysis = await analyzeGolfSwing(fileToAnalyze, (step, progress) => {
+        dispatch({ type: 'SET_STEP', payload: step });
+        dispatch({ type: 'SET_PROGRESS', payload: 60 + (progress * 0.3) });
+      });
+
+      console.log('🏌️ SAMPLE ANALYSIS: Analysis complete:', analysis);
+      dispatch({ type: 'SET_RESULT', payload: analysis });
+      dispatch({ type: 'SET_PROGRESS', payload: 100 });
+      dispatch({ type: 'SET_STEP', payload: 'Sample analysis complete!' });
+
+    } catch (error) {
+      console.error('❌ SAMPLE ANALYSIS ERROR:', error);
+      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Sample analysis failed' });
+    } finally {
+      dispatch({ type: 'SET_ANALYZING', payload: false });
+    }
+  }, [fetchSampleVideo]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -303,6 +449,17 @@ export default function CleanUploadPage() {
                   </p>
                 </div>
               )}
+              
+              {selectedSampleVideo && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-600">
+                    <strong>Sample Video:</strong> {selectedSampleVideo.name}
+                  </p>
+                  <p className="text-xs text-blue-500 mt-1">
+                    {selectedSampleVideo.description}
+                  </p>
+                </div>
+              )}
 
               {state.error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -321,7 +478,7 @@ export default function CleanUploadPage() {
                   </button>
                 )}
                 
-                {state.file && (
+                {(state.file || selectedSampleVideo) && (
                   <button
                     onClick={reset}
                     className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
@@ -332,6 +489,45 @@ export default function CleanUploadPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+        
+        {/* Sample Videos Section */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+          <div className="text-center mb-6">
+            <User className="mx-auto h-12 w-12 text-indigo-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Professional Sample Swings</h2>
+            <p className="text-gray-600">Analyze professional swings to see perfect club path detection</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            {sampleVideos.map((video) => (
+              <div 
+                key={video.id}
+                className={`p-6 border rounded-lg cursor-pointer transition-all ${
+                  selectedSampleVideo?.id === video.id 
+                    ? 'border-indigo-500 bg-indigo-50' 
+                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                }`}
+                onClick={() => selectSampleVideo(video)}
+              >
+                <h3 className="font-semibold text-lg text-gray-800">{video.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{video.description}</p>
+                
+                <div className="mt-4 flex justify-end">
+                  <button 
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectSampleVideo(video);
+                    }}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Analyze This Swing
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -346,12 +542,18 @@ export default function CleanUploadPage() {
         )}
 
         {/* Video Analysis Display - Only show after analysis is complete */}
-        {state.file && videoUrl && state.result && !state.isAnalyzing && (
+        {videoUrl && state.result && !state.isAnalyzing && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Video Analysis with Overlays</h2>
-            <p className="text-gray-600 mb-4">Your analyzed golf swing with pose detection overlays</p>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+              {selectedSampleVideo ? `${selectedSampleVideo.name} Analysis` : 'Your Swing Analysis'}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {selectedSampleVideo 
+                ? 'Professional golf swing with pose detection overlays' 
+                : 'Your analyzed golf swing with pose detection overlays'}
+            </p>
             <CleanVideoAnalysisDisplay
-              videoFile={state.file}
+              videoFile={state.file || null}
               videoUrl={videoUrl}
               analysis={state.result?.realAnalysis || state.result}
               isAnalyzing={false}

@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Play, Pause, Eye, EyeOff } from 'lucide-react';
 
 interface CleanVideoAnalysisDisplayProps {
-  videoFile: File;
+  videoFile?: File | null;
   videoUrl?: string;
   analysis?: any;
   isAnalyzing: boolean;
