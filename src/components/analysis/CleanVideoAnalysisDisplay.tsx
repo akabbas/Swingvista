@@ -30,6 +30,7 @@ export default function CleanVideoAnalysisDisplay({
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(0.5); // Default to 0.5x speed for golf analysis
   const [showOverlays, setShowOverlays] = useState(true);
   
   // Debug showOverlays state changes
@@ -306,12 +307,18 @@ export default function CleanVideoAnalysisDisplay({
     const video = videoRef.current;
     if (!video) return;
 
+    // Set default playback speed for golf analysis
+    video.playbackRate = playbackSpeed;
+    console.log('🎬 Setting video playback speed to:', playbackSpeed + 'x');
+
     const handleLoadedMetadata = () => {
       const canvas = poseCanvasRef.current;
       if (canvas) {
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
       }
+      // Ensure playback speed is set after video loads
+      video.playbackRate = playbackSpeed;
     };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -325,7 +332,7 @@ export default function CleanVideoAnalysisDisplay({
       video.removeEventListener('play', () => setIsPlaying(true));
       video.removeEventListener('pause', () => setIsPlaying(false));
     };
-  }, [handleTimeUpdate]);
+  }, [handleTimeUpdate, playbackSpeed]);
 
   return (
     <div className="space-y-4">
@@ -381,6 +388,71 @@ export default function CleanVideoAnalysisDisplay({
             className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Refresh Overlays
+          </button>
+        </div>
+
+        {/* Speed Controls */}
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">Speed:</span>
+          <button
+            onClick={() => {
+              const newSpeed = 0.25;
+              setPlaybackSpeed(newSpeed);
+              if (videoRef.current) {
+                videoRef.current.playbackRate = newSpeed;
+                console.log('🎬 Speed set to:', newSpeed + 'x');
+              }
+            }}
+            className={`px-3 py-1 text-sm rounded ${
+              playbackSpeed === 0.25 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            0.25x
+          </button>
+          <button
+            onClick={() => {
+              const newSpeed = 0.5;
+              setPlaybackSpeed(newSpeed);
+              if (videoRef.current) {
+                videoRef.current.playbackRate = newSpeed;
+                console.log('🎬 Speed set to:', newSpeed + 'x');
+              }
+            }}
+            className={`px-3 py-1 text-sm rounded ${
+              playbackSpeed === 0.5 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            0.5x
+          </button>
+          <button
+            onClick={() => {
+              const newSpeed = 0.75;
+              setPlaybackSpeed(newSpeed);
+              if (videoRef.current) {
+                videoRef.current.playbackRate = newSpeed;
+                console.log('🎬 Speed set to:', newSpeed + 'x');
+              }
+            }}
+            className={`px-3 py-1 text-sm rounded ${
+              playbackSpeed === 0.75 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            0.75x
+          </button>
+          <button
+            onClick={() => {
+              const newSpeed = 1.0;
+              setPlaybackSpeed(newSpeed);
+              if (videoRef.current) {
+                videoRef.current.playbackRate = newSpeed;
+                console.log('🎬 Speed set to:', newSpeed + 'x');
+              }
+            }}
+            className={`px-3 py-1 text-sm rounded ${
+              playbackSpeed === 1.0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            1.0x
           </button>
         </div>
 
