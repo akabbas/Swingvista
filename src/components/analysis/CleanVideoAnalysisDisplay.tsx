@@ -254,6 +254,195 @@ export default function CleanVideoAnalysisDisplay({
     ctx.fillRect(10, canvas.height - 30, (canvas.width - 20) * progress, 15);
   }, [poses]);
 
+  // Detect actual club head position using direct video analysis
+  const detectClubHead = useCallback((frame: number): {x: number, y: number, confidence: number, method: string} => {
+    console.log(`🏌️ DETECTING CLUB HEAD: Frame ${frame}`);
+    
+    if (!videoRef.current || !poses || poses.length === 0 || frame >= poses.length) {
+      console.log('❌ Cannot detect club head - missing video or poses');
+      return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
+    }
+    
+    const video = videoRef.current;
+    
+    // Create a temporary canvas to analyze the current video frame
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = video.videoWidth || 640;
+    tempCanvas.height = video.videoHeight || 480;
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!tempCtx) {
+      console.error('❌ Failed to get temporary canvas context');
+      return { x: 0.5, y: 0.5, confidence: 0, method: 'failed_context' };
+    }
+    
+    // Draw the current video frame to the temporary canvas
+    try {
+      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      console.log(`✅ Drew video frame to temp canvas (${tempCanvas.width}x${tempCanvas.height})`);
+    } catch (error) {
+      console.error('❌ Error drawing video to canvas:', error);
+      return { x: 0.5, y: 0.5, confidence: 0, method: 'draw_error' };
+    }
+    
+    // Get pose data to help locate search area
+    const pose = poses[frame];
+    const leftWrist = pose?.landmarks?.[15];
+    const rightWrist = pose?.landmarks?.[16];
+    
+    // Default search area (full frame)
+    let searchX = 0;
+    let searchY = 0;
+    let searchWidth = tempCanvas.width;
+    let searchHeight = tempCanvas.height;
+    let method = 'full_frame_search';
+    
+    // If wrists are detected, focus search area around and below wrists
+    if (leftWrist && rightWrist && 
+        (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
+      
+      const wristCenterX = (leftWrist.x + rightWrist.x) / 2 * tempCanvas.width;
+      const wristCenterY = (leftWrist.y + rightWrist.y) / 2 * tempCanvas.height;
+      
+      // Search area extends below wrists (where club head would be)
+      // Make search area larger to ensure we find the club head
+      searchX = Math.max(0, wristCenterX - tempCanvas.width * 0.4);
+      searchY = Math.max(0, wristCenterY - tempCanvas.height * 0.1);
+      searchWidth = Math.min(tempCanvas.width - searchX, tempCanvas.width * 0.8);
+      searchHeight = Math.min(tempCanvas.height - searchY, tempCanvas.height * 0.7);
+      method = 'wrist_guided_search';
+      
+      console.log(`🔍 Searching for club head in area: (${searchX.toFixed(0)},${searchY.toFixed(0)}) - ${searchWidth.toFixed(0)}x${searchHeight.toFixed(0)}`);
+    }
+    
+    // Direct club head detection attempt
+    try {
+      // Get image data from the search area
+      const imageData = tempCtx.getImageData(searchX, searchY, searchWidth, searchHeight);
+      const data = imageData.data;
+      
+      // Variables to track potential club head
+      let clubHeadX = 0;
+      let clubHeadY = 0;
+      let maxEdgeStrength = 0;
+      let confidence = 0;
+      
+      // Draw search area for debugging (on the main canvas)
+      const mainCtx = poseCanvasRef.current?.getContext('2d');
+      if (mainCtx) {
+        mainCtx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        mainCtx.lineWidth = 2;
+        mainCtx.strokeRect(searchX, searchY, searchWidth, searchHeight);
+      }
+      
+      // Analyze pixels to find club head (looking for high contrast, motion, etc.)
+      // This is a simplified approach - a real implementation would use more sophisticated algorithms
+      for (let y = 10; y < searchHeight - 10; y += 5) {
+        for (let x = 10; x < searchWidth - 10; x += 5) {
+          const idx = (y * searchWidth + x) * 4;
+          
+          // Skip if pixel is transparent
+          if (data[idx + 3] < 128) continue;
+          
+          // Calculate local contrast (edge detection)
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          
+          // Check surrounding pixels for edge detection
+          const idxRight = (y * searchWidth + (x + 5)) * 4;
+          const idxDown = ((y + 5) * searchWidth + x) * 4;
+          
+          const rDiff = Math.abs(r - data[idxRight]) + Math.abs(r - data[idxDown]);
+          const gDiff = Math.abs(g - data[idxRight + 1]) + Math.abs(g - data[idxDown + 1]);
+          const bDiff = Math.abs(b - data[idxRight + 2]) + Math.abs(b - data[idxDown + 2]);
+          
+          const edgeStrength = (rDiff + gDiff + bDiff) / 3;
+          
+          // Club head often has high contrast edges
+          if (edgeStrength > maxEdgeStrength) {
+            maxEdgeStrength = edgeStrength;
+            clubHeadX = (searchX + x) / tempCanvas.width;
+            clubHeadY = (searchY + y) / tempCanvas.height;
+            confidence = Math.min(1.0, edgeStrength / 100); // Normalize confidence
+            method = 'edge_detection';
+          }
+        }
+      }
+      
+      // If we couldn't detect anything with confidence, use a fallback
+      if (confidence < 0.2) {
+        console.log(`⚠️ Low confidence detection (${confidence.toFixed(2)}), using fallback`);
+        
+        // Fallback: Use wrist position with extension if available
+        if (leftWrist && rightWrist && 
+            (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
+          
+          const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
+          const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
+          
+          // Calculate the swing direction based on the golfer's body orientation
+          if (pose.landmarks[11] && pose.landmarks[12] && // shoulders
+              (pose.landmarks[11].visibility || 0) > 0.1 && (pose.landmarks[12].visibility || 0) > 0.1) {
+            
+            const shoulderCenterX = (pose.landmarks[11].x + pose.landmarks[12].x) / 2;
+            const shoulderCenterY = (pose.landmarks[11].y + pose.landmarks[12].y) / 2;
+            
+            // Calculate direction vector from shoulders to wrists
+            const dirX = wristCenterX - shoulderCenterX;
+            const dirY = wristCenterY - shoulderCenterY;
+            const length = Math.sqrt(dirX * dirX + dirY * dirY);
+            
+            if (length > 0) {
+              // Use a longer club length for better visibility
+              const clubLength = 0.4;
+              
+              // Normalize and extend to club head
+              clubHeadX = wristCenterX + (dirX / length) * clubLength;
+              clubHeadY = wristCenterY + (dirY / length) * clubLength;
+              confidence = 0.5; // Medium confidence since it's based on body position
+              method = 'body_position_fallback';
+            } else {
+              // Extend downward from wrists
+              clubHeadX = wristCenterX;
+              clubHeadY = wristCenterY + 0.4;
+              confidence = 0.3;
+              method = 'downward_extension_fallback';
+            }
+          } else {
+            // Extend downward from wrists
+            clubHeadX = wristCenterX;
+            clubHeadY = wristCenterY + 0.4;
+            confidence = 0.3;
+            method = 'downward_extension_fallback';
+          }
+        } else {
+          // Last resort: use center of frame
+          clubHeadX = 0.5;
+          clubHeadY = 0.7; // Lower part of frame where club head likely is
+          confidence = 0.1;
+          method = 'center_fallback';
+        }
+      }
+      
+      console.log(`🏌️ Club head detection for frame ${frame}: (${clubHeadX.toFixed(3)}, ${clubHeadY.toFixed(3)}) confidence: ${confidence.toFixed(2)} method: ${method}`);
+      
+      // Clean up
+      tempCanvas.remove();
+      
+      return { 
+        x: clubHeadX || 0.5, 
+        y: clubHeadY || 0.5, 
+        confidence: confidence || 0,
+        method
+      };
+    } catch (error) {
+      console.error('❌ Error in club head detection:', error);
+      tempCanvas.remove();
+      return { x: 0.5, y: 0.7, confidence: 0.1, method: 'error_fallback' };
+    }
+  }, [videoRef, poses]);
+
   // Draw club path
   const drawClubPath = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
     console.log('🎨 DRAW CLUB PATH: Frame', frame, 'Poses available:', poses?.length);
@@ -268,178 +457,31 @@ export default function CleanVideoAnalysisDisplay({
       console.log('❌ No canvas for club path');
       return;
     }
-
-    // Use multiple body points to estimate club path when club isn't visible
-    const leftWrist = poses[frame]?.landmarks[15];
-    const rightWrist = poses[frame]?.landmarks[16];
-    const leftShoulder = poses[frame]?.landmarks[11];
-    const rightShoulder = poses[frame]?.landmarks[12];
-
-    console.log('🎨 Club path body points:', {
-      leftWrist: leftWrist ? { x: leftWrist.x, y: leftWrist.y, visibility: leftWrist.visibility } : 'none',
-      rightWrist: rightWrist ? { x: rightWrist.x, y: rightWrist.y, visibility: rightWrist.visibility } : 'none',
-      leftShoulder: leftShoulder ? { x: leftShoulder.x, y: leftShoulder.y, visibility: leftShoulder.visibility } : 'none',
-      rightShoulder: rightShoulder ? { x: rightShoulder.x, y: rightShoulder.y, visibility: rightShoulder.visibility } : 'none'
-    });
-
-    // Calculate club head position using multiple methods
-    let clubHeadX = 0.5; // Default center
-    let clubHeadY = 0.5; // Default center
-    let method = 'default';
-
-    // Method 1: Detect actual club head position using computer vision approach
-    // For golf analysis, we need to find the actual club head, not estimate from body parts
-    if (leftWrist && rightWrist && 
-        (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
-      const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
-      const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
-      
-      // For now, use a simple extension method but make it more accurate
-      // The club head is typically 0.25-0.35 units away from the hands
-      const clubLength = 0.3; // Increased for more realistic club head position
-      
-      // Calculate the swing direction based on the golfer's body orientation
-      if (leftShoulder && rightShoulder && 
-          (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
-        const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-        const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-        
-        // Calculate the swing plane direction (from shoulders to wrists)
-        const swingDirX = wristCenterX - shoulderCenterX;
-        const swingDirY = wristCenterY - shoulderCenterY;
-        const swingLength = Math.sqrt(swingDirX * swingDirX + swingDirY * swingDirY);
-        
-        if (swingLength > 0) {
-          // Normalize the direction and extend to club head
-          const normalizedDirX = swingDirX / swingLength;
-          const normalizedDirY = swingDirY / swingLength;
-          
-          // Extend in the swing direction to find club head
-          clubHeadX = wristCenterX + normalizedDirX * clubLength;
-          clubHeadY = wristCenterY + normalizedDirY * clubLength;
-          method = 'swing_direction_extension';
-        } else {
-          // Fallback: extend downward (typical golf club position)
-          clubHeadX = wristCenterX;
-          clubHeadY = wristCenterY + clubLength;
-          method = 'downward_extension';
-        }
-      } else {
-        // Fallback: extend downward (typical golf club position)
-        clubHeadX = wristCenterX;
-        clubHeadY = wristCenterY + clubLength;
-        method = 'downward_extension';
-      }
-    }
-    // Method 2: Use shoulders if wrists not available
-    else if (leftShoulder && rightShoulder && 
-             (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
-      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-      
-      // Extend downward from shoulders for club head
-      clubHeadX = shoulderCenterX;
-      clubHeadY = shoulderCenterY + 0.25; // Club head below shoulders
-      method = 'shoulders+down_extension';
-    }
-    // Method 3: Use single wrist if only one is visible
-    else if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
-      // Extend downward from single wrist
-      clubHeadX = leftWrist.x;
-      clubHeadY = leftWrist.y + 0.2; // Club head below wrist
-      method = 'leftWrist+down_extension';
-    }
-    else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
-      // Extend downward from single wrist
-      clubHeadX = rightWrist.x;
-      clubHeadY = rightWrist.y + 0.2; // Club head below wrist
-      method = 'rightWrist+down_extension';
-    }
-
-    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, method });
+    
+    // Detect current club head position
+    const { x: clubHeadX, y: clubHeadY, confidence, method } = detectClubHead(frame);
+    
+    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, confidence, method });
 
     // Draw club path trail (show last 30 frames for better visibility)
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 6; // Make it even thicker
+    ctx.lineWidth = 6; // Make it thick for visibility
     ctx.beginPath();
     
     const startFrame = Math.max(0, frame - 30);
     let pathPoints = 0;
+    let clubHeadPositions = [];
     
+    // Get club head positions for past frames
     for (let i = startFrame; i <= frame; i++) {
-      const pastPose = poses[i];
-      if (!pastPose?.landmarks) continue;
+      const pastClubHead = detectClubHead(i);
+      clubHeadPositions.push(pastClubHead);
       
-      const pastLeftWrist = pastPose.landmarks[15];
-      const pastRightWrist = pastPose.landmarks[16];
-      const pastLeftShoulder = pastPose.landmarks[11];
-      const pastRightShoulder = pastPose.landmarks[12];
-      
-      let pastClubX = 0.5;
-      let pastClubY = 0.5;
-      let hasValidPoint = false;
-      
-      // Use same improved club head detection for past frames
-      if (pastLeftWrist && pastRightWrist && 
-          (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
-        const pastWristCenterX = (pastLeftWrist.x + pastRightWrist.x) / 2;
-        const pastWristCenterY = (pastLeftWrist.y + pastRightWrist.y) / 2;
-        
-        // Calculate club head position for past frame using same logic
-        const clubLength = 0.3; // Same as current frame
-        
-        if (pastLeftShoulder && pastRightShoulder && 
-            (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
-          const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
-          const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
-          
-          // Calculate swing direction for past frame
-          const pastSwingDirX = pastWristCenterX - pastShoulderCenterX;
-          const pastSwingDirY = pastWristCenterY - pastShoulderCenterY;
-          const pastSwingLength = Math.sqrt(pastSwingDirX * pastSwingDirX + pastSwingDirY * pastSwingDirY);
-          
-          if (pastSwingLength > 0) {
-            // Normalize and extend to club head
-            const pastNormalizedDirX = pastSwingDirX / pastSwingLength;
-            const pastNormalizedDirY = pastSwingDirY / pastSwingLength;
-            
-            pastClubX = pastWristCenterX + pastNormalizedDirX * clubLength;
-            pastClubY = pastWristCenterY + pastNormalizedDirY * clubLength;
-          } else {
-            pastClubX = pastWristCenterX;
-            pastClubY = pastWristCenterY + clubLength;
-          }
-        } else {
-          pastClubX = pastWristCenterX;
-          pastClubY = pastWristCenterY + clubLength;
-        }
-        hasValidPoint = true;
-      }
-      else if (pastLeftShoulder && pastRightShoulder && 
-               (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
-        const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
-        const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
-        
-        pastClubX = pastShoulderCenterX;
-        pastClubY = pastShoulderCenterY + 0.25; // Club head below shoulders
-        hasValidPoint = true;
-      }
-      else if (pastLeftWrist && (pastLeftWrist.visibility || 0) > 0.1) {
-        pastClubX = pastLeftWrist.x;
-        pastClubY = pastLeftWrist.y + 0.2; // Club head below wrist
-        hasValidPoint = true;
-      }
-      else if (pastRightWrist && (pastRightWrist.visibility || 0) > 0.1) {
-        pastClubX = pastRightWrist.x;
-        pastClubY = pastRightWrist.y + 0.2; // Club head below wrist
-        hasValidPoint = true;
-      }
-      
-      if (hasValidPoint) {
+      if (pastClubHead.confidence > 0) {
         if (pathPoints === 0) {
-          ctx.moveTo(pastClubX * canvas.width, pastClubY * canvas.height);
+          ctx.moveTo(pastClubHead.x * canvas.width, pastClubHead.y * canvas.height);
         } else {
-          ctx.lineTo(pastClubX * canvas.width, pastClubY * canvas.height);
+          ctx.lineTo(pastClubHead.x * canvas.width, pastClubHead.y * canvas.height);
         }
         pathPoints++;
       }
@@ -453,6 +495,14 @@ export default function CleanVideoAnalysisDisplay({
     ctx.beginPath();
     ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 15, 0, 2 * Math.PI);
     ctx.fill();
+    
+    // Draw confidence indicator
+    const confidenceRadius = 25 * confidence;
+    ctx.strokeStyle = `rgba(255, 0, 255, ${confidence})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, confidenceRadius, 0, 2 * Math.PI);
+    ctx.stroke();
 
     // Draw club path label with background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -461,7 +511,7 @@ export default function CleanVideoAnalysisDisplay({
     ctx.font = 'bold 18px Arial';
     ctx.fillText(`CLUB PATH (${method})`, 15, canvas.height - 75);
     ctx.fillText(`Points: ${pathPoints}`, 15, canvas.height - 55);
-  }, [poses]);
+  }, [poses, detectClubHead]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
