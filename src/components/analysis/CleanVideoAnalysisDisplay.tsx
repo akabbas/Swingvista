@@ -287,30 +287,68 @@ export default function CleanVideoAnalysisDisplay({
     let clubHeadY = 0.5; // Default center
     let method = 'default';
 
-    // Method 1: Use wrists if both are visible - NO extension, just use wrists
+    // Method 1: Use wrists with proper club head extension
     if (leftWrist && rightWrist && 
         (leftWrist.visibility || 0) > 0.1 && (rightWrist.visibility || 0) > 0.1) {
-      clubHeadX = (leftWrist.x + rightWrist.x) / 2;
-      clubHeadY = (leftWrist.y + rightWrist.y) / 2;
-      method = 'wrists';
+      const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
+      const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
+      
+      // Calculate club head position - extend from wrists in the direction of the club
+      // For a golf club, the head is typically 0.15-0.25 units away from the hands
+      const clubLength = 0.2; // This represents the club length in normalized coordinates
+      
+      // Calculate the direction from shoulders to wrists to estimate club angle
+      if (leftShoulder && rightShoulder && 
+          (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
+        const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
+        const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
+        
+        // Calculate direction vector from shoulders to wrists
+        const dirX = wristCenterX - shoulderCenterX;
+        const dirY = wristCenterY - shoulderCenterY;
+        const length = Math.sqrt(dirX * dirX + dirY * dirY);
+        
+        if (length > 0) {
+          // Normalize and extend to club head position
+          clubHeadX = wristCenterX + (dirX / length) * clubLength;
+          clubHeadY = wristCenterY + (dirY / length) * clubLength;
+          method = 'wrists+club_extension';
+        } else {
+          // Fallback: extend downward from wrists
+          clubHeadX = wristCenterX;
+          clubHeadY = wristCenterY + clubLength;
+          method = 'wrists+down_extension';
+        }
+      } else {
+        // Fallback: extend downward from wrists
+        clubHeadX = wristCenterX;
+        clubHeadY = wristCenterY + clubLength;
+        method = 'wrists+down_extension';
+      }
     }
     // Method 2: Use shoulders if wrists not available
     else if (leftShoulder && rightShoulder && 
              (leftShoulder.visibility || 0) > 0.1 && (rightShoulder.visibility || 0) > 0.1) {
-      clubHeadX = (leftShoulder.x + rightShoulder.x) / 2;
-      clubHeadY = (leftShoulder.y + rightShoulder.y) / 2;
-      method = 'shoulders';
+      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
+      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
+      
+      // Extend downward from shoulders for club head
+      clubHeadX = shoulderCenterX;
+      clubHeadY = shoulderCenterY + 0.25; // Club head below shoulders
+      method = 'shoulders+down_extension';
     }
     // Method 3: Use single wrist if only one is visible
     else if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
+      // Extend downward from single wrist
       clubHeadX = leftWrist.x;
-      clubHeadY = leftWrist.y;
-      method = 'leftWrist';
+      clubHeadY = leftWrist.y + 0.2; // Club head below wrist
+      method = 'leftWrist+down_extension';
     }
     else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
+      // Extend downward from single wrist
       clubHeadX = rightWrist.x;
-      clubHeadY = rightWrist.y;
-      method = 'rightWrist';
+      clubHeadY = rightWrist.y + 0.2; // Club head below wrist
+      method = 'rightWrist+down_extension';
     }
 
     console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, method });
@@ -336,27 +374,54 @@ export default function CleanVideoAnalysisDisplay({
       let pastClubY = 0.5;
       let hasValidPoint = false;
       
-      // Use same simple logic for past frames - NO extensions
+      // Use same club head extension logic for past frames
       if (pastLeftWrist && pastRightWrist && 
           (pastLeftWrist.visibility || 0) > 0.1 && (pastRightWrist.visibility || 0) > 0.1) {
-        pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
-        pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        const pastWristCenterX = (pastLeftWrist.x + pastRightWrist.x) / 2;
+        const pastWristCenterY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        
+        // Calculate club head position for past frame
+        const clubLength = 0.2;
+        
+        if (pastLeftShoulder && pastRightShoulder && 
+            (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
+          const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
+          const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+          
+          const pastDirX = pastWristCenterX - pastShoulderCenterX;
+          const pastDirY = pastWristCenterY - pastShoulderCenterY;
+          const pastLength = Math.sqrt(pastDirX * pastDirX + pastDirY * pastDirY);
+          
+          if (pastLength > 0) {
+            pastClubX = pastWristCenterX + (pastDirX / pastLength) * clubLength;
+            pastClubY = pastWristCenterY + (pastDirY / pastLength) * clubLength;
+          } else {
+            pastClubX = pastWristCenterX;
+            pastClubY = pastWristCenterY + clubLength;
+          }
+        } else {
+          pastClubX = pastWristCenterX;
+          pastClubY = pastWristCenterY + clubLength;
+        }
         hasValidPoint = true;
       }
       else if (pastLeftShoulder && pastRightShoulder && 
                (pastLeftShoulder.visibility || 0) > 0.1 && (pastRightShoulder.visibility || 0) > 0.1) {
-        pastClubX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
-        pastClubY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+        const pastShoulderCenterX = (pastLeftShoulder.x + pastRightShoulder.x) / 2;
+        const pastShoulderCenterY = (pastLeftShoulder.y + pastRightShoulder.y) / 2;
+        
+        pastClubX = pastShoulderCenterX;
+        pastClubY = pastShoulderCenterY + 0.25; // Club head below shoulders
         hasValidPoint = true;
       }
       else if (pastLeftWrist && (pastLeftWrist.visibility || 0) > 0.1) {
         pastClubX = pastLeftWrist.x;
-        pastClubY = pastLeftWrist.y;
+        pastClubY = pastLeftWrist.y + 0.2; // Club head below wrist
         hasValidPoint = true;
       }
       else if (pastRightWrist && (pastRightWrist.visibility || 0) > 0.1) {
         pastClubX = pastRightWrist.x;
-        pastClubY = pastRightWrist.y;
+        pastClubY = pastRightWrist.y + 0.2; // Club head below wrist
         hasValidPoint = true;
       }
       
