@@ -49,7 +49,7 @@ export default function CleanVideoAnalysisDisplay({
     stickFigure: true,
     swingPlane: true,
     phaseMarkers: true,
-    clubPath: false
+    clubPath: true
   });
 
   // Video event handlers
@@ -180,10 +180,10 @@ export default function CleanVideoAnalysisDisplay({
         (leftShoulder.visibility || 0) > 0.3 && (rightShoulder.visibility || 0) > 0.3 &&
         (leftHip.visibility || 0) > 0.3 && (rightHip.visibility || 0) > 0.3) {
       
-      // Draw swing plane line
-      ctx.strokeStyle = '#0066ff';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
+      // Draw swing plane line (shoulder to hip)
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 4]);
       
       ctx.beginPath();
       ctx.moveTo(
@@ -197,27 +197,120 @@ export default function CleanVideoAnalysisDisplay({
       ctx.stroke();
       
       ctx.setLineDash([]);
+      
+      // Draw swing plane label
+      ctx.fillStyle = '#00ffff';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('SWING PLANE', 10, canvas.height - 100);
     }
   }, [poses]);
 
   // Draw phase markers
   const drawPhaseMarkers = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
-    if (!analysis?.phases || analysis.phases.length === 0) return;
+    if (!poses || poses.length === 0) return;
 
     const canvas = poseCanvasRef.current;
     if (!canvas) return;
 
-    const currentTime = frame / 30; // Assuming 30fps
+    // Simple phase detection based on frame ranges
+    const totalFrames = poses.length;
+    const addressEnd = Math.floor(totalFrames * 0.1);
+    const backswingEnd = Math.floor(totalFrames * 0.4);
+    const downswingEnd = Math.floor(totalFrames * 0.7);
+    const followThroughEnd = Math.floor(totalFrames * 0.9);
+
+    let currentPhase = '';
+    let phaseColor = '';
+
+    if (frame <= addressEnd) {
+      currentPhase = 'ADDRESS';
+      phaseColor = '#00ff00';
+    } else if (frame <= backswingEnd) {
+      currentPhase = 'BACKSWING';
+      phaseColor = '#ffff00';
+    } else if (frame <= downswingEnd) {
+      currentPhase = 'DOWNSWING';
+      phaseColor = '#ff0000';
+    } else if (frame <= followThroughEnd) {
+      currentPhase = 'FOLLOW-THROUGH';
+      phaseColor = '#ff8800';
+    } else {
+      currentPhase = 'FINISH';
+      phaseColor = '#8800ff';
+    }
+
+    // Draw phase indicator box
+    ctx.fillStyle = phaseColor;
+    ctx.fillRect(10, 10, 200, 50);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText(currentPhase, 20, 40);
+
+    // Draw phase progress bar
+    const progress = frame / totalFrames;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(10, canvas.height - 30, canvas.width - 20, 15);
+    ctx.fillStyle = phaseColor;
+    ctx.fillRect(10, canvas.height - 30, (canvas.width - 20) * progress, 15);
+  }, [poses]);
+
+  // Draw club path
+  const drawClubPath = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+    if (!poses || poses.length === 0) return;
+
+    const canvas = poseCanvasRef.current;
+    if (!canvas) return;
+
+    // Get wrist positions to approximate club path
+    const leftWrist = poses[frame]?.landmarks[15];
+    const rightWrist = poses[frame]?.landmarks[16];
+
+    if (!leftWrist || !rightWrist || 
+        (leftWrist.visibility || 0) < 0.3 || (rightWrist.visibility || 0) < 0.3) return;
+
+    // Calculate club head position (approximate from wrists)
+    const clubHeadX = (leftWrist.x + rightWrist.x) / 2;
+    const clubHeadY = (leftWrist.y + rightWrist.y) / 2;
+
+    // Draw club path trail (show last 10 frames)
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
     
-    analysis.phases.forEach((phase: any) => {
-      if (currentTime >= phase.startTime && currentTime <= phase.endTime) {
-        // Draw phase indicator
-        ctx.fillStyle = phase.color || '#ff6600';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText(phase.name.toUpperCase(), 20, 40);
+    const startFrame = Math.max(0, frame - 10);
+    for (let i = startFrame; i <= frame; i++) {
+      const pastPose = poses[i];
+      if (!pastPose?.landmarks) continue;
+      
+      const pastLeftWrist = pastPose.landmarks[15];
+      const pastRightWrist = pastPose.landmarks[16];
+      
+      if (pastLeftWrist && pastRightWrist && 
+          (pastLeftWrist.visibility || 0) > 0.3 && (pastRightWrist.visibility || 0) > 0.3) {
+        
+        const pastClubX = (pastLeftWrist.x + pastRightWrist.x) / 2;
+        const pastClubY = (pastLeftWrist.y + pastRightWrist.y) / 2;
+        
+        if (i === startFrame) {
+          ctx.moveTo(pastClubX * canvas.width, pastClubY * canvas.height);
+        } else {
+          ctx.lineTo(pastClubX * canvas.width, pastClubY * canvas.height);
+        }
       }
-    });
-  }, [analysis]);
+    }
+    ctx.stroke();
+
+    // Draw current club head position
+    ctx.fillStyle = '#ff00ff';
+    ctx.beginPath();
+    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 8, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw club path label
+    ctx.fillStyle = '#ff00ff';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('CLUB PATH', 10, canvas.height - 60);
+  }, [poses]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
@@ -285,7 +378,11 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 Drawing phase markers...');
       drawPhaseMarkers(ctx, frame);
     }
-  }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers, poses]);
+    if (overlaySettings.clubPath) {
+      console.log('🎨 Drawing club path...');
+      drawClubPath(ctx, frame);
+    }
+  }, [showOverlays, overlaySettings, drawPoseOverlay, drawSwingPlane, drawPhaseMarkers, drawClubPath, poses]);
 
   // Update overlays when video time changes
   useEffect(() => {
