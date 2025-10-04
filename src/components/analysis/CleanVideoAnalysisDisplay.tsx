@@ -26,6 +26,30 @@ export default function CleanVideoAnalysisDisplay({
     posesCount: poses?.length || 0,
     poses: poses ? 'exists' : 'null'
   });
+  
+  // CRITICAL DEBUG: Verify poses data quality
+  if (poses && poses.length > 0) {
+    const firstPose = poses[0];
+    const isMockData = firstPose?.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+    const hasVariedPositions = firstPose?.landmarks?.some((lm: any) => lm.x !== 0.5 || lm.y !== 0.5);
+    
+    console.log('🔍 POSE DATA VERIFICATION IN COMPONENT:');
+    console.log('🔍 - Poses count:', poses.length);
+    console.log('🔍 - First pose exists:', !!firstPose);
+    console.log('🔍 - First pose landmarks count:', firstPose?.landmarks?.length || 0);
+    console.log('🔍 - Is mock data:', isMockData);
+    console.log('🔍 - Has varied positions:', hasVariedPositions);
+    console.log('🔍 - Data quality:', isMockData ? 'MOCK/DUMMY' : 'REAL');
+    
+    if (firstPose?.landmarks && firstPose.landmarks.length > 0) {
+      console.log('🔍 SAMPLE LANDMARK DATA (first 3):');
+      firstPose.landmarks.slice(0, 3).forEach((lm: any, i: number) => {
+        console.log(`🔍   Landmark ${i}: x=${lm.x.toFixed(3)}, y=${lm.y.toFixed(3)}, visibility=${(lm.visibility || 0).toFixed(3)}`);
+      });
+    }
+  } else {
+    console.log('❌ NO POSES DATA AVAILABLE');
+  }
   const videoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const clubPathCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,7 +115,14 @@ export default function CleanVideoAnalysisDisplay({
     ctx.fill();
   }, []);
 
-  const drawPoseOverlay = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+  const drawPoseOverlay = useCallback((
+    ctx: CanvasRenderingContext2D,
+    frame: number,
+    renderedWidth: number,
+    renderedHeight: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
     console.log('🎨 DRAW POSE OVERLAY: Frame', frame, 'Poses available:', poses?.length);
     
     if (!poses || poses.length === 0) {
@@ -105,6 +136,23 @@ export default function CleanVideoAnalysisDisplay({
     if (!pose || !pose.landmarks || pose.landmarks.length === 0) {
       console.log('❌ No landmarks for frame', frame);
       return;
+    }
+    
+    // CRITICAL DEBUG: Verify we have REAL pose data, not mock data
+    const isMockData = pose.landmarks.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
+    const hasVariedPositions = pose.landmarks.some((lm: any) => lm.x !== 0.5 || lm.y !== 0.5);
+    
+    console.log('🔍 POSE DATA VERIFICATION:');
+    console.log('🔍 - Is mock data:', isMockData);
+    console.log('🔍 - Has varied positions:', hasVariedPositions);
+    console.log('🔍 - Data quality:', isMockData ? 'MOCK/DUMMY' : 'REAL');
+    
+    // Log first few landmark coordinates to verify real data
+    if (frame < 3) {
+      console.log('🔍 SAMPLE LANDMARK COORDINATES (first 5):');
+      pose.landmarks.slice(0, 5).forEach((lm: any, i: number) => {
+        console.log(`🔍   Landmark ${i}: x=${lm.x.toFixed(3)}, y=${lm.y.toFixed(3)}, visibility=${(lm.visibility || 0).toFixed(3)}`);
+      });
     }
     
     // Debug: Count visible landmarks
@@ -125,20 +173,25 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
 
-    // Draw skeleton connections
+    // Draw skeleton connections - MoveNet 17 keypoints
+    // MoveNet keypoint indices:
+    // 0: nose, 1: left_eye, 2: right_eye, 3: left_ear, 4: right_ear
+    // 5: left_shoulder, 6: right_shoulder, 7: left_elbow, 8: right_elbow
+    // 9: left_wrist, 10: right_wrist, 11: left_hip, 12: right_hip
+    // 13: left_knee, 14: right_knee, 15: left_ankle, 16: right_ankle
     const connections = [
-      // Face
-      [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
-      // Torso
-      [11, 12], [11, 13], [12, 14], [11, 23], [12, 24], [23, 24],
-      // Left arm
-      [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [19, 21],
-      // Right arm
-      [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20], [20, 22],
-      // Left leg
-      [23, 25], [25, 27], [27, 29], [27, 31], [29, 31],
-      // Right leg
-      [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
+      // Face outline (nose to eyes to ears)
+      [0, 1], [0, 2], [1, 3], [2, 4],
+      // Torso (shoulders to hips)
+      [5, 6], [5, 11], [6, 12], [11, 12],
+      // Left arm (shoulder to elbow to wrist)
+      [5, 7], [7, 9],
+      // Right arm (shoulder to elbow to wrist)
+      [6, 8], [8, 10],
+      // Left leg (hip to knee to ankle)
+      [11, 13], [13, 15],
+      // Right leg (hip to knee to ankle)
+      [12, 14], [14, 16]
     ];
 
     // Draw connections - adaptive for different camera angles
@@ -165,15 +218,22 @@ export default function CleanVideoAnalysisDisplay({
           const endInBounds = endLandmark.x > 0 && endLandmark.x < 1 && endLandmark.y > 0 && endLandmark.y < 1;
           
           if (startInBounds && endInBounds) {
+            // Map normalized (0..1) coordinates to the actual rendered video content
+            const startX = offsetX + startLandmark.x * renderedWidth;
+            const startY = offsetY + startLandmark.y * renderedHeight;
+            const endX = offsetX + endLandmark.x * renderedWidth;
+            const endY = offsetY + endLandmark.y * renderedHeight;
+            
+            // Debug: Log coordinates for first few frames
+            if (frame < 3) {
+              console.log(`🎨 Drawing line from (${startX.toFixed(1)}, ${startY.toFixed(1)}) to (${endX.toFixed(1)}, ${endY.toFixed(1)})`);
+              console.log(`🎨 Normalized coords: start(${startLandmark.x.toFixed(3)}, ${startLandmark.y.toFixed(3)}) end(${endLandmark.x.toFixed(3)}, ${endLandmark.y.toFixed(3)})`);
+              console.log(`🎨 Canvas size: ${canvas.width}x${canvas.height}, Rendered video: ${renderedWidth.toFixed(1)}x${renderedHeight.toFixed(1)}, Offset: ${offsetX.toFixed(1)},${offsetY.toFixed(1)}`);
+            }
+            
             ctx.beginPath();
-            ctx.moveTo(
-              startLandmark.x * canvas.width,
-              startLandmark.y * canvas.height
-            );
-            ctx.lineTo(
-              endLandmark.x * canvas.width,
-              endLandmark.y * canvas.height
-            );
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
             ctx.stroke();
           }
         }
@@ -188,25 +248,31 @@ export default function CleanVideoAnalysisDisplay({
         // Make keypoints slightly larger for better visibility
         const radius = 5;
         
-        // Different colors for different body parts
-        if (index >= 0 && index <= 10) {
-          ctx.fillStyle = '#ff0000'; // Face - red
-        } else if (index >= 11 && index <= 16) {
-          ctx.fillStyle = '#00ff00'; // Arms - green
-        } else if (index >= 17 && index <= 22) {
-          ctx.fillStyle = '#0000ff'; // Hands - blue
-        } else if (index >= 23 && index <= 24) {
-          ctx.fillStyle = '#ffff00'; // Hips - yellow
+        // Different colors for different body parts based on MoveNet 17 keypoints
+        if (index >= 0 && index <= 4) {
+          ctx.fillStyle = '#ff0000'; // Face (0-4: nose, eyes, ears) - red
+        } else if (index >= 5 && index <= 10) {
+          ctx.fillStyle = '#00ff00'; // Upper body (5-10: shoulders, elbows, wrists) - green
+        } else if (index >= 11 && index <= 12) {
+          ctx.fillStyle = '#ffff00'; // Hips (11-12) - yellow
+        } else if (index >= 13 && index <= 16) {
+          ctx.fillStyle = '#ff00ff'; // Legs (13-16: knees, ankles) - magenta
         } else {
-          ctx.fillStyle = '#ff00ff'; // Legs - magenta
+          ctx.fillStyle = '#00ffff'; // Fallback - cyan
+        }
+        
+        // Map normalized (0..1) coordinates to the actual rendered video content
+        const keypointX = offsetX + landmark.x * renderedWidth;
+        const keypointY = offsetY + landmark.y * renderedHeight;
+        
+        // Debug: Log keypoint coordinates for first few frames
+        if (frame < 3 && index < 5) {
+          console.log(`🎨 Keypoint ${index}: (${keypointX.toFixed(1)}, ${keypointY.toFixed(1)}) from normalized (${landmark.x.toFixed(3)}, ${landmark.y.toFixed(3)})`);
+              console.log(`🎨 Canvas size: ${canvas.width}x${canvas.height}, Rendered video: ${renderedWidth.toFixed(1)}x${renderedHeight.toFixed(1)}, Offset: ${offsetX.toFixed(1)},${offsetY.toFixed(1)}`);
         }
         
         ctx.beginPath();
-        ctx.arc(
-          landmark.x * canvas.width,
-          landmark.y * canvas.height,
-          radius, 0, 2 * Math.PI
-        );
+        ctx.arc(keypointX, keypointY, radius, 0, 2 * Math.PI);
         ctx.fill();
         
         // Add white outline for better visibility
@@ -218,7 +284,14 @@ export default function CleanVideoAnalysisDisplay({
   }, [poses]);
 
   // Draw swing plane
-  const drawSwingPlane = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+  const drawSwingPlane = useCallback((
+    ctx: CanvasRenderingContext2D,
+    frame: number,
+    renderedWidth: number,
+    renderedHeight: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
     if (!poses || poses.length === 0) return;
 
     const pose = poses[frame];
@@ -227,11 +300,11 @@ export default function CleanVideoAnalysisDisplay({
     const canvas = poseCanvasRef.current;
     if (!canvas) return;
 
-    // Find key points for swing plane
-    const leftShoulder = pose.landmarks[11];
-    const rightShoulder = pose.landmarks[12];
-    const leftHip = pose.landmarks[23];
-    const rightHip = pose.landmarks[24];
+    // Find key points for swing plane (MoveNet indices)
+    const leftShoulder = pose.landmarks[5];
+    const rightShoulder = pose.landmarks[6];
+    const leftHip = pose.landmarks[11];
+    const rightHip = pose.landmarks[12];
 
     if (leftShoulder && rightShoulder && leftHip && rightHip &&
         (leftShoulder.visibility || 0) > 0.3 && (rightShoulder.visibility || 0) > 0.3 &&
@@ -244,12 +317,12 @@ export default function CleanVideoAnalysisDisplay({
       
       ctx.beginPath();
       ctx.moveTo(
-        (leftShoulder.x + rightShoulder.x) / 2 * canvas.width,
-        (leftShoulder.y + rightShoulder.y) / 2 * canvas.height
+        offsetX + ((leftShoulder.x + rightShoulder.x) / 2) * renderedWidth,
+        offsetY + ((leftShoulder.y + rightShoulder.y) / 2) * renderedHeight
       );
       ctx.lineTo(
-        (leftHip.x + rightHip.x) / 2 * canvas.width,
-        (leftHip.y + rightHip.y) / 2 * canvas.height
+        offsetX + ((leftHip.x + rightHip.x) / 2) * renderedWidth,
+        offsetY + ((leftHip.y + rightHip.y) / 2) * renderedHeight
       );
       ctx.stroke();
       
@@ -263,7 +336,14 @@ export default function CleanVideoAnalysisDisplay({
   }, [poses]);
 
   // Draw phase markers
-  const drawPhaseMarkers = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+  const drawPhaseMarkers = useCallback((
+    ctx: CanvasRenderingContext2D,
+    frame: number,
+    renderedWidth: number,
+    renderedHeight: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
     if (!poses || poses.length === 0) return;
 
     const canvas = poseCanvasRef.current;
@@ -306,9 +386,9 @@ export default function CleanVideoAnalysisDisplay({
     // Draw phase progress bar
     const progress = frame / totalFrames;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fillRect(10, canvas.height - 30, canvas.width - 20, 15);
+    ctx.fillRect(offsetX + 10, offsetY + renderedHeight - 30, renderedWidth - 20, 15);
     ctx.fillStyle = phaseColor;
-    ctx.fillRect(10, canvas.height - 30, (canvas.width - 20) * progress, 15);
+    ctx.fillRect(offsetX + 10, offsetY + renderedHeight - 30, (renderedWidth - 20) * progress, 15);
   }, [poses]);
 
   // Enhanced club head detection specifically for golf clubs
@@ -441,7 +521,14 @@ export default function CleanVideoAnalysisDisplay({
   }, [videoRef, poses]);
 
   // Draw club path
-  const drawClubPath = useCallback((ctx: CanvasRenderingContext2D, frame: number) => {
+  const drawClubPath = useCallback((
+    ctx: CanvasRenderingContext2D,
+    frame: number,
+    renderedWidth: number,
+    renderedHeight: number,
+    offsetX: number,
+    offsetY: number
+  ) => {
     console.log('🎨 DRAW CLUB PATH: Frame', frame, 'Poses available:', poses?.length);
     
     if (!poses || poses.length === 0) {
@@ -481,9 +568,9 @@ export default function CleanVideoAnalysisDisplay({
       
       if (pastClubHead.confidence > 0.2) { // Only use high confidence detections
         if (pathPoints === 0) {
-          ctx.moveTo(pastClubHead.x * canvas.width, pastClubHead.y * canvas.height);
+          ctx.moveTo(offsetX + pastClubHead.x * renderedWidth, offsetY + pastClubHead.y * renderedHeight);
         } else {
-          ctx.lineTo(pastClubHead.x * canvas.width, pastClubHead.y * canvas.height);
+          ctx.lineTo(offsetX + pastClubHead.x * renderedWidth, offsetY + pastClubHead.y * renderedHeight);
         }
         pathPoints++;
       }
@@ -495,14 +582,14 @@ export default function CleanVideoAnalysisDisplay({
     // Draw current club head position (make it bigger and more visible)
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
-    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 12, 0, 2 * Math.PI);
+    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, 12, 0, 2 * Math.PI);
     ctx.fill();
     
     // Draw white outline for better visibility
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, 12, 0, 2 * Math.PI);
+    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, 12, 0, 2 * Math.PI);
     ctx.stroke();
     
     // Draw confidence indicator (pulsing effect)
@@ -510,16 +597,16 @@ export default function CleanVideoAnalysisDisplay({
     ctx.strokeStyle = `rgba(255, 0, 255, ${confidence * 0.5})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(clubHeadX * canvas.width, clubHeadY * canvas.height, confidenceRadius, 0, 2 * Math.PI);
+    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, confidenceRadius, 0, 2 * Math.PI);
     ctx.stroke();
 
     // Draw club path label with background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(10, canvas.height - 100, 200, 40);
+    ctx.fillRect(offsetX + 10, offsetY + renderedHeight - 100, 200, 40);
     ctx.fillStyle = '#ff00ff';
     ctx.font = 'bold 18px Arial';
-    ctx.fillText(`CLUB PATH (${method})`, 15, canvas.height - 75);
-    ctx.fillText(`Points: ${pathPoints}`, 15, canvas.height - 55);
+    ctx.fillText(`CLUB PATH (${method})`, offsetX + 15, offsetY + renderedHeight - 75);
+    ctx.fillText(`Points: ${pathPoints}`, offsetX + 15, offsetY + renderedHeight - 55);
   }, [poses, detectClubHead]);
 
   // Main drawing function
@@ -554,34 +641,77 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
 
-    // Set canvas sizes to match video
-    const videoWidth = video.videoWidth || 640;
-    const videoHeight = video.videoHeight || 480;
-    poseCanvas.width = videoWidth;
-    poseCanvas.height = videoHeight;
-    clubPathCanvas.width = videoWidth;
-    clubPathCanvas.height = videoHeight;
+    // Get video display rect and compute rendered content rect (letterbox-aware)
+    const videoRect = video.getBoundingClientRect();
+    const displayWidth = videoRect.width;
+    const displayHeight = videoRect.height;
+
+    const nativeWidth = video.videoWidth || 640;
+    const nativeHeight = video.videoHeight || 480;
+    const nativeAspect = nativeWidth / nativeHeight;
+    const displayAspect = displayWidth / displayHeight;
+
+    let renderedWidth = displayWidth;
+    let renderedHeight = displayHeight;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (displayAspect > nativeAspect) {
+      // Canvas wider than content; pillarbox left/right
+      renderedHeight = displayHeight;
+      renderedWidth = renderedHeight * nativeAspect;
+      offsetX = (displayWidth - renderedWidth) / 2;
+    } else if (displayAspect < nativeAspect) {
+      // Canvas taller than content; letterbox top/bottom
+      renderedWidth = displayWidth;
+      renderedHeight = renderedWidth / nativeAspect;
+      offsetY = (displayHeight - renderedHeight) / 2;
+    }
+
+    // Set canvas dimensions to match the display size
+    poseCanvas.width = displayWidth;
+    poseCanvas.height = displayHeight;
+    clubPathCanvas.width = displayWidth;
+    clubPathCanvas.height = displayHeight;
+    
+    console.log('🎨 Canvas dimensions set to:', {
+      videoNative: { width: nativeWidth, height: nativeHeight },
+      videoDisplay: { width: displayWidth, height: displayHeight },
+      renderedContent: { width: renderedWidth, height: renderedHeight, offsetX, offsetY },
+      poseCanvas: { width: poseCanvas.width, height: poseCanvas.height },
+      clubPathCanvas: { width: clubPathCanvas.width, height: clubPathCanvas.height }
+    });
     
     // Set CSS size to match video display size exactly
-    const videoRect = video.getBoundingClientRect();
     const containerRect = video.parentElement?.getBoundingClientRect();
     
     if (containerRect) {
-      // Position both canvases relative to their container, not the video
+      // Calculate the video's position within the container
+      const videoOffsetX = videoRect.left - containerRect.left;
+      const videoOffsetY = videoRect.top - containerRect.top;
+      
+      // Position both canvases to match the video's position and size
       const canvases = [poseCanvas, clubPathCanvas];
       canvases.forEach((canvas, index) => {
         canvas.style.position = 'absolute';
-        canvas.style.top = '0px';
-        canvas.style.left = '0px';
-        canvas.style.width = containerRect.width + 'px';
-        canvas.style.height = containerRect.height + 'px';
+        canvas.style.top = videoOffsetY + 'px';
+        canvas.style.left = videoOffsetX + 'px';
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
         canvas.style.zIndex = `${10 + index}`; // Stack canvases with different z-indices
+      });
+      
+      console.log('🎨 Canvas positioning:', {
+        videoOffsetX,
+        videoOffsetY,
+        videoRect: { width: videoRect.width, height: videoRect.height },
+        containerRect: { width: containerRect.width, height: containerRect.height }
       });
     }
     
     console.log('🎨 Pose canvas size set to:', poseCanvas.width, 'x', poseCanvas.height);
     console.log('🎨 Club path canvas size set to:', clubPathCanvas.width, 'x', clubPathCanvas.height);
-    console.log('🎨 Video rect:', videoRect.width, 'x', videoRect.height);
+    console.log('🎨 Video rect:', displayWidth, 'x', displayHeight);
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
     console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
@@ -601,23 +731,23 @@ export default function CleanVideoAnalysisDisplay({
       // Ensure frame is within bounds
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
       console.log('🎨 Safe frame for stick figure:', safeFrame);
-      drawPoseOverlay(poseCtx, safeFrame);
+      drawPoseOverlay(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawSwingPlane(poseCtx, safeFrame);
+      drawSwingPlane(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.phaseMarkers) {
       console.log('🎨 Drawing phase markers...');
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawPhaseMarkers(poseCtx, safeFrame);
+      drawPhaseMarkers(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
-      drawClubPath(clubPathCtx, safeFrame);
+      drawClubPath(clubPathCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     } else {
       console.log('🎨 Club path disabled in settings');
     }
