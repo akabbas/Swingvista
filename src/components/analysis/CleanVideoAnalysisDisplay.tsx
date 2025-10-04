@@ -541,20 +541,90 @@ export default function CleanVideoAnalysisDisplay({
     offsetY: number
   ) => {
     console.log(`🎨 DRAW CLUB PATH: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
+    console.log(`🎨 Canvas context: ${!!ctx}, Rendered: ${renderedWidth}x${renderedHeight}, Offset: ${offsetX},${offsetY}`);
     
     // Build continuous trail using cached clubHeadHistoryRef
     const history = clubHeadHistoryRef.current;
 
     if (!history || history.length === 0) {
-      console.log('❌ No club head history available');
+      console.log('❌ No club head history available - trying to detect current frame');
+      // Try to detect club head for current frame if no history
+      const currentClubHead = detectClubHead(frame);
+      console.log(`🎨 Current frame club head:`, currentClubHead);
+      
+      if (currentClubHead && currentClubHead.x !== undefined && currentClubHead.y !== undefined) {
+        // Draw single point if we have valid coordinates
+        const px = offsetX + currentClubHead.x * renderedWidth;
+        const py = offsetY + currentClubHead.y * renderedHeight;
+        
+        console.log(`🎨 Drawing single club head point at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+        
+        ctx.fillStyle = '#ff00ff';
+        ctx.beginPath();
+        ctx.arc(px, py, 12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(px, py, 12, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // Fallback: try to use hand positions directly
+        console.log('🎨 Club head detection failed, trying hand position fallback');
+        if (poses && poses[frame] && poses[frame].landmarks) {
+          const pose = poses[frame];
+          const leftWrist = pose.landmarks[9];
+          const rightWrist = pose.landmarks[10];
+          
+          let handX = 0.5;
+          let handY = 0.7;
+          
+          if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
+            handX = leftWrist.x;
+            handY = leftWrist.y;
+            console.log('🎨 Using left wrist position as fallback');
+          } else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
+            handX = rightWrist.x;
+            handY = rightWrist.y;
+            console.log('🎨 Using right wrist position as fallback');
+          } else if (leftWrist && rightWrist) {
+            handX = (leftWrist.x + rightWrist.x) / 2;
+            handY = (leftWrist.y + rightWrist.y) / 2;
+            console.log('🎨 Using wrist center as fallback');
+          }
+          
+          const px = offsetX + handX * renderedWidth;
+          const py = offsetY + handY * renderedHeight;
+          
+          console.log(`🎨 Drawing fallback hand position at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+          
+          ctx.fillStyle = '#ff00ff';
+          ctx.beginPath();
+          ctx.arc(px, py, 12, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(px, py, 12, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
       return;
     }
     
     // Determine usable frames up to current frame
     const endFrame = Math.min(frame, history.length - 1);
     const startFrame = Math.max(0, endFrame - 40); // show last 40 frames for smoother trail
-    
+
     console.log(`🎨 Drawing trail from frame ${startFrame} to ${endFrame}`);
+
+    // Validate canvas context
+    if (!ctx) {
+      console.error('❌ No canvas context available for club path');
+      return;
+    }
 
     ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = 6;
@@ -570,8 +640,20 @@ export default function CleanVideoAnalysisDisplay({
         continue;
       }
       
+      // Validate coordinates
+      if (p.x === undefined || p.y === undefined || isNaN(p.x) || isNaN(p.y)) {
+        console.log(`🎨 Skipping frame ${i} - invalid coordinates: x=${p.x}, y=${p.y}`);
+        continue;
+      }
+      
       const px = offsetX + p.x * renderedWidth;
       const py = offsetY + p.y * renderedHeight;
+      
+      // Validate pixel coordinates
+      if (isNaN(px) || isNaN(py)) {
+        console.log(`🎨 Skipping frame ${i} - invalid pixel coordinates: px=${px}, py=${py}`);
+        continue;
+      }
       
       console.log(`🎨 Drawing point ${i}: (${px.toFixed(1)}, ${py.toFixed(1)}) from normalized (${p.x.toFixed(3)}, ${p.y.toFixed(3)})`);
 
@@ -579,34 +661,44 @@ export default function CleanVideoAnalysisDisplay({
         ctx.moveTo(px, py);
         } else {
         ctx.lineTo(px, py);
-      }
+        }
       drawn++;
     }
-
+    
     console.log(`🎨 Drew ${drawn} trail points`);
-    if (drawn > 0) ctx.stroke();
+    if (drawn > 0) {
+    ctx.stroke();
+      console.log('✅ Club path trail drawn successfully');
+    } else {
+      console.log('❌ No valid trail points to draw');
+    }
 
     // Draw current club head marker
     const current = history[endFrame];
-    if (current) {
+    if (current && current.x !== undefined && current.y !== undefined && !isNaN(current.x) && !isNaN(current.y)) {
       const cx = offsetX + current.x * renderedWidth;
       const cy = offsetY + current.y * renderedHeight;
       
-      console.log(`🎨 Drawing club head marker at (${cx.toFixed(1)}, ${cy.toFixed(1)}) from normalized (${current.x.toFixed(3)}, ${current.y.toFixed(3)})`);
-      
+      if (!isNaN(cx) && !isNaN(cy)) {
+        console.log(`🎨 Drawing club head marker at (${cx.toFixed(1)}, ${cy.toFixed(1)}) from normalized (${current.x.toFixed(3)}, ${current.y.toFixed(3)})`);
+        
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
-      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.stroke();
+        console.log('✅ Club head marker drawn successfully');
+      } else {
+        console.log('❌ Invalid club head marker coordinates');
+      }
     } else {
       console.log('❌ No current club head position to draw');
     }
-  }, [poses]);
+  }, [poses, detectClubHead]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
@@ -745,7 +837,10 @@ export default function CleanVideoAnalysisDisplay({
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
+      console.log('🎨 Club path canvas context:', !!clubPathCtx);
+      console.log('🎨 Club path canvas element:', !!clubPathCanvas);
       const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      console.log(`🎨 Calling drawClubPath with frame ${safeFrame}`);
       drawClubPath(clubPathCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     } else {
       console.log('🎨 Club path disabled in settings');
