@@ -94,11 +94,11 @@ const detectPosesWithTensorFlow = async (
     
     console.log('✅ REAL POSE DETECTION: TensorFlow.js loaded successfully');
     
-    // Load MoveNet model
+    // Load MoveNet model with higher accuracy
     const model = await poseDetection.createDetector(
       poseDetection.SupportedModels.MoveNet,
       {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER // More accurate than Lightning
       }
     );
     
@@ -132,6 +132,7 @@ const detectPosesWithTensorFlow = async (
     
     const poses: PoseResult[] = [];
     let failedFrames = 0;
+    let previousPose: PoseResult | null = null;
     
     for (let i = 0; i < frameCount; i++) {
       // Scan every single frame at video's native frame rate
@@ -216,15 +217,51 @@ const detectPosesWithTensorFlow = async (
           });
           
           const visible = landmarks.filter((lm: any) => (lm.visibility ?? 0) > 0.1).length;
+          const highConfidence = landmarks.filter((lm: any) => (lm.visibility ?? 0) > 0.5).length;
+          
           if (i % 10 === 0 || i < 3) {
-            console.log(`📍 Frame ${i + 1}: ${landmarks.length} landmarks, ${visible} visible (>=0.1)`);
+            console.log(`📍 Frame ${i + 1}: ${landmarks.length} landmarks, ${visible} visible (>=0.1), ${highConfidence} high confidence (>=0.5)`);
+          }
+          
+          // Validate pose quality - skip frames with poor detection
+          if (visible < 10) {
+            console.warn(`⚠️ Frame ${i + 1}: Poor pose detection (${visible} visible landmarks), using previous pose or skipping`);
+            if (previousPose) {
+              poses.push(previousPose);
+              continue;
+            }
+          }
+
+          // Apply pose smoothing for better accuracy
+          let smoothedLandmarks = landmarks;
+          if (previousPose) {
+            smoothedLandmarks = landmarks.map((landmark: any, index: number) => {
+              const prevLandmark = previousPose!.landmarks[index];
+              if (prevLandmark && landmark.visibility > 0.3 && (prevLandmark.visibility || 0) > 0.3) {
+                // Smooth position changes to reduce jitter
+                const smoothingFactor = 0.3; // Lower = more smoothing
+                return {
+                  ...landmark,
+                  x: landmark.x * (1 - smoothingFactor) + prevLandmark.x * smoothingFactor,
+                  y: landmark.y * (1 - smoothingFactor) + prevLandmark.y * smoothingFactor,
+                  visibility: Math.max(landmark.visibility, (prevLandmark.visibility || 0) * 0.8)
+                };
+              }
+              return landmark;
+            });
           }
 
           poses.push({
-            landmarks,
-            worldLandmarks: landmarks,
+            landmarks: smoothedLandmarks,
+            worldLandmarks: smoothedLandmarks,
             timestamp: frameTime * 1000
           });
+          
+          previousPose = {
+            landmarks: smoothedLandmarks,
+            worldLandmarks: smoothedLandmarks,
+            timestamp: frameTime * 1000
+          };
           
           // Debug: Log when we detect real pose data
           if (i === 0) {
@@ -302,9 +339,13 @@ const detectPosesWithTensorFlow = async (
     
     // Verify we have poses for the entire video duration
     if (poses.length > 0) {
-      const firstPoseTime = poses[0].timestamp / 1000;
-      const lastPoseTime = poses[poses.length - 1].timestamp / 1000;
-      console.log(`📊 Pose coverage: ${firstPoseTime.toFixed(2)}s to ${lastPoseTime.toFixed(2)}s (${duration.toFixed(2)}s total)`);
+      const firstPose = poses[0];
+      const lastPose = poses[poses.length - 1];
+      if (firstPose && lastPose && firstPose.timestamp && lastPose.timestamp) {
+        const firstPoseTime = firstPose.timestamp / 1000;
+        const lastPoseTime = lastPose.timestamp / 1000;
+        console.log(`📊 Pose coverage: ${firstPoseTime.toFixed(2)}s to ${lastPoseTime.toFixed(2)}s (${duration.toFixed(2)}s total)`);
+      }
     }
     
     // Final summary visibility

@@ -150,33 +150,41 @@ export default function CleanVideoAnalysisDisplay({
       const endLandmark = pose.landmarks[end];
       
       if (startLandmark && endLandmark && 
-          (startLandmark.visibility || 0) > 0.2 && 
-          (endLandmark.visibility || 0) > 0.2) {
+          (startLandmark.visibility || 0) > 0.3 && 
+          (endLandmark.visibility || 0) > 0.3) {
         
         // Calculate distance between points to avoid drawing very long lines
         const dx = startLandmark.x - endLandmark.x;
         const dy = startLandmark.y - endLandmark.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Only draw if distance is reasonable (not too long or too short)
-        if (distance > 0.05 && distance < 0.8) {
-          ctx.beginPath();
-          ctx.moveTo(
-            startLandmark.x * canvas.width,
-            startLandmark.y * canvas.height
-          );
-          ctx.lineTo(
-            endLandmark.x * canvas.width,
-            endLandmark.y * canvas.height
-          );
-          ctx.stroke();
+        // More strict distance validation for better accuracy
+        if (distance > 0.02 && distance < 0.6) {
+          // Additional validation: check if landmarks are within reasonable bounds
+          const startInBounds = startLandmark.x > 0 && startLandmark.x < 1 && startLandmark.y > 0 && startLandmark.y < 1;
+          const endInBounds = endLandmark.x > 0 && endLandmark.x < 1 && endLandmark.y > 0 && endLandmark.y < 1;
+          
+          if (startInBounds && endInBounds) {
+            ctx.beginPath();
+            ctx.moveTo(
+              startLandmark.x * canvas.width,
+              startLandmark.y * canvas.height
+            );
+            ctx.lineTo(
+              endLandmark.x * canvas.width,
+              endLandmark.y * canvas.height
+            );
+            ctx.stroke();
+          }
         }
       }
     });
 
-    // Draw keypoints - adaptive for different camera angles
+    // Draw keypoints - adaptive for different camera angles with better validation
     pose.landmarks.forEach((landmark: any, index: number) => {
-      if ((landmark.visibility || 0) > 0.2) { // Lower threshold for diagonal angles
+      if ((landmark.visibility || 0) > 0.3 && 
+          landmark.x > 0 && landmark.x < 1 && 
+          landmark.y > 0 && landmark.y < 1) { // Better validation for accuracy
         // Make keypoints slightly larger for better visibility
         const radius = 5;
         
