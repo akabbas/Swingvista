@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { Play, Pause, Eye, EyeOff } from 'lucide-react';
+import { Play, Pause, Eye, EyeOff, Volume2, VolumeX } from 'lucide-react';
 
 interface CleanVideoAnalysisDisplayProps {
   videoFile?: File | null;
@@ -59,6 +59,7 @@ export default function CleanVideoAnalysisDisplay({
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(0.5); // Default to 0.5x speed for golf analysis
   const [showOverlays, setShowOverlays] = useState(true);
+  const [isMuted, setIsMuted] = useState(true); // Default to muted for analysis
   
   // Debug showOverlays state changes
   useEffect(() => {
@@ -93,6 +94,16 @@ export default function CleanVideoAnalysisDisplay({
       setIsPlaying(false);
     }
   }, []);
+
+  const handleMuteToggle = useCallback(() => {
+    if (videoRef.current) {
+      const newMutedState = !isMuted;
+      videoRef.current.muted = newMutedState;
+      videoRef.current.volume = newMutedState ? 0 : 1;
+      setIsMuted(newMutedState);
+      console.log('🔇 Video', newMutedState ? 'muted' : 'unmuted');
+    }
+  }, [isMuted]);
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
@@ -815,6 +826,11 @@ export default function CleanVideoAnalysisDisplay({
       }
       // Ensure playback speed is set after video loads
       video.playbackRate = playbackSpeed;
+      
+      // Set initial mute state
+      video.muted = isMuted;
+      video.volume = isMuted ? 0 : 1;
+      console.log('🔇 Video', isMuted ? 'muted' : 'unmuted', 'for analysis');
     };
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -896,6 +912,18 @@ export default function CleanVideoAnalysisDisplay({
             className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Refresh Overlays
+          </button>
+          
+          <button
+            onClick={handleMuteToggle}
+            className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+              isMuted 
+                ? 'bg-gray-300 text-gray-700 hover:bg-gray-400' 
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 mr-2" /> : <Volume2 className="w-4 h-4 mr-2" />}
+            {isMuted ? 'Unmute' : 'Mute'}
           </button>
         </div>
 
