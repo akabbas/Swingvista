@@ -53,6 +53,8 @@ export default function CleanVideoAnalysisDisplay({
   const videoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const clubPathCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Persistent club head history (normalized coordinates) for smooth trail
+  const clubHeadHistoryRef = useRef<Array<{x:number,y:number,confidence:number,method:string}>>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(0.5); // Default to 0.5x speed for golf analysis
@@ -393,132 +395,91 @@ export default function CleanVideoAnalysisDisplay({
 
   // Enhanced club head detection specifically for golf clubs
   const detectClubHead = useCallback((frame: number): {x: number, y: number, confidence: number, method: string} => {
-    console.log(`🏌️ DETECTING CLUB HEAD: Frame ${frame}`);
-    
+    // Prefer cached history for continuity
     if (!poses || poses.length === 0 || frame >= poses.length) {
-      console.log('❌ Cannot detect club head - missing poses');
       return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
     }
     
     const pose = poses[frame];
-    const leftWrist = pose?.landmarks?.[15];
-    const rightWrist = pose?.landmarks?.[16];
-    const leftShoulder = pose?.landmarks?.[11];
-    const rightShoulder = pose?.landmarks?.[12];
-    
-    // Method 1: Use hand positions to estimate club head location
-    if (leftWrist && rightWrist && 
-        (leftWrist.visibility || 0) > 0.3 && (rightWrist.visibility || 0) > 0.3) {
-      
-      const wristCenterX = (leftWrist.x + rightWrist.x) / 2;
-      const wristCenterY = (leftWrist.y + rightWrist.y) / 2;
-      
-      // Calculate swing direction based on hand movement
-      let clubHeadX = wristCenterX;
-      let clubHeadY = wristCenterY;
-      let confidence = 0.8;
-      let method = 'hand_position';
-      
-      // For golf swing, club head is typically below and to the side of hands
-      // Adjust based on swing phase
-      const totalFrames = poses.length;
-      const swingProgress = frame / totalFrames;
-      
-      if (swingProgress < 0.2) {
-        // Address and early backswing - club head is below hands
-        clubHeadY = wristCenterY + 0.2;
-        clubHeadX = wristCenterX + 0.08; // Slightly to the right for right-handed golfer
-      } else if (swingProgress < 0.4) {
-        // Mid backswing - club head moves up and behind
-        clubHeadY = wristCenterY - 0.15;
-        clubHeadX = wristCenterX - 0.12;
-      } else if (swingProgress < 0.6) {
-        // Top of backswing - club head is high and behind
-        clubHeadY = wristCenterY - 0.25;
-        clubHeadX = wristCenterX - 0.2;
-      } else if (swingProgress < 0.8) {
-        // Downswing - club head moves down and forward
-        clubHeadY = wristCenterY + 0.25;
-        clubHeadX = wristCenterX + 0.15;
-      } else {
-        // Follow-through - club head continues forward
-        clubHeadY = wristCenterY + 0.1;
-        clubHeadX = wristCenterX + 0.2;
+    // MoveNet wrist indices: 9 = left_wrist, 10 = right_wrist
+    const leftWrist = pose?.landmarks?.[9];
+    const rightWrist = pose?.landmarks?.[10];
+
+    // Compute wrist center using available wrists (use counts to avoid nullable math)
+    let wristCenterXSum = 0;
+    let wristCenterYSum = 0;
+    let wristCount = 0;
+    let visibilitySum = 0;
+
+    if (leftWrist && (leftWrist.visibility || 0) > 0) {
+      wristCenterXSum += leftWrist.x;
+      wristCenterYSum += leftWrist.y;
+      visibilitySum += (leftWrist.visibility || 0);
+      wristCount++;
+    }
+    if (rightWrist && (rightWrist.visibility || 0) > 0) {
+      wristCenterXSum += rightWrist.x;
+      wristCenterYSum += rightWrist.y;
+      visibilitySum += (rightWrist.visibility || 0);
+      wristCount++;
+    }
+
+    const wristCenterX = wristCount > 0 ? wristCenterXSum / wristCount : null;
+    const wristCenterY = wristCount > 0 ? wristCenterYSum / wristCount : null;
+
+    // Baseline target: near wrist center (club head often near hands)
+    let targetX = wristCenterX ?? 0.5;
+    let targetY = wristCenterY ?? 0.7; // default slightly lower than hands
+    let confidence = wristCount > 0 ? Math.min(1, visibilitySum / wristCount) : 0;
+    let method = 'wrist_center';
+
+    // If we only have one wrist, nudge target slightly outward based on which wrist
+    if (leftWrist && !rightWrist) {
+      targetX = leftWrist.x - 0.03;
+      targetY = leftWrist.y + 0.05;
+    }
+    if (rightWrist && !leftWrist) {
+      targetX = rightWrist.x + 0.03;
+      targetY = rightWrist.y + 0.05;
+    }
+
+    // Smoothing: blend with previous club head position to avoid teleportation
+    const prev = clubHeadHistoryRef.current[frame - 1] ?? clubHeadHistoryRef.current[clubHeadHistoryRef.current.length - 1] ?? null;
+    const smoothingAlpha = 0.45; // 0..1, higher = more responsive
+    let smoothedX = targetX;
+    let smoothedY = targetY;
+
+    if (prev) {
+      // If distance is very large, limit movement to avoid teleport
+      const dx = targetX - prev.x;
+      const dy = targetY - prev.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Cap instantaneous jump to reasonable fraction
+      const maxStep = 0.18; // maximum normalized jump per frame
+      if (distance > maxStep) {
+        const t = maxStep / distance;
+        targetX = prev.x + dx * t;
+        targetY = prev.y + dy * t;
       }
-      
-      console.log(`🏌️ Club head from hands: (${clubHeadX.toFixed(3)}, ${clubHeadY.toFixed(3)}) confidence: ${confidence.toFixed(2)}`);
-      
-      return { 
-        x: Math.max(0, Math.min(1, clubHeadX)), 
-        y: Math.max(0, Math.min(1, clubHeadY)), 
-        confidence,
-        method
-      };
+
+      smoothedX = prev.x * (1 - smoothingAlpha) + targetX * smoothingAlpha;
+      smoothedY = prev.y * (1 - smoothingAlpha) + targetY * smoothingAlpha;
+      confidence = Math.max(confidence, prev.confidence * 0.6);
+      method = 'smoothed_wrist';
     }
-    
-    // Method 2: Use shoulder position as fallback
-    if (leftShoulder && rightShoulder && 
-        (leftShoulder.visibility || 0) > 0.3 && (rightShoulder.visibility || 0) > 0.3) {
-      
-      const shoulderCenterX = (leftShoulder.x + rightShoulder.x) / 2;
-      const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-      
-      // Club head is typically below and to the side of shoulders
-      const clubHeadX = shoulderCenterX + 0.12;
-      const clubHeadY = shoulderCenterY + 0.35;
-      const confidence = 0.5;
-      const method = 'shoulder_fallback';
-      
-      console.log(`🏌️ Club head from shoulders: (${clubHeadX.toFixed(3)}, ${clubHeadY.toFixed(3)}) confidence: ${confidence.toFixed(2)}`);
-      
-      return { 
-        x: Math.max(0, Math.min(1, clubHeadX)), 
-        y: Math.max(0, Math.min(1, clubHeadY)), 
-        confidence,
-        method
-      };
-    }
-    
-    // Method 3: Default position based on swing phase
-    const totalFrames = poses.length;
-    const swingProgress = frame / totalFrames;
-    
-    let clubHeadX = 0.5;
-    let clubHeadY = 0.7;
-    let confidence = 0.3;
-    let method = 'phase_based';
-    
-    if (swingProgress < 0.2) {
-      // Address position
-      clubHeadX = 0.6;
-      clubHeadY = 0.8;
-    } else if (swingProgress < 0.4) {
-      // Backswing
-      clubHeadX = 0.4;
-      clubHeadY = 0.5;
-    } else if (swingProgress < 0.6) {
-      // Top of backswing
-      clubHeadX = 0.3;
-      clubHeadY = 0.3;
-    } else if (swingProgress < 0.8) {
-      // Downswing
-      clubHeadX = 0.6;
-      clubHeadY = 0.7;
-    } else {
-      // Follow-through
-      clubHeadX = 0.7;
-      clubHeadY = 0.6;
-    }
-    
-    console.log(`🏌️ Club head from phase: (${clubHeadX.toFixed(3)}, ${clubHeadY.toFixed(3)}) confidence: ${confidence.toFixed(2)}`);
-    
-    return { 
-      x: clubHeadX, 
-      y: clubHeadY, 
-      confidence,
-      method
-    };
-  }, [videoRef, poses]);
+
+    // Ensure bounds
+    smoothedX = Math.max(0, Math.min(1, smoothedX));
+    smoothedY = Math.max(0, Math.min(1, smoothedY));
+
+    const result = { x: smoothedX, y: smoothedY, confidence, method };
+
+    // Cache into history for continuous trail drawing
+    clubHeadHistoryRef.current[frame] = result;
+
+    return result;
+  }, [poses]);
 
   // Draw club path
   const drawClubPath = useCallback((
@@ -529,85 +490,55 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
-    console.log('🎨 DRAW CLUB PATH: Frame', frame, 'Poses available:', poses?.length);
-    
-    if (!poses || poses.length === 0) {
-      console.log('❌ No poses for club path');
-      return;
-    }
+    // Build continuous trail using cached clubHeadHistoryRef
+    const history = clubHeadHistoryRef.current;
 
-    const canvas = clubPathCanvasRef.current;
-    if (!canvas) {
-      console.log('❌ No canvas for club path');
-      return;
-    }
-    
-    // Detect current club head position
-    const { x: clubHeadX, y: clubHeadY, confidence, method } = detectClubHead(frame);
-    
-    console.log('🎨 Club head position:', { x: clubHeadX, y: clubHeadY, confidence, method });
+    if (!history || history.length === 0) return;
 
-    // We don't need to clear here anymore as the main drawOverlays function
-    // handles clearing each canvas before drawing
-    
-    // Draw club path trail (show last 20 frames for better visibility)
+    // Determine usable frames up to current frame
+    const endFrame = Math.min(frame, history.length - 1);
+    const startFrame = Math.max(0, endFrame - 40); // show last 40 frames for smoother trail
+
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 8; // Make it thicker for better visibility
+    ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     
-    const startFrame = Math.max(0, frame - 20);
-    let pathPoints = 0;
-    let clubHeadPositions = [];
-    
-    // Get club head positions for past frames
-    for (let i = startFrame; i <= frame; i++) {
-      const pastClubHead = detectClubHead(i);
-      clubHeadPositions.push(pastClubHead);
-      
-      if (pastClubHead.confidence > 0.2) { // Only use high confidence detections
-        if (pathPoints === 0) {
-          ctx.moveTo(offsetX + pastClubHead.x * renderedWidth, offsetY + pastClubHead.y * renderedHeight);
-        } else {
-          ctx.lineTo(offsetX + pastClubHead.x * renderedWidth, offsetY + pastClubHead.y * renderedHeight);
-        }
-        pathPoints++;
-      }
-    }
-    
-    console.log('🎨 Club path points drawn:', pathPoints);
-    ctx.stroke();
+    let drawn = 0;
+    for (let i = startFrame; i <= endFrame; i++) {
+      const p = history[i];
+      if (!p) continue;
+      // Skip very low confidence points but keep continuity
+      const px = offsetX + p.x * renderedWidth;
+      const py = offsetY + p.y * renderedHeight;
 
-    // Draw current club head position (make it bigger and more visible)
+      if (drawn === 0) {
+        ctx.moveTo(px, py);
+        } else {
+        ctx.lineTo(px, py);
+      }
+      drawn++;
+    }
+
+    if (drawn > 0) ctx.stroke();
+
+    // Draw current club head marker
+    const current = history[endFrame];
+    if (current) {
+      const cx = offsetX + current.x * renderedWidth;
+      const cy = offsetY + current.y * renderedHeight;
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
-    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, 12, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Draw white outline for better visibility
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, 12, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    // Draw confidence indicator (pulsing effect)
-    const confidenceRadius = 20 + (10 * confidence);
-    ctx.strokeStyle = `rgba(255, 0, 255, ${confidence * 0.5})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(offsetX + clubHeadX * renderedWidth, offsetY + clubHeadY * renderedHeight, confidenceRadius, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.stroke();
-
-    // Draw club path label with background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(offsetX + 10, offsetY + renderedHeight - 100, 200, 40);
-    ctx.fillStyle = '#ff00ff';
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(`CLUB PATH (${method})`, offsetX + 15, offsetY + renderedHeight - 75);
-    ctx.fillText(`Points: ${pathPoints}`, offsetX + 15, offsetY + renderedHeight - 55);
-  }, [poses, detectClubHead]);
+    }
+  }, [poses]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
