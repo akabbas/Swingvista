@@ -145,15 +145,69 @@ const GradeDisplay = ({ analysis }: { analysis: any }) => {
   );
 };
 
-// Progress bar component
-const ProgressBar = ({ progress }: { progress: number }) => (
-  <div className="w-full bg-gray-200 rounded-full h-2.5">
-    <div 
-      className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-      style={{ width: `${progress}%` }}
-    />
-  </div>
-);
+// Enhanced progress bar component with detailed progress tracking
+const ProgressBar = ({ progress, step, isAnalyzing }: { 
+  progress: number; 
+  step: string; 
+  isAnalyzing: boolean;
+}) => {
+  const getProgressColor = (progress: number) => {
+    if (progress < 30) return 'bg-blue-500';
+    if (progress < 60) return 'bg-yellow-500';
+    if (progress < 90) return 'bg-orange-500';
+    return 'bg-green-500';
+  };
+
+  const getProgressStage = (progress: number) => {
+    if (progress < 20) return 'Initializing...';
+    if (progress < 40) return 'Extracting poses...';
+    if (progress < 70) return 'Analyzing swing...';
+    if (progress < 90) return 'Processing results...';
+    return 'Finalizing...';
+  };
+
+  return (
+    <div className="w-full space-y-3">
+      {/* Main progress bar */}
+      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div 
+          className={`h-3 rounded-full transition-all duration-500 ease-out ${getProgressColor(progress)}`}
+          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+        />
+      </div>
+      
+      {/* Progress details */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center space-x-2">
+          <span className="font-medium text-gray-700">
+            {isAnalyzing ? getProgressStage(progress) : 'Complete'}
+          </span>
+          <span className="text-gray-500">•</span>
+          <span className="text-gray-600">{Math.round(progress)}%</span>
+        </div>
+        
+        {/* Animated dots during analysis */}
+        {isAnalyzing && (
+          <div className="flex space-x-1">
+            <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
+            <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        )}
+      </div>
+      
+      {/* Current step */}
+      {step && (
+        <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span>{step}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -286,27 +340,36 @@ export default function CleanUploadPage() {
 
     dispatch({ type: 'SET_ANALYZING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
-    dispatch({ type: 'SET_STEP', payload: 'Starting analysis...' });
-    dispatch({ type: 'SET_PROGRESS', payload: 0 });
+    dispatch({ type: 'SET_STEP', payload: 'Initializing analysis system...' });
+    dispatch({ type: 'SET_PROGRESS', payload: 5 });
 
     try {
       // Use the uploaded file or fetch the sample video
       let fileToAnalyze = state.file;
       
       if (!fileToAnalyze && selectedSampleVideo) {
+        dispatch({ type: 'SET_STEP', payload: 'Loading sample video...' });
+        dispatch({ type: 'SET_PROGRESS', payload: 10 });
+        
         fileToAnalyze = await fetchSampleVideo(selectedSampleVideo.url);
         if (!fileToAnalyze) {
           throw new Error('Failed to load sample video');
         }
+        
+        dispatch({ type: 'SET_STEP', payload: 'Sample video loaded successfully' });
+        dispatch({ type: 'SET_PROGRESS', payload: 15 });
       }
       
       // Step 1: Extract poses
-      dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video...' });
+      dispatch({ type: 'SET_STEP', payload: 'Preparing pose detection...' });
       dispatch({ type: 'SET_PROGRESS', payload: 20 });
       
       if (!fileToAnalyze) {
         throw new Error('No file to analyze');
       }
+      
+      dispatch({ type: 'SET_STEP', payload: 'Extracting poses from video frames...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 25 });
       
       const extracted = await extractPosesFromVideo(fileToAnalyze, {
         sampleFps: 30,
@@ -314,8 +377,8 @@ export default function CleanUploadPage() {
         minConfidence: 0.3,
         qualityThreshold: 0.2
       }, (progress) => {
-        dispatch({ type: 'SET_STEP', payload: progress.step });
-        dispatch({ type: 'SET_PROGRESS', payload: 20 + (progress.progress * 0.3) });
+        dispatch({ type: 'SET_STEP', payload: `Pose extraction: ${progress.step}` });
+        dispatch({ type: 'SET_PROGRESS', payload: 25 + (progress.progress * 0.35) });
       });
       
       console.log('🏌️ UPLOAD ANALYSIS: Extracted poses:', extracted.length);
@@ -323,8 +386,11 @@ export default function CleanUploadPage() {
       dispatch({ type: 'SET_POSES', payload: extracted });
 
       // Step 2: Analyze golf swing
-      dispatch({ type: 'SET_STEP', payload: 'Analyzing golf swing...' });
-      dispatch({ type: 'SET_PROGRESS', payload: 60 });
+      dispatch({ type: 'SET_STEP', payload: 'Processing pose data...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 65 });
+      
+      dispatch({ type: 'SET_STEP', payload: 'Analyzing golf swing mechanics...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 70 });
       
       // TypeScript check to ensure fileToAnalyze is not null
       if (!fileToAnalyze) {
@@ -332,14 +398,18 @@ export default function CleanUploadPage() {
       }
       
       const analysis = await analyzeGolfSwing(fileToAnalyze, (step, progress) => {
-        dispatch({ type: 'SET_STEP', payload: step });
-        dispatch({ type: 'SET_PROGRESS', payload: 60 + (progress * 0.3) });
+        dispatch({ type: 'SET_STEP', payload: `Swing analysis: ${step}` });
+        dispatch({ type: 'SET_PROGRESS', payload: 70 + (progress * 0.25) });
       });
 
       console.log('🏌️ UPLOAD ANALYSIS: Analysis complete:', analysis);
+      
+      dispatch({ type: 'SET_STEP', payload: 'Finalizing results...' });
+      dispatch({ type: 'SET_PROGRESS', payload: 95 });
+      
       dispatch({ type: 'SET_RESULT', payload: analysis });
       dispatch({ type: 'SET_PROGRESS', payload: 100 });
-      dispatch({ type: 'SET_STEP', payload: 'Analysis complete!' });
+      dispatch({ type: 'SET_STEP', payload: 'Analysis complete! Ready to view results.' });
 
     } catch (error) {
       console.error('❌ UPLOAD ANALYSIS ERROR:', error);
@@ -534,9 +604,18 @@ export default function CleanUploadPage() {
         {/* Progress Section */}
         {state.isAnalyzing && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Analysis Progress</h3>
-            <ProgressBar progress={state.progress} />
-            <p className="text-gray-600 mt-2">{state.step}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-800">Analysis Progress</h3>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600">Processing...</span>
+              </div>
+            </div>
+            <ProgressBar 
+              progress={state.progress} 
+              step={state.step} 
+              isAnalyzing={state.isAnalyzing}
+            />
             <LoadingSpinner />
           </div>
         )}
