@@ -395,15 +395,26 @@ export default function CleanVideoAnalysisDisplay({
 
   // Enhanced club head detection specifically for golf clubs
   const detectClubHead = useCallback((frame: number): {x: number, y: number, confidence: number, method: string} => {
+    console.log(`🏌️ DETECTING CLUB HEAD: Frame ${frame}`);
+    
     // Prefer cached history for continuity
     if (!poses || poses.length === 0 || frame >= poses.length) {
+      console.log('❌ Cannot detect club head - missing poses');
       return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
     }
     
     const pose = poses[frame];
+    if (!pose || !pose.landmarks) {
+      console.log('❌ No pose or landmarks for frame', frame);
+      return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
+    }
+
     // MoveNet wrist indices: 9 = left_wrist, 10 = right_wrist
-    const leftWrist = pose?.landmarks?.[9];
-    const rightWrist = pose?.landmarks?.[10];
+    const leftWrist = pose.landmarks[9];
+    const rightWrist = pose.landmarks[10];
+
+    console.log(`🏌️ Wrist data - Left: ${leftWrist ? `x=${leftWrist.x.toFixed(3)}, y=${leftWrist.y.toFixed(3)}, vis=${(leftWrist.visibility || 0).toFixed(2)}` : 'null'}`);
+    console.log(`🏌️ Wrist data - Right: ${rightWrist ? `x=${rightWrist.x.toFixed(3)}, y=${rightWrist.y.toFixed(3)}, vis=${(rightWrist.visibility || 0).toFixed(2)}` : 'null'}`);
 
     // Compute wrist center using available wrists (use counts to avoid nullable math)
     let wristCenterXSum = 0;
@@ -411,13 +422,13 @@ export default function CleanVideoAnalysisDisplay({
     let wristCount = 0;
     let visibilitySum = 0;
 
-    if (leftWrist && (leftWrist.visibility || 0) > 0) {
+    if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
       wristCenterXSum += leftWrist.x;
       wristCenterYSum += leftWrist.y;
       visibilitySum += (leftWrist.visibility || 0);
       wristCount++;
     }
-    if (rightWrist && (rightWrist.visibility || 0) > 0) {
+    if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
       wristCenterXSum += rightWrist.x;
       wristCenterYSum += rightWrist.y;
       visibilitySum += (rightWrist.visibility || 0);
@@ -427,6 +438,8 @@ export default function CleanVideoAnalysisDisplay({
     const wristCenterX = wristCount > 0 ? wristCenterXSum / wristCount : null;
     const wristCenterY = wristCount > 0 ? wristCenterYSum / wristCount : null;
 
+    console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
+
     // Baseline target: near wrist center (club head often near hands)
     let targetX = wristCenterX ?? 0.5;
     let targetY = wristCenterY ?? 0.7; // default slightly lower than hands
@@ -434,46 +447,72 @@ export default function CleanVideoAnalysisDisplay({
     let method = 'wrist_center';
 
     // If we only have one wrist, nudge target slightly outward based on which wrist
-    if (leftWrist && !rightWrist) {
+    if (leftWrist && !rightWrist && (leftWrist.visibility || 0) > 0.1) {
       targetX = leftWrist.x - 0.03;
       targetY = leftWrist.y + 0.05;
+      method = 'left_wrist_only';
     }
-    if (rightWrist && !leftWrist) {
+    if (rightWrist && !leftWrist && (rightWrist.visibility || 0) > 0.1) {
       targetX = rightWrist.x + 0.03;
       targetY = rightWrist.y + 0.05;
+      method = 'right_wrist_only';
     }
 
-    // Smoothing: blend with previous club head position to avoid teleportation
+    console.log(`🏌️ Target before smoothing: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}, confidence=${confidence.toFixed(2)}, method=${method}`);
+
+    // Get previous position for smoothing
     const prev = clubHeadHistoryRef.current[frame - 1] ?? clubHeadHistoryRef.current[clubHeadHistoryRef.current.length - 1] ?? null;
-    const smoothingAlpha = 0.45; // 0..1, higher = more responsive
+    
     let smoothedX = targetX;
     let smoothedY = targetY;
 
     if (prev) {
-      // If distance is very large, limit movement to avoid teleport
+      console.log(`🏌️ Previous position: x=${prev.x.toFixed(3)}, y=${prev.y.toFixed(3)}`);
+      
+      // Calculate distance to previous position
       const dx = targetX - prev.x;
       const dy = targetY - prev.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      console.log(`🏌️ Distance from previous: ${distance.toFixed(3)}`);
 
-      // Cap instantaneous jump to reasonable fraction
-      const maxStep = 0.18; // maximum normalized jump per frame
+      // Much more aggressive smoothing - only cap extreme jumps
+      const maxStep = 0.5; // Increased from 0.18 to allow more movement
       if (distance > maxStep) {
         const t = maxStep / distance;
         targetX = prev.x + dx * t;
         targetY = prev.y + dy * t;
+        console.log(`🏌️ Capped jump to: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}`);
       }
 
+      // Reduced smoothing to allow more movement
+      const smoothingAlpha = 0.8; // Increased from 0.45 to be more responsive
       smoothedX = prev.x * (1 - smoothingAlpha) + targetX * smoothingAlpha;
       smoothedY = prev.y * (1 - smoothingAlpha) + targetY * smoothingAlpha;
-      confidence = Math.max(confidence, prev.confidence * 0.6);
+      confidence = Math.max(confidence, prev.confidence * 0.8);
       method = 'smoothed_wrist';
+      
+      console.log(`🏌️ After smoothing: x=${smoothedX.toFixed(3)}, y=${smoothedY.toFixed(3)}`);
+    } else {
+      console.log(`🏌️ No previous position, using target directly`);
     }
 
-    // Ensure bounds
+    // Ensure bounds and validate coordinates
     smoothedX = Math.max(0, Math.min(1, smoothedX));
     smoothedY = Math.max(0, Math.min(1, smoothedY));
+    
+    // Safety check for NaN or invalid coordinates
+    if (isNaN(smoothedX) || isNaN(smoothedY)) {
+      console.warn(`🏌️ Invalid coordinates detected, using fallback`);
+      smoothedX = 0.5;
+      smoothedY = 0.7;
+      confidence = 0.1;
+      method = 'fallback';
+    }
 
     const result = { x: smoothedX, y: smoothedY, confidence, method };
+
+    console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
 
     // Cache into history for continuous trail drawing
     clubHeadHistoryRef.current[frame] = result;
@@ -490,14 +529,21 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
+    console.log(`🎨 DRAW CLUB PATH: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
+    
     // Build continuous trail using cached clubHeadHistoryRef
     const history = clubHeadHistoryRef.current;
 
-    if (!history || history.length === 0) return;
-
+    if (!history || history.length === 0) {
+      console.log('❌ No club head history available');
+      return;
+    }
+    
     // Determine usable frames up to current frame
     const endFrame = Math.min(frame, history.length - 1);
     const startFrame = Math.max(0, endFrame - 40); // show last 40 frames for smoother trail
+    
+    console.log(`🎨 Drawing trail from frame ${startFrame} to ${endFrame}`);
 
     ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = 6;
@@ -508,10 +554,15 @@ export default function CleanVideoAnalysisDisplay({
     let drawn = 0;
     for (let i = startFrame; i <= endFrame; i++) {
       const p = history[i];
-      if (!p) continue;
-      // Skip very low confidence points but keep continuity
+      if (!p) {
+        console.log(`🎨 Skipping frame ${i} - no data`);
+        continue;
+      }
+      
       const px = offsetX + p.x * renderedWidth;
       const py = offsetY + p.y * renderedHeight;
+      
+      console.log(`🎨 Drawing point ${i}: (${px.toFixed(1)}, ${py.toFixed(1)}) from normalized (${p.x.toFixed(3)}, ${p.y.toFixed(3)})`);
 
       if (drawn === 0) {
         ctx.moveTo(px, py);
@@ -521,6 +572,7 @@ export default function CleanVideoAnalysisDisplay({
       drawn++;
     }
 
+    console.log(`🎨 Drew ${drawn} trail points`);
     if (drawn > 0) ctx.stroke();
 
     // Draw current club head marker
@@ -528,6 +580,9 @@ export default function CleanVideoAnalysisDisplay({
     if (current) {
       const cx = offsetX + current.x * renderedWidth;
       const cy = offsetY + current.y * renderedHeight;
+      
+      console.log(`🎨 Drawing club head marker at (${cx.toFixed(1)}, ${cy.toFixed(1)}) from normalized (${current.x.toFixed(3)}, ${current.y.toFixed(3)})`);
+      
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
       ctx.arc(cx, cy, 10, 0, Math.PI * 2);
@@ -537,6 +592,8 @@ export default function CleanVideoAnalysisDisplay({
     ctx.beginPath();
       ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.stroke();
+    } else {
+      console.log('❌ No current club head position to draw');
     }
   }, [poses]);
 
@@ -712,6 +769,14 @@ export default function CleanVideoAnalysisDisplay({
       cancelAnimationFrame(animationFrameId);
     };
   }, [drawOverlays]);
+
+  // Reset club head history when poses change (new video)
+  useEffect(() => {
+    if (poses && poses.length > 0) {
+      console.log('🏌️ RESETTING CLUB HEAD HISTORY for new video');
+      clubHeadHistoryRef.current = [];
+    }
+  }, [poses]);
 
   // Trigger initial overlay draw when video loads and auto-play
   useEffect(() => {
