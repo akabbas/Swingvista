@@ -546,12 +546,14 @@ export default function CleanVideoAnalysisDisplay({
     const poseCanvas = poseCanvasRef.current;
     const clubPathCanvas = clubPathCanvasRef.current;
     const video = videoRef.current;
-    if (!poseCanvas || !clubPathCanvas || !video || !showOverlays) {
+    if (!poseCanvas || !clubPathCanvas || !video || !showOverlays || !poses || poses.length === 0) {
       console.log('❌ Draw overlays skipped:', { 
         poseCanvas: !!poseCanvas, 
         clubPathCanvas: !!clubPathCanvas,
         video: !!video, 
-        showOverlays 
+        showOverlays,
+        poses: !!poses,
+        posesLength: poses?.length
       });
       return;
     }
@@ -641,6 +643,7 @@ export default function CleanVideoAnalysisDisplay({
     function animationLoop(timestamp: number) {
       // Only draw if enough time has passed since last draw
       if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
+        console.log('🎬 Animation loop drawing overlays at timestamp:', timestamp);
         drawOverlays();
         lastDrawTime = timestamp;
       }
