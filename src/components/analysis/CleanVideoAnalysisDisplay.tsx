@@ -107,7 +107,16 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
     
-    console.log('🎨 Drawing overlay with', pose.landmarks.length, 'landmarks');
+    // Debug: Count visible landmarks
+    const visibleLandmarks = pose.landmarks.filter((lm: any) => (lm.visibility || 0) > 0.2);
+    console.log('🎨 Drawing overlay with', pose.landmarks.length, 'landmarks,', visibleLandmarks.length, 'visible');
+    
+    // Debug: Log landmark visibility for diagonal angle troubleshooting
+    if (frame % 30 === 0) { // Log every 30 frames
+      console.log('🎨 LANDMARK VISIBILITY:', pose.landmarks.map((lm: any, i: number) => 
+        `${i}:${(lm.visibility || 0).toFixed(2)}`
+      ).join(' '));
+    }
 
     // Get canvas reference
     const canvas = poseCanvasRef.current;
@@ -132,38 +141,70 @@ export default function CleanVideoAnalysisDisplay({
       [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
     ];
 
-    // Draw connections - simple and accurate
+    // Draw connections - adaptive for different camera angles
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 3;
     
     connections.forEach(([start, end]) => {
-      if (pose.landmarks[start] && pose.landmarks[end] && 
-          (pose.landmarks[start].visibility || 0) > 0.3 && 
-          (pose.landmarks[end].visibility || 0) > 0.3) {
-        ctx.beginPath();
-        ctx.moveTo(
-          pose.landmarks[start].x * canvas.width,
-          pose.landmarks[start].y * canvas.height
-        );
-        ctx.lineTo(
-          pose.landmarks[end].x * canvas.width,
-          pose.landmarks[end].y * canvas.height
-        );
-        ctx.stroke();
+      const startLandmark = pose.landmarks[start];
+      const endLandmark = pose.landmarks[end];
+      
+      if (startLandmark && endLandmark && 
+          (startLandmark.visibility || 0) > 0.2 && 
+          (endLandmark.visibility || 0) > 0.2) {
+        
+        // Calculate distance between points to avoid drawing very long lines
+        const dx = startLandmark.x - endLandmark.x;
+        const dy = startLandmark.y - endLandmark.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Only draw if distance is reasonable (not too long or too short)
+        if (distance > 0.05 && distance < 0.8) {
+          ctx.beginPath();
+          ctx.moveTo(
+            startLandmark.x * canvas.width,
+            startLandmark.y * canvas.height
+          );
+          ctx.lineTo(
+            endLandmark.x * canvas.width,
+            endLandmark.y * canvas.height
+          );
+          ctx.stroke();
+        }
       }
     });
 
-    // Draw keypoints - simple and accurate
-    pose.landmarks.forEach((landmark: any) => {
-      if ((landmark.visibility || 0) > 0.3) {
-        ctx.fillStyle = '#ff0000';
+    // Draw keypoints - adaptive for different camera angles
+    pose.landmarks.forEach((landmark: any, index: number) => {
+      if ((landmark.visibility || 0) > 0.2) { // Lower threshold for diagonal angles
+        // Make keypoints slightly larger for better visibility
+        const radius = 5;
+        
+        // Different colors for different body parts
+        if (index >= 0 && index <= 10) {
+          ctx.fillStyle = '#ff0000'; // Face - red
+        } else if (index >= 11 && index <= 16) {
+          ctx.fillStyle = '#00ff00'; // Arms - green
+        } else if (index >= 17 && index <= 22) {
+          ctx.fillStyle = '#0000ff'; // Hands - blue
+        } else if (index >= 23 && index <= 24) {
+          ctx.fillStyle = '#ffff00'; // Hips - yellow
+        } else {
+          ctx.fillStyle = '#ff00ff'; // Legs - magenta
+        }
+        
         ctx.beginPath();
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          4, 0, 2 * Math.PI
+          radius, 0, 2 * Math.PI
         );
         ctx.fill();
+        
+        // Add white outline for better visibility
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     });
   }, [poses]);

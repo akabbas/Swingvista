@@ -374,8 +374,8 @@ export default function CleanUploadPage() {
       const extracted = await extractPosesFromVideo(fileToAnalyze, {
         sampleFps: 30,
         maxFrames: 1000,
-        minConfidence: 0.3,
-        qualityThreshold: 0.2
+        minConfidence: 0.2, // Lower threshold for diagonal angles
+        qualityThreshold: 0.1 // Lower threshold for better detection
       }, (progress) => {
         dispatch({ type: 'SET_STEP', payload: `Pose extraction: ${progress.step}` });
         dispatch({ type: 'SET_PROGRESS', payload: 25 + (progress.progress * 0.35) });
