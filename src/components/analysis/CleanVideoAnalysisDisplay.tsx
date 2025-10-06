@@ -566,10 +566,9 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
-    // Only log every 30 frames to reduce console spam
-    if (frame % 30 === 0) {
-      console.log(`🎨 DRAW CLUB PATH: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
-    }
+    console.log(`🎨 DRAW CLUB PATH CALLED: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
+    console.log(`🎨 Canvas context valid: ${!!ctx}`);
+    console.log(`🎨 Dimensions: ${renderedWidth}x${renderedHeight}, Offset: ${offsetX},${offsetY}`);
     
     // Build continuous trail using cached clubHeadHistoryRef
     const history = clubHeadHistoryRef.current;
@@ -582,6 +581,7 @@ export default function CleanVideoAnalysisDisplay({
       
       // Try to detect club head for current frame if no history
       const currentClubHead = detectClubHead(frame);
+      console.log(`🎨 Club head detection result:`, currentClubHead);
       
       if (currentClubHead && currentClubHead.x !== undefined && currentClubHead.y !== undefined) {
         // Draw single point if we have valid coordinates
@@ -592,16 +592,20 @@ export default function CleanVideoAnalysisDisplay({
           console.log(`🎨 Drawing single club head point at (${px.toFixed(1)}, ${py.toFixed(1)})`);
         }
         
+        console.log(`🎨 Drawing club head at pixel coordinates: (${px.toFixed(1)}, ${py.toFixed(1)})`);
+        
         ctx.fillStyle = '#ff00ff';
         ctx.beginPath();
         ctx.arc(px, py, 12, 0, Math.PI * 2);
         ctx.fill();
+        console.log(`🎨 Club head fill drawn`);
         
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(px, py, 12, 0, Math.PI * 2);
         ctx.stroke();
+        console.log(`🎨 Club head stroke drawn`);
     } else {
         // Fallback: try to use hand positions directly
         if (frame < 3) {
@@ -702,17 +706,21 @@ export default function CleanVideoAnalysisDisplay({
     }
     
     if (drawn > 0) {
+      console.log(`🎨 Drawing trail with ${drawn} points`);
     ctx.stroke();
-      if (frame % 30 === 0) {
-        console.log('✅ Club path trail drawn successfully');
-      }
+      console.log('✅ Club path trail drawn successfully');
+    } else {
+      console.log('❌ No trail points to draw');
     }
 
     // Draw current club head marker
     const current = history[endFrame];
+    console.log(`🎨 Current club head marker:`, current);
     if (current && current.x !== undefined && current.y !== undefined && !isNaN(current.x) && !isNaN(current.y)) {
       const cx = offsetX + current.x * renderedWidth;
       const cy = offsetY + current.y * renderedHeight;
+      
+      console.log(`🎨 Club head marker pixel coords: (${cx.toFixed(1)}, ${cy.toFixed(1)})`);
       
       if (!isNaN(cx) && !isNaN(cy)) {
     ctx.fillStyle = '#ff00ff';
@@ -724,7 +732,12 @@ export default function CleanVideoAnalysisDisplay({
     ctx.beginPath();
         ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.stroke();
+        console.log(`🎨 Club head marker drawn`);
+      } else {
+        console.log(`❌ Invalid club head marker coordinates: cx=${cx}, cy=${cy}`);
       }
+    } else {
+      console.log(`❌ No valid current club head marker`);
     }
   }, [poses, detectClubHead]);
 
@@ -891,6 +904,9 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
       console.log('🎨 Club path canvas context:', !!clubPathCtx);
       console.log('🎨 Club path canvas element:', !!clubPathCanvas);
+      console.log('🎨 Club path canvas size:', clubPathCanvas?.width, 'x', clubPathCanvas?.height);
+      console.log('🎨 Rendered dimensions:', renderedWidth, 'x', renderedHeight);
+      console.log('🎨 Offset:', offsetX, offsetY);
       const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       console.log(`🎨 Calling drawClubPath with frame ${safeFrame}`);
       drawClubPath(clubPathCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
