@@ -431,11 +431,9 @@ export default function CleanVideoAnalysisDisplay({
     const leftWrist = pose.landmarks[9];
     const rightWrist = pose.landmarks[10];
 
-    // Only log detailed wrist data on first few frames
-    if (frame < 3) {
-      console.log(`🏌️ Wrist data - Left: ${leftWrist ? `x=${leftWrist.x.toFixed(3)}, y=${leftWrist.y.toFixed(3)}, vis=${(leftWrist.visibility || 0).toFixed(2)}` : 'null'}`);
-      console.log(`🏌️ Wrist data - Right: ${rightWrist ? `x=${rightWrist.x.toFixed(3)}, y=${rightWrist.y.toFixed(3)}, vis=${(rightWrist.visibility || 0).toFixed(2)}` : 'null'}`);
-    }
+    // Always log wrist data for debugging
+    console.log(`🏌️ Wrist data - Left: ${leftWrist ? `x=${leftWrist.x.toFixed(3)}, y=${leftWrist.y.toFixed(3)}, vis=${(leftWrist.visibility || 0).toFixed(2)}` : 'null'}`);
+    console.log(`🏌️ Wrist data - Right: ${rightWrist ? `x=${rightWrist.x.toFixed(3)}, y=${rightWrist.y.toFixed(3)}, vis=${(rightWrist.visibility || 0).toFixed(2)}` : 'null'}`);
 
     // Compute wrist center using available wrists (use counts to avoid nullable math)
     let wristCenterXSum = 0;
@@ -459,10 +457,8 @@ export default function CleanVideoAnalysisDisplay({
     const wristCenterX = wristCount > 0 ? wristCenterXSum / wristCount : null;
     const wristCenterY = wristCount > 0 ? wristCenterYSum / wristCount : null;
 
-    // Only log detailed calculations on first few frames
-    if (frame < 3) {
-      console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
-    }
+    // Always log wrist center calculation
+    console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
 
     // Baseline target: near wrist center (club head often near hands)
     let targetX = wristCenterX ?? 0.5;
@@ -546,10 +542,8 @@ export default function CleanVideoAnalysisDisplay({
 
     const result = { x: smoothedX, y: smoothedY, confidence, method };
 
-    // Only log final result every 30 frames
-    if (frame % 30 === 0) {
-      console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
-    }
+    // Always log final result for debugging
+    console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
 
     // Cache into history for continuous trail drawing
     clubHeadHistoryRef.current[frame] = result;
@@ -887,11 +881,7 @@ export default function CleanVideoAnalysisDisplay({
       // Ensure frame is within bounds
       const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       console.log('🎨 Safe frame for stick figure:', safeFrame);
-      console.log('🎨 Poses available:', poses?.length || 0);
-      console.log('🎨 Current frame:', currentFrame);
       drawPoseOverlay(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
-    } else {
-      console.log('🎨 Stick figure disabled in settings');
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
@@ -923,24 +913,13 @@ export default function CleanVideoAnalysisDisplay({
   useEffect(() => {
     let animationFrameId: number;
     let lastDrawTime = 0;
-    let lastFrame = -1;
-    const FRAME_INTERVAL = 1000 / 30; // Target 30fps instead of 60fps
+    const FRAME_INTERVAL = 1000 / 60; // Target 60fps for smooth animation
     
     function animationLoop(timestamp: number) {
       // Only draw if enough time has passed since last draw
       if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
-        const video = videoRef.current;
-        if (video) {
-          const currentFrame = Math.floor(video.currentTime * 30);
-          console.log('🎬 Animation loop check - currentFrame:', currentFrame, 'lastFrame:', lastFrame, 'videoTime:', video.currentTime);
-          
-          // Draw if frame has changed OR if it's been more than 100ms since last draw
-          if (currentFrame !== lastFrame || (timestamp - lastDrawTime) > 100) {
-            console.log('🎬 Drawing overlays - frame:', currentFrame, 'timestamp:', timestamp);
-            drawOverlays();
-            lastFrame = currentFrame;
-          }
-        }
+        console.log('🎬 Animation loop drawing overlays at timestamp:', timestamp);
+        drawOverlays();
         lastDrawTime = timestamp;
       }
       
