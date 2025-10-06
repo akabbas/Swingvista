@@ -730,6 +730,12 @@ export default function CleanVideoAnalysisDisplay({
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    // Calculate current frame from video time
+    const currentFrame = Math.floor(video.currentTime * 30); // Assuming 30fps
+    
     // Only log every 60 frames to reduce console spam
     if (currentFrame % 60 === 0) {
     console.log('🎨 DRAW OVERLAYS CALLED:', {
@@ -743,7 +749,6 @@ export default function CleanVideoAnalysisDisplay({
     
     const poseCanvas = poseCanvasRef.current;
     const clubPathCanvas = clubPathCanvasRef.current;
-    const video = videoRef.current;
     if (!poseCanvas || !clubPathCanvas || !video || !showOverlays || !poses || poses.length === 0) {
       // Only log on first few frames to avoid spam
       if (currentFrame < 3) {
@@ -849,12 +854,11 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 Video rect:', displayWidth, 'x', displayHeight);
     }
 
-    const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
     // Only log frame info every 60 frames
-    if (frame % 60 === 0) {
-    console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
+    if (currentFrame % 60 === 0) {
+      console.log('🎨 Current frame:', currentFrame, 'Video time:', video.currentTime);
     console.log('🎨 Poses array length:', poses?.length);
-    console.log('🎨 Frame within bounds:', frame < (poses?.length || 0));
+      console.log('🎨 Frame within bounds:', currentFrame < (poses?.length || 0));
     }
 
     // Clear both canvases
@@ -868,18 +872,18 @@ export default function CleanVideoAnalysisDisplay({
     if (overlaySettings.stickFigure) {
       console.log('🎨 Drawing stick figure...');
       // Ensure frame is within bounds
-      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       console.log('🎨 Safe frame for stick figure:', safeFrame);
       drawPoseOverlay(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
-      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       drawSwingPlane(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.phaseMarkers) {
       console.log('🎨 Drawing phase markers...');
-      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       drawPhaseMarkers(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
     if (overlaySettings.clubPath) {
@@ -887,7 +891,7 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
       console.log('🎨 Club path canvas context:', !!clubPathCtx);
       console.log('🎨 Club path canvas element:', !!clubPathCanvas);
-      const safeFrame = Math.min(frame, (poses?.length || 1) - 1);
+      const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       console.log(`🎨 Calling drawClubPath with frame ${safeFrame}`);
       drawClubPath(clubPathCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     } else {
