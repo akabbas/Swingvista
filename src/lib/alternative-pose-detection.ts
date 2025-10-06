@@ -44,26 +44,8 @@ export const detectPosesWithAlternatives = async (
     console.error('❌ REAL POSE DETECTION: TensorFlow.js failed:', error);
   }
   
-  // Option 2: Try server-side API as fallback (REAL DETECTION)
-  try {
-    console.log('🔄 REAL POSE DETECTION: Attempting server-side pose detection API...');
-    const poses = await detectPosesWithAPI(videoFile, options, onProgress);
-    
-    // Validate that we got real data
-    if (poses.length > 0) {
-      const firstPose = poses[0];
-      const isMockData = firstPose.landmarks?.every((lm: any) => lm.x === 0.5 && lm.y === 0.5);
-      
-      if (!isMockData) {
-        console.log('✅ REAL POSE DETECTION: API succeeded with real data!');
-        return poses;
-      } else {
-        console.warn('⚠️ REAL POSE DETECTION: API returned mock data, trying next method...');
-      }
-    }
-  } catch (error) {
-    console.error('❌ REAL POSE DETECTION: API failed:', error);
-  }
+  // Option 2: Server-side API fallback is currently disabled to avoid mock/synthetic data
+  console.warn('⚠️ REAL POSE DETECTION: Server-side API fallback disabled to prevent mock/synthetic pose data.');
   
   // CRITICAL: No mock data fallback - throw error instead
   console.error('❌ REAL POSE DETECTION: All real detection methods failed!');
@@ -187,6 +169,21 @@ const detectPosesWithTensorFlow = async (
             console.log('🔍 REAL POSE DETECTION: Keypoints length:', pose.keypoints?.length);
             console.log('🔍 REAL POSE DETECTION: First keypoint:', pose.keypoints?.[0]);
             console.log('🔍 REAL POSE DETECTION: Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+            
+            // CRITICAL: Verify we're getting real keypoint data from MoveNet
+            if (pose.keypoints && pose.keypoints.length > 0) {
+              const firstKp = pose.keypoints[0];
+              console.log('🔍 REAL POSE DETECTION: First keypoint details:', {
+                x: firstKp.x,
+                y: firstKp.y,
+                score: firstKp.score,
+                name: firstKp.name
+              });
+              
+              // Check if keypoints have varied positions (not all at 0.5, 0.5)
+              const hasVariedPositions = pose.keypoints.some((kp: any) => kp.x !== 0.5 || kp.y !== 0.5);
+              console.log('🔍 REAL POSE DETECTION: Has varied keypoint positions:', hasVariedPositions);
+            }
           }
           
           // Convert MoveNet format to our PoseResult format
@@ -268,6 +265,13 @@ const detectPosesWithTensorFlow = async (
             const hasVariedPositions = landmarks.some((lm: any) => lm.x !== 0.5 || lm.y !== 0.5);
             console.log('🔍 REAL POSE DETECTION: First frame pose data quality:', hasVariedPositions ? 'REAL' : 'MOCK');
             console.log('🔍 REAL POSE DETECTION: Sample landmark positions:', landmarks.slice(0, 5).map((lm: any) => ({ x: lm.x, y: lm.y })));
+            
+            // CRITICAL: Verify the conversion from MoveNet to landmarks
+            console.log('🔍 REAL POSE DETECTION: Conversion verification:');
+            console.log('🔍 - Original keypoints count:', pose.keypoints?.length);
+            console.log('🔍 - Converted landmarks count:', landmarks.length);
+            console.log('🔍 - First 3 original keypoints:', pose.keypoints?.slice(0, 3).map((kp: any) => ({ x: kp.x, y: kp.y, score: kp.score })));
+            console.log('🔍 - First 3 converted landmarks:', landmarks.slice(0, 3).map((lm: any) => ({ x: lm.x, y: lm.y, visibility: lm.visibility })));
           }
 
           // Visibility logging (first few frames and every 10th frame)
@@ -402,7 +406,15 @@ const detectPosesWithAPI = async (
     }
     
     const result = await response.json();
-    
+
+    // Reject server-side mock results explicitly
+    if (result?.method && typeof result.method === 'string') {
+      console.log('🔍 API response method:', result.method);
+      if (result.method.toLowerCase().includes('mock')) {
+        throw new Error('Server returned mock poses; rejecting to enforce REAL detection.');
+      }
+    }
+
     if (!result.poses || !Array.isArray(result.poses)) {
       throw new Error('Invalid API response format');
     }
