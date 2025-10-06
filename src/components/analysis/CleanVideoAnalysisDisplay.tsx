@@ -566,6 +566,11 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
+    // Prevent multiple calls for the same frame
+    if (clubHeadHistoryRef.current[frame] && clubHeadHistoryRef.current[frame].drawn) {
+      return;
+    }
+    
     console.log(`🎨 DRAW CLUB PATH CALLED: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
     console.log(`🎨 Canvas context valid: ${!!ctx}`);
     console.log(`🎨 Dimensions: ${renderedWidth}x${renderedHeight}, Offset: ${offsetX},${offsetY}`);
@@ -738,6 +743,11 @@ export default function CleanVideoAnalysisDisplay({
       }
     } else {
       console.log(`❌ No valid current club head marker`);
+    }
+    
+    // Mark this frame as drawn to prevent multiple calls
+    if (clubHeadHistoryRef.current[frame]) {
+      clubHeadHistoryRef.current[frame].drawn = true;
     }
   }, [poses, detectClubHead]);
 
@@ -919,13 +929,22 @@ export default function CleanVideoAnalysisDisplay({
   useEffect(() => {
     let animationFrameId: number;
     let lastDrawTime = 0;
-    const FRAME_INTERVAL = 1000 / 60; // Target 60fps for smooth animation
+    let lastFrame = -1;
+    const FRAME_INTERVAL = 1000 / 30; // Target 30fps instead of 60fps
     
     function animationLoop(timestamp: number) {
       // Only draw if enough time has passed since last draw
       if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
-        console.log('🎬 Animation loop drawing overlays at timestamp:', timestamp);
-        drawOverlays();
+        const video = videoRef.current;
+        if (video) {
+          const currentFrame = Math.floor(video.currentTime * 30);
+          // Only draw if frame has changed
+          if (currentFrame !== lastFrame) {
+            console.log('🎬 Animation loop drawing overlays at timestamp:', timestamp, 'frame:', currentFrame);
+            drawOverlays();
+            lastFrame = currentFrame;
+          }
+        }
         lastDrawTime = timestamp;
       }
       
