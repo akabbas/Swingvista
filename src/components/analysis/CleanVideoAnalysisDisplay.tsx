@@ -566,11 +566,6 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
-    // Prevent multiple calls for the same frame
-    if (clubHeadHistoryRef.current[frame] && clubHeadHistoryRef.current[frame].drawn) {
-      return;
-    }
-    
     console.log(`🎨 DRAW CLUB PATH CALLED: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
     console.log(`🎨 Canvas context valid: ${!!ctx}`);
     console.log(`🎨 Dimensions: ${renderedWidth}x${renderedHeight}, Offset: ${offsetX},${offsetY}`);
@@ -744,11 +739,6 @@ export default function CleanVideoAnalysisDisplay({
     } else {
       console.log(`❌ No valid current club head marker`);
     }
-    
-    // Mark this frame as drawn to prevent multiple calls
-    if (clubHeadHistoryRef.current[frame]) {
-      clubHeadHistoryRef.current[frame].drawn = true;
-    }
   }, [poses, detectClubHead]);
 
   // Main drawing function
@@ -897,7 +887,11 @@ export default function CleanVideoAnalysisDisplay({
       // Ensure frame is within bounds
       const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       console.log('🎨 Safe frame for stick figure:', safeFrame);
+      console.log('🎨 Poses available:', poses?.length || 0);
+      console.log('🎨 Current frame:', currentFrame);
       drawPoseOverlay(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
+    } else {
+      console.log('🎨 Stick figure disabled in settings');
     }
     if (overlaySettings.swingPlane) {
       console.log('🎨 Drawing swing plane...');
@@ -938,9 +932,11 @@ export default function CleanVideoAnalysisDisplay({
         const video = videoRef.current;
         if (video) {
           const currentFrame = Math.floor(video.currentTime * 30);
-          // Only draw if frame has changed
-          if (currentFrame !== lastFrame) {
-            console.log('🎬 Animation loop drawing overlays at timestamp:', timestamp, 'frame:', currentFrame);
+          console.log('🎬 Animation loop check - currentFrame:', currentFrame, 'lastFrame:', lastFrame, 'videoTime:', video.currentTime);
+          
+          // Draw if frame has changed OR if it's been more than 100ms since last draw
+          if (currentFrame !== lastFrame || (timestamp - lastDrawTime) > 100) {
+            console.log('🎬 Drawing overlays - frame:', currentFrame, 'timestamp:', timestamp);
             drawOverlays();
             lastFrame = currentFrame;
           }
