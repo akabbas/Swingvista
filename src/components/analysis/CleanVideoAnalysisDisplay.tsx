@@ -871,6 +871,13 @@ export default function CleanVideoAnalysisDisplay({
     // Clear both canvases
     poseCtx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
     clubPathCtx.clearRect(0, 0, clubPathCanvas.width, clubPathCanvas.height);
+    
+    // TEST: Draw a visible test marker on club path canvas to verify it's visible
+    clubPathCtx.fillStyle = '#ff0000'; // Red color
+    clubPathCtx.beginPath();
+    clubPathCtx.arc(50, 50, 20, 0, Math.PI * 2); // Large red circle at top-left
+    clubPathCtx.fill();
+    console.log('🎨 TEST: Drew red test marker on club path canvas');
 
     // ALWAYS draw test indicators regardless of overlay settings
     console.log('🎨 Drawing test indicators...');
@@ -899,6 +906,10 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 Club path canvas context:', !!clubPathCtx);
       console.log('🎨 Club path canvas element:', !!clubPathCanvas);
       console.log('🎨 Club path canvas size:', clubPathCanvas?.width, 'x', clubPathCanvas?.height);
+      console.log('🎨 Club path canvas position:', clubPathCanvas?.style.position);
+      console.log('🎨 Club path canvas z-index:', clubPathCanvas?.style.zIndex);
+      console.log('🎨 Club path canvas visibility:', clubPathCanvas?.style.visibility);
+      console.log('🎨 Club path canvas display:', clubPathCanvas?.style.display);
       console.log('🎨 Rendered dimensions:', renderedWidth, 'x', renderedHeight);
       console.log('🎨 Offset:', offsetX, offsetY);
       const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
