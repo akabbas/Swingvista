@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Verification Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-unknown { background-color: #ffc107; }
+        .status-working { background-color: #28a745; }
+        .status-broken { background-color: #dc3545; }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .console-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Component Verification Test</h1>
+    
+    <div class="instructions">
+        <h3>📋 Testing Instructions</h3>
+        <ol>
+            <li>Upload a golf swing video to the main application</li>
+            <li>Enable all overlays in the settings panel</li>
+            <li>Play the video and observe each component</li>
+            <li>Check browser console for any error messages</li>
+            <li>Update the status of each component below</li>
+        </ol>
+    </div>
+
+    <div class="container">
+        <h2>Component Status</h2>
+        
+        <div class="test-section">
+            <h3><span class="status status-working"></span>Stick Figure Detection</h3>
+            <div class="test-item">
+                <strong>Status:</strong> ✅ CONFIRMED WORKING<br>
+                <strong>Description:</strong> Pose tracking aligns with golfer's body<br>
+                <strong>Notes:</strong> Real MoveNet detection working properly
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status status-unknown"></span>Club Path Visualization</h3>
+            <div class="test-item">
+                <strong>Status:</strong> 🧪 NEEDS TESTING<br>
+                <strong>What to look for:</strong>
+                <ul>
+                    <li>Magenta trail appears and follows hand movement</li>
+                    <li>Trail is smooth and continuous (not jumping)</li>
+                    <li>Trail builds up over time showing swing path</li>
+                </ul>
+                <strong>Console logs to watch:</strong> <code>🎨 DRAW CLUB PATH</code>, <code>🏌️ DETECTING CLUB HEAD</code>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status status-unknown"></span>Swing Plane Analysis</h3>
+            <div class="test-item">
+                <strong>Status:</strong> 🧪 NEEDS TESTING<br>
+                <strong>What to look for:</strong>
+                <ul>
+                    <li>Cyan dashed line between shoulders and hips</li>
+                    <li>Line updates as golfer moves through swing</li>
+                    <li>"SWING PLANE" label appears</li>
+                </ul>
+                <strong>Console logs to watch:</strong> <code>🎨 Drawing swing plane</code>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status status-unknown"></span>Phase Detection Markers</h3>
+            <div class="test-item">
+                <strong>Status:</strong> 🧪 NEEDS TESTING<br>
+                <strong>What to look for:</strong>
+                <ul>
+                    <li>Phase indicators (ADDRESS, BACKSWING, DOWNSWING, etc.)</li>
+                    <li>Phases change as video progresses</li>
+                    <li>Progress bar shows swing completion</li>
+                </ul>
+                <strong>Console logs to watch:</strong> <code>🎨 Drawing phase markers</code>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status status-unknown"></span>Golf Swing Analysis</h3>
+            <div class="test-item">
+                <strong>Status:</strong> 🧪 NEEDS TESTING<br>
+                <strong>What to look for:</strong>
+                <ul>
+                    <li>Analysis completes without errors</li>
+                    <li>Letter grade is assigned (A, B, C, D, F)</li>
+                    <li>Numerical score is provided</li>
+                    <li>Detailed metrics are calculated</li>
+                </ul>
+                <strong>Console logs to watch:</strong> <code>🏌️ UNIFIED ANALYSIS</code>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status status-unknown"></span>Video Controls</h3>
+            <div class="test-item">
+                <strong>Status:</strong> 🧪 NEEDS TESTING<br>
+                <strong>What to look for:</strong>
+                <ul>
+                    <li>Play/pause buttons work</li>
+                    <li>Speed controls function (0.25x, 0.5x, 0.75x, 1.0x)</li>
+                    <li>Mute/unmute toggle works</li>
+                    <li>Overlay show/hide works</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Testing Results</h2>
+        <p>Use this section to record your findings:</p>
+        
+        <div class="test-section">
+            <h3>Club Path Test Results</h3>
+            <div class="test-item">
+                <label>
+                    <input type="radio" name="club-path" value="working"> ✅ Working - Trail appears and follows hands
+                </label><br>
+                <label>
+                    <input type="radio" name="club-path" value="partial"> ⚠️ Partial - Trail appears but has issues
+                </label><br>
+                <label>
+                    <input type="radio" name="club-path" value="broken"> ❌ Broken - No trail or major issues
+                </label><br>
+                <strong>Notes:</strong> <input type="text" style="width: 100%; margin-top: 10px;" placeholder="Describe any issues observed...">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Swing Plane Test Results</h3>
+            <div class="test-item">
+                <label>
+                    <input type="radio" name="swing-plane" value="working"> ✅ Working - Line appears and follows torso
+                </label><br>
+                <label>
+                    <input type="radio" name="swing-plane" value="partial"> ⚠️ Partial - Line appears but positioning issues
+                </label><br>
+                <label>
+                    <input type="radio" name="swing-plane" value="broken"> ❌ Broken - No line or major issues
+                </label><br>
+                <strong>Notes:</strong> <input type="text" style="width: 100%; margin-top: 10px;" placeholder="Describe any issues observed...">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Phase Markers Test Results</h3>
+            <div class="test-item">
+                <label>
+                    <input type="radio" name="phase-markers" value="working"> ✅ Working - Phases change correctly
+                </label><br>
+                <label>
+                    <input type="radio" name="phase-markers" value="partial"> ⚠️ Partial - Phases appear but timing issues
+                </label><br>
+                <label>
+                    <input type="radio" name="phase-markers" value="broken"> ❌ Broken - No phases or major issues
+                </label><br>
+                <strong>Notes:</strong> <input type="text" style="width: 100%; margin-top: 10px;" placeholder="Describe any issues observed...">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Analysis Test Results</h3>
+            <div class="test-item">
+                <label>
+                    <input type="radio" name="analysis" value="working"> ✅ Working - Analysis completes with realistic scores
+                </label><br>
+                <label>
+                    <input type="radio" name="analysis" value="partial"> ⚠️ Partial - Analysis works but scores seem off
+                </label><br>
+                <label>
+                    <input type="radio" name="analysis" value="broken"> ❌ Broken - Analysis fails or no results
+                </label><br>
+                <strong>Notes:</strong> <input type="text" style="width: 100%; margin-top: 10px;" placeholder="Describe any issues observed...">
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Console Log Monitoring</h2>
+        <p>Open browser DevTools Console and look for these key logs:</p>
+        <div class="console-log">
+🎨 DRAW CLUB PATH: Frame X, History length: Y
+🏌️ DETECTING CLUB HEAD: Frame X
+🎨 Drawing swing plane...
+🎨 Drawing phase markers...
+🏌️ UNIFIED ANALYSIS: Starting golf swing analysis...
+🔍 REAL POSE DETECTION: Starting comprehensive pose detection...
+        </div>
+        <p><strong>Error messages to watch for:</strong></p>
+        <div class="console-log">
+❌ No club head history available
+❌ No landmarks for frame
+❌ Invalid coordinates
+❌ Analysis failed
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Quick Test Commands</h2>
+        <p>Copy and paste these into browser console to test specific components:</p>
+        <div class="console-log">
+// Test club path detection
+console.log('Testing club path...');
+// Look for: 🎨 DRAW CLUB PATH logs
+
+// Test pose data quality
+console.log('Checking pose data...');
+// Look for: 🔍 POSE DATA VERIFICATION logs
+
+// Test analysis pipeline
+console.log('Testing analysis...');
+// Look for: 🏌️ UNIFIED ANALYSIS logs
+        </div>
+    </div>
+
+    <script>
+        // Add some basic functionality to the test page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Component Verification Test loaded');
+            console.log('📋 Please test each component and update the status');
+            
+            // Add click handlers for status updates
+            const statusRadios = document.querySelectorAll('input[type="radio"]');
+            statusRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const section = this.closest('.test-section');
+                    const statusSpan = section.querySelector('.status');
+                    
+                    if (this.value === 'working') {
+                        statusSpan.className = 'status status-working';
+                    } else if (this.value === 'partial') {
+                        statusSpan.className = 'status status-unknown';
+                    } else if (this.value === 'broken') {
+                        statusSpan.className = 'status status-broken';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
