@@ -406,17 +406,24 @@ export default function CleanVideoAnalysisDisplay({
 
   // Enhanced club head detection specifically for golf clubs
   const detectClubHead = useCallback((frame: number): {x: number, y: number, confidence: number, method: string} => {
+    // Only log every 30 frames to reduce console spam
+    if (frame % 30 === 0) {
     console.log(`🏌️ DETECTING CLUB HEAD: Frame ${frame}`);
+    }
     
     // Prefer cached history for continuity
     if (!poses || poses.length === 0 || frame >= poses.length) {
+      if (frame < 3) {
       console.log('❌ Cannot detect club head - missing poses');
+      }
       return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
     }
     
     const pose = poses[frame];
     if (!pose || !pose.landmarks) {
-      console.log('❌ No pose or landmarks for frame', frame);
+      if (frame < 3) {
+        console.log('❌ No pose or landmarks for frame', frame);
+      }
       return { x: 0.5, y: 0.5, confidence: 0, method: 'none' };
     }
 
@@ -424,8 +431,11 @@ export default function CleanVideoAnalysisDisplay({
     const leftWrist = pose.landmarks[9];
     const rightWrist = pose.landmarks[10];
 
-    console.log(`🏌️ Wrist data - Left: ${leftWrist ? `x=${leftWrist.x.toFixed(3)}, y=${leftWrist.y.toFixed(3)}, vis=${(leftWrist.visibility || 0).toFixed(2)}` : 'null'}`);
-    console.log(`🏌️ Wrist data - Right: ${rightWrist ? `x=${rightWrist.x.toFixed(3)}, y=${rightWrist.y.toFixed(3)}, vis=${(rightWrist.visibility || 0).toFixed(2)}` : 'null'}`);
+    // Only log detailed wrist data on first few frames
+    if (frame < 3) {
+      console.log(`🏌️ Wrist data - Left: ${leftWrist ? `x=${leftWrist.x.toFixed(3)}, y=${leftWrist.y.toFixed(3)}, vis=${(leftWrist.visibility || 0).toFixed(2)}` : 'null'}`);
+      console.log(`🏌️ Wrist data - Right: ${rightWrist ? `x=${rightWrist.x.toFixed(3)}, y=${rightWrist.y.toFixed(3)}, vis=${(rightWrist.visibility || 0).toFixed(2)}` : 'null'}`);
+    }
 
     // Compute wrist center using available wrists (use counts to avoid nullable math)
     let wristCenterXSum = 0;
@@ -449,7 +459,10 @@ export default function CleanVideoAnalysisDisplay({
     const wristCenterX = wristCount > 0 ? wristCenterXSum / wristCount : null;
     const wristCenterY = wristCount > 0 ? wristCenterYSum / wristCount : null;
 
-    console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
+    // Only log detailed calculations on first few frames
+    if (frame < 3) {
+      console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
+    }
 
     // Baseline target: near wrist center (club head often near hands)
     let targetX = wristCenterX ?? 0.5;
@@ -469,7 +482,10 @@ export default function CleanVideoAnalysisDisplay({
       method = 'right_wrist_only';
     }
 
-    console.log(`🏌️ Target before smoothing: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}, confidence=${confidence.toFixed(2)}, method=${method}`);
+    // Only log detailed target info on first few frames
+    if (frame < 3) {
+      console.log(`🏌️ Target before smoothing: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}, confidence=${confidence.toFixed(2)}, method=${method}`);
+    }
 
     // Get previous position for smoothing
     const prev = clubHeadHistoryRef.current[frame - 1] ?? clubHeadHistoryRef.current[clubHeadHistoryRef.current.length - 1] ?? null;
@@ -478,14 +494,19 @@ export default function CleanVideoAnalysisDisplay({
     let smoothedY = targetY;
 
     if (prev) {
-      console.log(`🏌️ Previous position: x=${prev.x.toFixed(3)}, y=${prev.y.toFixed(3)}`);
+      // Only log smoothing details on first few frames
+      if (frame < 3) {
+        console.log(`🏌️ Previous position: x=${prev.x.toFixed(3)}, y=${prev.y.toFixed(3)}`);
+      }
       
       // Calculate distance to previous position
       const dx = targetX - prev.x;
       const dy = targetY - prev.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      console.log(`🏌️ Distance from previous: ${distance.toFixed(3)}`);
+      if (frame < 3) {
+        console.log(`🏌️ Distance from previous: ${distance.toFixed(3)}`);
+      }
 
       // Much more aggressive smoothing - only cap extreme jumps
       const maxStep = 0.5; // Increased from 0.18 to allow more movement
@@ -493,7 +514,9 @@ export default function CleanVideoAnalysisDisplay({
         const t = maxStep / distance;
         targetX = prev.x + dx * t;
         targetY = prev.y + dy * t;
-        console.log(`🏌️ Capped jump to: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}`);
+        if (frame < 3) {
+          console.log(`🏌️ Capped jump to: x=${targetX.toFixed(3)}, y=${targetY.toFixed(3)}`);
+        }
       }
 
       // Reduced smoothing to allow more movement
@@ -503,9 +526,9 @@ export default function CleanVideoAnalysisDisplay({
       confidence = Math.max(confidence, prev.confidence * 0.8);
       method = 'smoothed_wrist';
       
-      console.log(`🏌️ After smoothing: x=${smoothedX.toFixed(3)}, y=${smoothedY.toFixed(3)}`);
-    } else {
-      console.log(`🏌️ No previous position, using target directly`);
+      if (frame < 3) {
+        console.log(`🏌️ After smoothing: x=${smoothedX.toFixed(3)}, y=${smoothedY.toFixed(3)}`);
+      }
     }
 
     // Ensure bounds and validate coordinates
@@ -523,7 +546,10 @@ export default function CleanVideoAnalysisDisplay({
 
     const result = { x: smoothedX, y: smoothedY, confidence, method };
 
-    console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
+    // Only log final result every 30 frames
+    if (frame % 30 === 0) {
+      console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
+    }
 
     // Cache into history for continuous trail drawing
     clubHeadHistoryRef.current[frame] = result;
@@ -540,24 +566,31 @@ export default function CleanVideoAnalysisDisplay({
     offsetX: number,
     offsetY: number
   ) => {
-    console.log(`🎨 DRAW CLUB PATH: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
-    console.log(`🎨 Canvas context: ${!!ctx}, Rendered: ${renderedWidth}x${renderedHeight}, Offset: ${offsetX},${offsetY}`);
+    // Only log every 30 frames to reduce console spam
+    if (frame % 30 === 0) {
+      console.log(`🎨 DRAW CLUB PATH: Frame ${frame}, History length: ${clubHeadHistoryRef.current.length}`);
+    }
     
     // Build continuous trail using cached clubHeadHistoryRef
     const history = clubHeadHistoryRef.current;
 
     if (!history || history.length === 0) {
-      console.log('❌ No club head history available - trying to detect current frame');
+      // Only log on first few frames to avoid spam
+      if (frame < 3) {
+        console.log('❌ No club head history available - trying to detect current frame');
+      }
+      
       // Try to detect club head for current frame if no history
       const currentClubHead = detectClubHead(frame);
-      console.log(`🎨 Current frame club head:`, currentClubHead);
       
       if (currentClubHead && currentClubHead.x !== undefined && currentClubHead.y !== undefined) {
         // Draw single point if we have valid coordinates
         const px = offsetX + currentClubHead.x * renderedWidth;
         const py = offsetY + currentClubHead.y * renderedHeight;
         
-        console.log(`🎨 Drawing single club head point at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+        if (frame < 3) {
+          console.log(`🎨 Drawing single club head point at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+        }
         
         ctx.fillStyle = '#ff00ff';
         ctx.beginPath();
@@ -569,9 +602,12 @@ export default function CleanVideoAnalysisDisplay({
         ctx.beginPath();
         ctx.arc(px, py, 12, 0, Math.PI * 2);
         ctx.stroke();
-      } else {
+    } else {
         // Fallback: try to use hand positions directly
-        console.log('🎨 Club head detection failed, trying hand position fallback');
+        if (frame < 3) {
+          console.log('🎨 Club head detection failed, trying hand position fallback');
+        }
+        
         if (poses && poses[frame] && poses[frame].landmarks) {
           const pose = poses[frame];
           const leftWrist = pose.landmarks[9];
@@ -583,21 +619,20 @@ export default function CleanVideoAnalysisDisplay({
           if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
             handX = leftWrist.x;
             handY = leftWrist.y;
-            console.log('🎨 Using left wrist position as fallback');
           } else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
             handX = rightWrist.x;
             handY = rightWrist.y;
-            console.log('🎨 Using right wrist position as fallback');
           } else if (leftWrist && rightWrist) {
             handX = (leftWrist.x + rightWrist.x) / 2;
             handY = (leftWrist.y + rightWrist.y) / 2;
-            console.log('🎨 Using wrist center as fallback');
           }
           
           const px = offsetX + handX * renderedWidth;
           const py = offsetY + handY * renderedHeight;
           
-          console.log(`🎨 Drawing fallback hand position at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+          if (frame < 3) {
+            console.log(`🎨 Drawing fallback hand position at (${px.toFixed(1)}, ${py.toFixed(1)})`);
+          }
           
           ctx.fillStyle = '#ff00ff';
           ctx.beginPath();
@@ -618,7 +653,10 @@ export default function CleanVideoAnalysisDisplay({
     const endFrame = Math.min(frame, history.length - 1);
     const startFrame = Math.max(0, endFrame - 40); // show last 40 frames for smoother trail
 
-    console.log(`🎨 Drawing trail from frame ${startFrame} to ${endFrame}`);
+    // Only log every 30 frames
+    if (frame % 30 === 0) {
+      console.log(`🎨 Drawing trail from frame ${startFrame} to ${endFrame}`);
+    }
 
     // Validate canvas context
     if (!ctx) {
@@ -635,14 +673,10 @@ export default function CleanVideoAnalysisDisplay({
     let drawn = 0;
     for (let i = startFrame; i <= endFrame; i++) {
       const p = history[i];
-      if (!p) {
-        console.log(`🎨 Skipping frame ${i} - no data`);
-        continue;
-      }
+      if (!p) continue;
       
       // Validate coordinates
       if (p.x === undefined || p.y === undefined || isNaN(p.x) || isNaN(p.y)) {
-        console.log(`🎨 Skipping frame ${i} - invalid coordinates: x=${p.x}, y=${p.y}`);
         continue;
       }
       
@@ -651,11 +685,8 @@ export default function CleanVideoAnalysisDisplay({
       
       // Validate pixel coordinates
       if (isNaN(px) || isNaN(py)) {
-        console.log(`🎨 Skipping frame ${i} - invalid pixel coordinates: px=${px}, py=${py}`);
         continue;
       }
-      
-      console.log(`🎨 Drawing point ${i}: (${px.toFixed(1)}, ${py.toFixed(1)}) from normalized (${p.x.toFixed(3)}, ${p.y.toFixed(3)})`);
 
       if (drawn === 0) {
         ctx.moveTo(px, py);
@@ -663,14 +694,18 @@ export default function CleanVideoAnalysisDisplay({
         ctx.lineTo(px, py);
         }
       drawn++;
+      }
+
+    // Only log every 30 frames
+    if (frame % 30 === 0) {
+      console.log(`🎨 Drew ${drawn} trail points`);
     }
     
-    console.log(`🎨 Drew ${drawn} trail points`);
     if (drawn > 0) {
     ctx.stroke();
-      console.log('✅ Club path trail drawn successfully');
-    } else {
-      console.log('❌ No valid trail points to draw');
+      if (frame % 30 === 0) {
+        console.log('✅ Club path trail drawn successfully');
+      }
     }
 
     // Draw current club head marker
@@ -680,8 +715,6 @@ export default function CleanVideoAnalysisDisplay({
       const cy = offsetY + current.y * renderedHeight;
       
       if (!isNaN(cx) && !isNaN(cy)) {
-        console.log(`🎨 Drawing club head marker at (${cx.toFixed(1)}, ${cy.toFixed(1)}) from normalized (${current.x.toFixed(3)}, ${current.y.toFixed(3)})`);
-        
     ctx.fillStyle = '#ff00ff';
     ctx.beginPath();
         ctx.arc(cx, cy, 10, 0, Math.PI * 2);
@@ -691,17 +724,14 @@ export default function CleanVideoAnalysisDisplay({
     ctx.beginPath();
         ctx.arc(cx, cy, 10, 0, Math.PI * 2);
     ctx.stroke();
-        console.log('✅ Club head marker drawn successfully');
-      } else {
-        console.log('❌ Invalid club head marker coordinates');
       }
-    } else {
-      console.log('❌ No current club head position to draw');
     }
   }, [poses, detectClubHead]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
+    // Only log every 60 frames to reduce console spam
+    if (currentFrame % 60 === 0) {
     console.log('🎨 DRAW OVERLAYS CALLED:', {
       hasCanvas: !!poseCanvasRef.current,
       hasVideo: !!videoRef.current,
@@ -709,11 +739,14 @@ export default function CleanVideoAnalysisDisplay({
       posesCount: poses?.length || 0,
       overlaySettings
     });
+    }
     
     const poseCanvas = poseCanvasRef.current;
     const clubPathCanvas = clubPathCanvasRef.current;
     const video = videoRef.current;
     if (!poseCanvas || !clubPathCanvas || !video || !showOverlays || !poses || poses.length === 0) {
+      // Only log on first few frames to avoid spam
+      if (currentFrame < 3) {
       console.log('❌ Draw overlays skipped:', { 
         poseCanvas: !!poseCanvas, 
         clubPathCanvas: !!clubPathCanvas,
@@ -722,13 +755,16 @@ export default function CleanVideoAnalysisDisplay({
         poses: !!poses,
         posesLength: poses?.length
       });
+      }
       return;
     }
 
     const poseCtx = poseCanvas.getContext('2d');
     const clubPathCtx = clubPathCanvas.getContext('2d');
     if (!poseCtx || !clubPathCtx) {
+      if (currentFrame < 3) {
       console.log('❌ No canvas context');
+      }
       return;
     }
 
@@ -765,13 +801,16 @@ export default function CleanVideoAnalysisDisplay({
     clubPathCanvas.width = displayWidth;
     clubPathCanvas.height = displayHeight;
     
+    // Only log canvas dimensions every 60 frames
+    if (currentFrame % 60 === 0) {
     console.log('🎨 Canvas dimensions set to:', {
-      videoNative: { width: nativeWidth, height: nativeHeight },
-      videoDisplay: { width: displayWidth, height: displayHeight },
-      renderedContent: { width: renderedWidth, height: renderedHeight, offsetX, offsetY },
+        videoNative: { width: nativeWidth, height: nativeHeight },
+        videoDisplay: { width: displayWidth, height: displayHeight },
+        renderedContent: { width: renderedWidth, height: renderedHeight, offsetX, offsetY },
       poseCanvas: { width: poseCanvas.width, height: poseCanvas.height },
       clubPathCanvas: { width: clubPathCanvas.width, height: clubPathCanvas.height }
     });
+    }
     
     // Set CSS size to match video display size exactly
     const containerRect = video.parentElement?.getBoundingClientRect();
@@ -792,22 +831,31 @@ export default function CleanVideoAnalysisDisplay({
         canvas.style.zIndex = `${10 + index}`; // Stack canvases with different z-indices
       });
       
+      // Only log positioning every 60 frames
+      if (currentFrame % 60 === 0) {
       console.log('🎨 Canvas positioning:', {
         videoOffsetX,
         videoOffsetY,
         videoRect: { width: videoRect.width, height: videoRect.height },
         containerRect: { width: containerRect.width, height: containerRect.height }
       });
+      }
     }
     
+    // Only log canvas sizes every 60 frames
+    if (currentFrame % 60 === 0) {
     console.log('🎨 Pose canvas size set to:', poseCanvas.width, 'x', poseCanvas.height);
     console.log('🎨 Club path canvas size set to:', clubPathCanvas.width, 'x', clubPathCanvas.height);
-    console.log('🎨 Video rect:', displayWidth, 'x', displayHeight);
+      console.log('🎨 Video rect:', displayWidth, 'x', displayHeight);
+    }
 
     const frame = Math.floor(video.currentTime * 30); // Assuming 30fps
+    // Only log frame info every 60 frames
+    if (frame % 60 === 0) {
     console.log('🎨 Current frame:', frame, 'Video time:', video.currentTime);
     console.log('🎨 Poses array length:', poses?.length);
     console.log('🎨 Frame within bounds:', frame < (poses?.length || 0));
+    }
 
     // Clear both canvases
     poseCtx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
