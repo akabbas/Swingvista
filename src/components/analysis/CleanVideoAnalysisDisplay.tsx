@@ -663,7 +663,7 @@ export default function CleanVideoAnalysisDisplay({
     }
 
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 12; // Increased from 6 to 12 for better visibility
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -686,13 +686,15 @@ export default function CleanVideoAnalysisDisplay({
         continue;
       }
 
+      console.log(`🎨 Trail point ${i}: normalized(${p.x.toFixed(3)}, ${p.y.toFixed(3)}) -> pixel(${px.toFixed(1)}, ${py.toFixed(1)})`);
+
       if (drawn === 0) {
         ctx.moveTo(px, py);
-        } else {
+      } else {
         ctx.lineTo(px, py);
-        }
-      drawn++;
       }
+      drawn++;
+    }
 
     // Only log every 30 frames
     if (frame % 30 === 0) {
@@ -715,18 +717,20 @@ export default function CleanVideoAnalysisDisplay({
       const cy = offsetY + current.y * renderedHeight;
       
       console.log(`🎨 Club head marker pixel coords: (${cx.toFixed(1)}, ${cy.toFixed(1)})`);
+      console.log(`🎨 Canvas bounds check: cx=${cx}, canvas width=${ctx.canvas.width}, visible=${cx >= 0 && cx <= ctx.canvas.width}`);
       
       if (!isNaN(cx) && !isNaN(cy)) {
-    ctx.fillStyle = '#ff00ff';
-    ctx.beginPath();
-        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-    ctx.stroke();
-        console.log(`🎨 Club head marker drawn`);
+        // Make the marker much larger and more visible
+        ctx.fillStyle = '#ff00ff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2); // Increased from 10 to 20
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4; // Increased from 2 to 4
+        ctx.beginPath();
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+        ctx.stroke();
+        console.log(`🎨 Club head marker drawn with size 20`);
       } else {
         console.log(`❌ Invalid club head marker coordinates: cx=${cx}, cy=${cy}`);
       }
