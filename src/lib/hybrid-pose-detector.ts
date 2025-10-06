@@ -85,16 +85,16 @@ export class HybridPoseDetector {
         case 'posenet':
           console.log('🎯 Using PoseNet for pose detection...');
           const posenetPoses = await this.posenetDetector.detectPose(video);
-          const convertedPoses = this.posenetDetector.convertToMediaPipeFormat(posenetPoses);
+          const convertedPoses = this.posenetDetector.convertToMediaPipeFormat(posenetPoses, video.videoWidth, video.videoHeight);
           
           if (convertedPoses.length === 0) {
             console.warn('⚠️ No valid converted poses from PoseNet, trying MediaPipe fallback');
             // Try MediaPipe as fallback instead of immediately going to emergency
             try {
-              const mediapipePoses = await this.mediapipeDetector.detectPose(video);
-              if (mediapipePoses.length > 0) {
+              const mediapipePose = await this.mediapipeDetector.detectPose(video);
+              if (mediapipePose) {
                 console.log('✅ MediaPipe fallback successful');
-                return mediapipePoses;
+                return [mediapipePose];
               }
             } catch (mediapipeError) {
               console.warn('⚠️ MediaPipe fallback also failed:', mediapipeError);
@@ -109,10 +109,10 @@ export class HybridPoseDetector {
           if (!result.landmarks || result.landmarks.length === 0) {
             console.warn('⚠️ Converted pose has no landmarks, trying MediaPipe fallback');
             try {
-              const mediapipePoses = await this.mediapipeDetector.detectPose(video);
-              if (mediapipePoses.length > 0) {
+              const mediapipePose = await this.mediapipeDetector.detectPose(video);
+              if (mediapipePose) {
                 console.log('✅ MediaPipe fallback successful for validation');
-                return mediapipePoses;
+                return [mediapipePose];
               }
             } catch (mediapipeError) {
               console.warn('⚠️ MediaPipe fallback failed during validation:', mediapipeError);
@@ -127,9 +127,8 @@ export class HybridPoseDetector {
         case 'mediapipe':
           console.log('🎯 Using MediaPipe for pose detection...');
           const mediapipeResult = await this.mediapipeDetector.detectPose(video);
-          const mediapipePoses = Array.isArray(mediapipeResult) ? mediapipeResult : [mediapipeResult];
-          console.log(`✅ MediaPipe detection successful: ${mediapipePoses.length} poses`);
-          return mediapipePoses;
+          console.log(`✅ MediaPipe detection successful`);
+          return [mediapipeResult];
 
         case 'emergency':
           console.log('🎯 Using emergency mode for pose detection...');
@@ -170,10 +169,10 @@ export class HybridPoseDetector {
       if (this.currentDetector === 'posenet') {
         try {
           console.log('🔄 Trying MediaPipe fallback...');
-          const mediapipePoses = await this.mediapipeDetector.detectPose(video);
+          const mediapipePose = await this.mediapipeDetector.detectPose(video);
           this.currentDetector = 'mediapipe';
           console.log('✅ MediaPipe fallback successful');
-          return Array.isArray(mediapipePoses) ? mediapipePoses : [mediapipePoses];
+          return [mediapipePose];
         } catch (fallbackError: unknown) {
           console.warn('⚠️ MediaPipe fallback also failed:', fallbackError);
         }
@@ -199,7 +198,7 @@ export class HybridPoseDetector {
         case 'posenet':
           console.log('🎯 Using PoseNet for image pose detection...');
           const posenetPoses = await this.posenetDetector.detectPoseFromImage(image);
-          return this.posenetDetector.convertToMediaPipeFormat(posenetPoses);
+          return this.posenetDetector.convertToMediaPipeFormat(posenetPoses, image.width, image.height);
 
         case 'mediapipe':
           console.log('🎯 Using MediaPipe for image pose detection...');

@@ -181,7 +181,7 @@ export class PoseNetDetector {
         const validKeypoints = pose.keypoints.filter(kp => 
           kp.x !== undefined && kp.y !== undefined && 
           !isNaN(kp.x) && !isNaN(kp.y) &&
-          kp.score > 0.1 // Minimum confidence threshold
+          (kp.score || 0) > 0.1 // Minimum confidence threshold
         );
         
         if (validKeypoints.length < 10) {
@@ -374,7 +374,7 @@ export class PoseNetDetector {
   /**
    * Convert PoseNet poses to MediaPipe format for compatibility
    */
-  convertToMediaPipeFormat(poses: poseDetection.Pose[]): any[] {
+  convertToMediaPipeFormat(poses: poseDetection.Pose[], videoWidth: number = 640, videoHeight: number = 480): any[] {
     return poses.map(pose => {
       // Validate and filter keypoints
       if (!pose.keypoints || pose.keypoints.length === 0) {
@@ -385,7 +385,7 @@ export class PoseNetDetector {
       const validKeypoints = pose.keypoints.filter(kp => 
         kp.x !== undefined && kp.y !== undefined && 
         !isNaN(kp.x) && !isNaN(kp.y) &&
-        kp.score > 0.1
+        (kp.score || 0) > 0.1
       );
 
       if (validKeypoints.length < 10) {
@@ -393,12 +393,12 @@ export class PoseNetDetector {
         return this.generateEmergencyPoseResult();
       }
 
-      // Create normalized landmarks
+      // Create normalized landmarks using actual video dimensions
       const landmarks = validKeypoints.map(kp => ({
-        x: kp.x / 640, // Normalize to 0-1 range
-        y: kp.y / 480,
+        x: kp.x / videoWidth, // Normalize to 0-1 range using actual video dimensions
+        y: kp.y / videoHeight,
         z: 0,
-        visibility: kp.score
+        visibility: kp.score || 0.8
       }));
 
       // Fill missing landmarks (PoseNet has 17 keypoints, MediaPipe expects 33)
@@ -429,11 +429,7 @@ export class PoseNetDetector {
         landmarks: fullLandmarks,
         worldLandmarks,
         timestamp: Date.now(),
-        confidence: pose.score || 0.8,
-
-        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0,
-
-        worldLandmarks: landmarks.map(lm => ({ ...lm, z: 0 })) }))
+        confidence: pose.score || 0.8
       };
     });
   }

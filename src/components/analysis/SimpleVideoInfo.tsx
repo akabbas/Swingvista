@@ -26,3 +26,4 @@ export default function SimpleVideoInfo({ videoUrl, videoName, isSampleVideo }: 
 
 
 
+
