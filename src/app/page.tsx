@@ -17,10 +17,16 @@ export default function Dashboard() {
             📹 Start Camera Analysis
           </a>
           <a 
+            href="/upload-clean" 
+            className="w-full sm:w-auto bg-blue-600 text-white px-10 py-4 rounded-xl font-semibold hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]"
+          >
+            📤 Upload Video (Enhanced)
+          </a>
+          <a 
             href="/upload" 
             className="w-full sm:w-auto bg-gray-100 text-gray-900 px-10 py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-center min-w-[200px]"
           >
-            📤 Upload Video
+            📤 Upload Video (Legacy)
           </a>
         </div>
       </div>

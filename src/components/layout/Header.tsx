@@ -13,7 +13,7 @@ export default function Header() {
       case 'live-api':
         return { text: '🟢 LIVE ANALYSIS', cls: 'bg-green-600' };
       case 'cached':
-        return { text: `🟠 CACHED${status.lastUpdated ? ` (${new Date(status.lastUpdated).toLocaleTimeString()})` : ''}`, cls: 'bg-amber-600' };
+        return { text: '🟠 CACHED', cls: 'bg-amber-600' };
       case 'mock':
         return { text: '🔴 DEMO MODE', cls: 'bg-red-600' };
       default:
@@ -61,13 +61,13 @@ export default function Header() {
             📹 Camera
           </Link>
           <Link 
-            href="/upload" 
+            href="/upload-clean" 
             className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200"
           >
             📤 Upload
           </Link>
           
-          <div className={`px-3 py-1 rounded text-white text-xs font-semibold ${indicator.cls}`} title={`Data source: ${status.dataSource}${status.lastUpdated ? ` | Updated: ${new Date(status.lastUpdated).toLocaleString()}` : ''}`}>
+          <div className={`px-3 py-1 rounded text-white text-xs font-semibold ${indicator.cls}`} title={`Data source: ${status.dataSource}`}>
             {indicator.text}
           </div>
           {/* Test Pages Dropdown */}
@@ -134,6 +134,13 @@ export default function Header() {
                     onClick={() => setIsTestMenuOpen(false)}
                   >
                     ⚖️ Swing Comparison
+                  </Link>
+                  <Link 
+                    href="/upload-clean" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setIsTestMenuOpen(false)}
+                  >
+                    🎯 Enhanced Upload
                   </Link>
                 </div>
               </div>

@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Play, Pause, Eye, EyeOff, Volume2, VolumeX } from 'lucide-react';
+import { ClubShaftDetector } from '@/lib/tracking/clubShaftDetector';
 
 interface CleanVideoAnalysisDisplayProps {
   videoFile?: File | null;
@@ -55,6 +56,11 @@ export default function CleanVideoAnalysisDisplay({
   const clubPathCanvasRef = useRef<HTMLCanvasElement>(null);
   // Persistent club head history (normalized coordinates) for smooth trail
   const clubHeadHistoryRef = useRef<Array<{x:number,y:number,confidence:number,method:string}>>([]);
+  // Track last video frame we appended to history to avoid duplicates
+  const lastAppendedFrameRef = useRef<number>(-1);
+  // Shaft detector integration
+  const shaftDetectorRef = useRef<ClubShaftDetector | null>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(0.5); // Default to 0.5x speed for golf analysis
@@ -77,7 +83,8 @@ export default function CleanVideoAnalysisDisplay({
     stickFigure: true,
     swingPlane: true,
     phaseMarkers: true,
-    clubPath: true
+    clubPath: true,
+    clubPathUsesEdgeDetection: true
   });
 
   // Video event handlers
@@ -460,22 +467,97 @@ export default function CleanVideoAnalysisDisplay({
     // Always log wrist center calculation
     console.log(`🏌️ Wrist center: ${wristCenterX !== null ? `x=${wristCenterX.toFixed(3)}, y=${wristCenterY?.toFixed(3) || 'null'}` : 'null'}, count=${wristCount}`);
 
-    // Baseline target: near wrist center (club head often near hands)
+    // Improved club head estimation: extrapolate beyond the dominant wrist along the forearm
+    const leftElbow = pose.landmarks[7];
+    const rightElbow = pose.landmarks[8];
+    const leftShoulder = pose.landmarks[5];
+    const rightShoulder = pose.landmarks[6];
+
+    const hasLeftElbow = !!leftElbow && (leftElbow.visibility || 0) > 0.1;
+    const hasRightElbow = !!rightElbow && (rightElbow.visibility || 0) > 0.1;
+    const hasLeftWrist = !!leftWrist && (leftWrist.visibility || 0) > 0.1;
+    const hasRightWrist = !!rightWrist && (rightWrist.visibility || 0) > 0.1;
+    const hasLeftShoulder = !!leftShoulder && (leftShoulder.visibility || 0) > 0.1;
+    const hasRightShoulder = !!rightShoulder && (rightShoulder.visibility || 0) > 0.1;
+
+    // Torso center for outward direction heuristics
+    let torsoCenterX = 0.5;
+    let torsoCenterY = 0.5;
+    let torsoCount = 0;
+    if (hasLeftShoulder) { torsoCenterX += leftShoulder!.x; torsoCenterY += leftShoulder!.y; torsoCount++; }
+    if (hasRightShoulder) { torsoCenterX += rightShoulder!.x; torsoCenterY += rightShoulder!.y; torsoCount++; }
+    if (torsoCount > 0) { torsoCenterX /= (torsoCount + 1); torsoCenterY /= (torsoCount + 1); }
+
+    // Compute candidate club head from each hand if available
+    type Candidate = { x: number; y: number; score: number; hand: 'left' | 'right'; };
+    const candidates: Candidate[] = [];
+
+    const addCandidateFromHand = (wrist: any, elbow: any, hand: 'left' | 'right') => {
+      if (!wrist || !elbow) return;
+      const forearmDx = wrist.x - elbow.x;
+      const forearmDy = wrist.y - elbow.y;
+      const forearmLen = Math.hypot(forearmDx, forearmDy) || 1e-3;
+      const ndx = forearmDx / forearmLen;
+      const ndy = forearmDy / forearmLen;
+
+      // Extension length scales with forearm length and grip width
+      let wristSep = 0.08;
+      if (hasLeftWrist && hasRightWrist) {
+        const dx = (leftWrist!.x - rightWrist!.x);
+        const dy = (leftWrist!.y - rightWrist!.y);
+        wristSep = Math.hypot(dx, dy);
+      }
+      const extension = Math.max(0.10, Math.min(0.28, forearmLen * 1.2 + wristSep * 0.8));
+
+      // Candidate is beyond the wrist along forearm direction
+      let cx = wrist.x + ndx * extension;
+      let cy = wrist.y + ndy * extension;
+
+      // Heuristic: ensure candidate is outward from torso (away from body)
+      const toWristX = wrist.x - torsoCenterX;
+      const toWristY = wrist.y - torsoCenterY;
+      const dot = toWristX * ndx + toWristY * ndy;
+      if (dot < 0) {
+        // Flip direction if pointing toward body
+        cx = wrist.x - ndx * extension;
+        cy = wrist.y - ndy * extension;
+      }
+
+      // Score: combine wrist visibility and distance from torso (favor further points)
+      const vis = wrist.visibility || 0.5;
+      const distFromTorso = Math.hypot(cx - torsoCenterX, cy - torsoCenterY);
+      const score = vis * 0.7 + distFromTorso * 0.3;
+      candidates.push({ x: cx, y: cy, score, hand });
+    };
+
+    if (hasLeftWrist && hasLeftElbow) addCandidateFromHand(leftWrist, leftElbow, 'left');
+    if (hasRightWrist && hasRightElbow) addCandidateFromHand(rightWrist, rightElbow, 'right');
+
+    // Default to wrist center if no candidate
     let targetX = wristCenterX ?? 0.5;
-    let targetY = wristCenterY ?? 0.7; // default slightly lower than hands
+    let targetY = wristCenterY ?? 0.7;
     let confidence = wristCount > 0 ? Math.min(1, visibilitySum / wristCount) : 0;
     let method = 'wrist_center';
 
-    // If we only have one wrist, nudge target slightly outward based on which wrist
-    if (leftWrist && !rightWrist && (leftWrist.visibility || 0) > 0.1) {
-      targetX = leftWrist.x - 0.03;
-      targetY = leftWrist.y + 0.05;
-      method = 'left_wrist_only';
-    }
-    if (rightWrist && !leftWrist && (rightWrist.visibility || 0) > 0.1) {
-      targetX = rightWrist.x + 0.03;
-      targetY = rightWrist.y + 0.05;
-      method = 'right_wrist_only';
+    if (candidates.length > 0) {
+      // Pick best candidate
+      candidates.sort((a, b) => b.score - a.score);
+      targetX = candidates[0].x;
+      targetY = candidates[0].y;
+      method = `${candidates[0].hand}_hand_extrapolated`;
+      // Boost confidence when we have a good candidate
+      confidence = Math.max(confidence, 0.7);
+    } else if (wristCenterX !== null && wristCenterY !== null) {
+      // Slight outward bias from torso even with only wrist center
+      const dx = (wristCenterX - torsoCenterX);
+      const dy = (wristCenterY - torsoCenterY);
+      const len = Math.hypot(dx, dy) || 1e-3;
+      const ndx = dx / len;
+      const ndy = dy / len;
+      const outward = 0.12;
+      targetX = wristCenterX + ndx * outward;
+      targetY = wristCenterY + ndy * outward;
+      method = 'center_outward_bias';
     }
 
     // Only log detailed target info on first few frames
@@ -504,8 +586,8 @@ export default function CleanVideoAnalysisDisplay({
         console.log(`🏌️ Distance from previous: ${distance.toFixed(3)}`);
       }
 
-      // Much more aggressive smoothing - only cap extreme jumps
-      const maxStep = 0.5; // Increased from 0.18 to allow more movement
+    // Reasonable cap on jumps to avoid teleportation but keep responsive
+    const maxStep = 0.25;
       if (distance > maxStep) {
         const t = maxStep / distance;
         targetX = prev.x + dx * t;
@@ -515,8 +597,8 @@ export default function CleanVideoAnalysisDisplay({
         }
       }
 
-      // Reduced smoothing to allow more movement
-      const smoothingAlpha = 0.8; // Increased from 0.45 to be more responsive
+    // Smoothing balanced for responsiveness
+    const smoothingAlpha = 0.6;
       smoothedX = prev.x * (1 - smoothingAlpha) + targetX * smoothingAlpha;
       smoothedY = prev.y * (1 - smoothingAlpha) + targetY * smoothingAlpha;
       confidence = Math.max(confidence, prev.confidence * 0.8);
@@ -545,9 +627,6 @@ export default function CleanVideoAnalysisDisplay({
     // Always log final result for debugging
     console.log(`🏌️ Final club head: x=${result.x.toFixed(3)}, y=${result.y.toFixed(3)}, confidence=${result.confidence.toFixed(2)}, method=${result.method}`);
 
-    // Cache into history for continuous trail drawing
-    clubHeadHistoryRef.current[frame] = result;
-
     return result;
   }, [poses]);
 
@@ -567,93 +646,29 @@ export default function CleanVideoAnalysisDisplay({
     // Build continuous trail using cached clubHeadHistoryRef
     const history = clubHeadHistoryRef.current;
 
+    // Append only if edge detection is disabled; when enabled, appends happen in drawOverlays
+    if (!overlaySettings.clubPathUsesEdgeDetection) {
+      if (frame !== lastAppendedFrameRef.current) {
+        const detected = detectClubHead(frame);
+        if (detected && !isNaN(detected.x) && !isNaN(detected.y)) {
+          history.push(detected);
+          lastAppendedFrameRef.current = frame;
+          const MAX_HISTORY_POINTS = 300;
+          if (history.length > MAX_HISTORY_POINTS) history.shift();
+        }
+      }
+    }
+
     if (!history || history.length === 0) {
-      // Only log on first few frames to avoid spam
-      if (frame < 3) {
-        console.log('❌ No club head history available - trying to detect current frame');
-      }
-      
-      // Try to detect club head for current frame if no history
-      const currentClubHead = detectClubHead(frame);
-      console.log(`🎨 Club head detection result:`, currentClubHead);
-      
-      if (currentClubHead && currentClubHead.x !== undefined && currentClubHead.y !== undefined) {
-        // Draw single point if we have valid coordinates
-        const px = offsetX + currentClubHead.x * renderedWidth;
-        const py = offsetY + currentClubHead.y * renderedHeight;
-        
-        if (frame < 3) {
-          console.log(`🎨 Drawing single club head point at (${px.toFixed(1)}, ${py.toFixed(1)})`);
-        }
-        
-        console.log(`🎨 Drawing club head at pixel coordinates: (${px.toFixed(1)}, ${py.toFixed(1)})`);
-        
-        ctx.fillStyle = '#ff00ff';
-        ctx.beginPath();
-        ctx.arc(px, py, 12, 0, Math.PI * 2);
-        ctx.fill();
-        console.log(`🎨 Club head fill drawn`);
-        
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(px, py, 12, 0, Math.PI * 2);
-        ctx.stroke();
-        console.log(`🎨 Club head stroke drawn`);
-    } else {
-        // Fallback: try to use hand positions directly
-        if (frame < 3) {
-          console.log('🎨 Club head detection failed, trying hand position fallback');
-        }
-        
-        if (poses && poses[frame] && poses[frame].landmarks) {
-          const pose = poses[frame];
-          const leftWrist = pose.landmarks[9];
-          const rightWrist = pose.landmarks[10];
-          
-          let handX = 0.5;
-          let handY = 0.7;
-          
-          if (leftWrist && (leftWrist.visibility || 0) > 0.1) {
-            handX = leftWrist.x;
-            handY = leftWrist.y;
-          } else if (rightWrist && (rightWrist.visibility || 0) > 0.1) {
-            handX = rightWrist.x;
-            handY = rightWrist.y;
-          } else if (leftWrist && rightWrist) {
-            handX = (leftWrist.x + rightWrist.x) / 2;
-            handY = (leftWrist.y + rightWrist.y) / 2;
-          }
-          
-          const px = offsetX + handX * renderedWidth;
-          const py = offsetY + handY * renderedHeight;
-          
-          if (frame < 3) {
-            console.log(`🎨 Drawing fallback hand position at (${px.toFixed(1)}, ${py.toFixed(1)})`);
-          }
-          
-          ctx.fillStyle = '#ff00ff';
-          ctx.beginPath();
-          ctx.arc(px, py, 12, 0, Math.PI * 2);
-          ctx.fill();
-          
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(px, py, 12, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
       return;
     }
     
-    // Determine usable frames up to current frame
-    const endFrame = Math.min(frame, history.length - 1);
-    const startFrame = Math.max(0, endFrame - 40); // show last 40 frames for smoother trail
+    // Show full trail history (all points for complete swing visualization)
+    const historyLen = history.length;
 
     // Only log every 30 frames
     if (frame % 30 === 0) {
-      console.log(`🎨 Drawing trail from frame ${startFrame} to ${endFrame}`);
+      console.log(`🎨 Drawing trail with ${historyLen} points`);
     }
 
     // Validate canvas context
@@ -662,82 +677,117 @@ export default function CleanVideoAnalysisDisplay({
       return;
     }
 
+    // Draw trail with fade effect - 3px width, fading from old to new
     ctx.strokeStyle = '#ff00ff';
-    ctx.lineWidth = 12; // Increased from 6 to 12 for better visibility
+    ctx.lineWidth = 3; // Thin trail as requested
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.beginPath();
     
-    let drawn = 0;
-    for (let i = startFrame; i <= endFrame; i++) {
-      const p = history[i];
-      if (!p) continue;
+    // Draw trail segments with individual alpha for fade effect
+    for (let i = 1; i < historyLen; i++) {
+      const p0 = history[i - 1];
+      const p1 = history[i];
       
-      // Validate coordinates
-      if (p.x === undefined || p.y === undefined || isNaN(p.x) || isNaN(p.y)) {
-        continue;
-      }
+      if (!p0 || !p1) continue;
+      if (p0.x === undefined || p0.y === undefined || isNaN(p0.x) || isNaN(p0.y)) continue;
+      if (p1.x === undefined || p1.y === undefined || isNaN(p1.x) || isNaN(p1.y)) continue;
       
-      const px = offsetX + p.x * renderedWidth;
-      const py = offsetY + p.y * renderedHeight;
+      const px0 = offsetX + p0.x * renderedWidth;
+      const py0 = offsetY + p0.y * renderedHeight;
+      const px1 = offsetX + p1.x * renderedWidth;
+      const py1 = offsetY + p1.y * renderedHeight;
       
-      // Validate pixel coordinates
-      if (isNaN(px) || isNaN(py)) {
-        continue;
-      }
-
-      console.log(`🎨 Trail point ${i}: normalized(${p.x.toFixed(3)}, ${p.y.toFixed(3)}) -> pixel(${px.toFixed(1)}, ${py.toFixed(1)})`);
-
-      if (drawn === 0) {
-        ctx.moveTo(px, py);
-      } else {
-        ctx.lineTo(px, py);
-      }
-      drawn++;
-    }
-
-    // Only log every 30 frames
-    if (frame % 30 === 0) {
-      console.log(`🎨 Drew ${drawn} trail points`);
-    }
-    
-    if (drawn > 0) {
-      console.log(`🎨 Drawing trail with ${drawn} points`);
+      if (isNaN(px0) || isNaN(py0) || isNaN(px1) || isNaN(py1)) continue;
+      
+      // Fade: older points (low index) more transparent, newer (high index) more opaque
+      // Alpha ranges from 0.3 (oldest) to 1.0 (newest)
+      const fadeProgress = i / Math.max(1, historyLen - 1);
+      const alpha = 0.3 + fadeProgress * 0.7;
+      
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(px0, py0);
+      ctx.lineTo(px1, py1);
     ctx.stroke();
-      console.log('✅ Club path trail drawn successfully');
-    } else {
-      console.log('❌ No trail points to draw');
     }
+    
+    // Reset alpha
+    ctx.globalAlpha = 1.0;
 
-    // Draw current club head marker
-    const current = history[endFrame];
-    console.log(`🎨 Current club head marker:`, current);
+    // Draw current club head marker (small dot)
+    const current = history[historyLen - 1];
     if (current && current.x !== undefined && current.y !== undefined && !isNaN(current.x) && !isNaN(current.y)) {
       const cx = offsetX + current.x * renderedWidth;
       const cy = offsetY + current.y * renderedHeight;
       
-      console.log(`🎨 Club head marker pixel coords: (${cx.toFixed(1)}, ${cy.toFixed(1)})`);
-      console.log(`🎨 Canvas bounds check: cx=${cx}, canvas width=${ctx.canvas.width}, visible=${cx >= 0 && cx <= ctx.canvas.width}`);
-      
       if (!isNaN(cx) && !isNaN(cy)) {
-        // Make the marker much larger and more visible
-        ctx.fillStyle = '#ff00ff';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 20, 0, Math.PI * 2); // Increased from 10 to 20
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 4; // Increased from 2 to 4
-        ctx.beginPath();
-        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-        ctx.stroke();
-        console.log(`🎨 Club head marker drawn with size 20`);
-      } else {
-        console.log(`❌ Invalid club head marker coordinates: cx=${cx}, cy=${cy}`);
+    ctx.fillStyle = '#ff00ff';
+    ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2); // Small 5px marker
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.stroke();
       }
-    } else {
-      console.log(`❌ No valid current club head marker`);
     }
-  }, [poses, detectClubHead]);
+  }, [poses, detectClubHead, overlaySettings.clubPathUsesEdgeDetection]);
+
+  // Clear all overlays function
+  const clearAllOverlays = useCallback(() => {
+    console.log('🧹 CLEARING ALL OVERLAYS');
+    
+    if (poseCanvasRef.current) {
+      const ctx = poseCanvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, poseCanvasRef.current.width, poseCanvasRef.current.height);
+      }
+    }
+    if (clubPathCanvasRef.current) {
+      const ctx = clubPathCanvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, clubPathCanvasRef.current.width, clubPathCanvasRef.current.height);
+      }
+    }
+  }, []);
+
+  // Toggle overlays with proper show/hide behavior
+  const toggleOverlays = useCallback(() => {
+    if (showOverlays) {
+      // Hide overlays - clear all canvases
+      console.log('👁️ HIDING OVERLAYS');
+      clearAllOverlays();
+      setShowOverlays(false);
+    } else {
+      // Show overlays - enable and redraw
+      console.log('👁️ SHOWING OVERLAYS');
+      setShowOverlays(true);
+      // Wait for state to update, then draw
+      setTimeout(() => {
+        drawOverlays();
+      }, 50);
+    }
+  }, [showOverlays, clearAllOverlays, drawOverlays]);
+
+  // Force refresh function that works even without all conditions
+  const forceRefreshOverlays = useCallback(() => {
+    console.log('🔄 FORCE REFRESH OVERLAYS');
+    
+    // Clear all canvases
+    clearAllOverlays();
+    
+    // Force show overlays if they're hidden
+    if (!showOverlays) {
+      console.log('🔄 Enabling overlays for refresh');
+      setShowOverlays(true);
+    }
+    
+    // Wait a bit for state to update, then draw
+    setTimeout(() => {
+      drawOverlays();
+    }, 50);
+  }, [drawOverlays, showOverlays, setShowOverlays, clearAllOverlays]);
 
   // Main drawing function
   const drawOverlays = useCallback(() => {
@@ -816,6 +866,17 @@ export default function CleanVideoAnalysisDisplay({
     poseCanvas.height = displayHeight;
     clubPathCanvas.width = displayWidth;
     clubPathCanvas.height = displayHeight;
+    
+    // Prepare capture canvas at native resolution for tracker
+    if (!captureCanvasRef.current) {
+      captureCanvasRef.current = document.createElement('canvas');
+    }
+    const capCanvas = captureCanvasRef.current;
+    if (capCanvas.width !== nativeWidth || capCanvas.height !== nativeHeight) {
+      capCanvas.width = nativeWidth;
+      capCanvas.height = nativeHeight;
+    }
+    const capCtx = capCanvas.getContext('2d');
     
     // Only log canvas dimensions every 60 frames
     if (currentFrame % 60 === 0) {
@@ -904,6 +965,52 @@ export default function CleanVideoAnalysisDisplay({
       const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
       drawPhaseMarkers(poseCtx, safeFrame, renderedWidth, renderedHeight, offsetX, offsetY);
     }
+    // Shaft detector integration: compute club head position (before drawing path)
+    if (overlaySettings.clubPath && overlaySettings.clubPathUsesEdgeDetection && poses && poses.length > 0 && capCtx) {
+      capCtx.drawImage(video, 0, 0, nativeWidth, nativeHeight);
+      const frameData = capCtx.getImageData(0, 0, nativeWidth, nativeHeight);
+
+      if (!shaftDetectorRef.current) {
+        shaftDetectorRef.current = new ClubShaftDetector();
+        shaftDetectorRef.current.init(nativeWidth, nativeHeight);
+      }
+
+      const detector = shaftDetectorRef.current;
+      const safeFrame = Math.min(currentFrame, (poses?.length || 1) - 1);
+      const pose = poses[safeFrame];
+      
+      // Calculate wrist separation for club type estimation
+      let wristSep = 0.08;
+      if (pose && pose.landmarks) {
+        const lw = pose.landmarks[9];
+        const rw = pose.landmarks[10];
+        if (lw && rw && (lw.visibility || 0) > 0.1 && (rw.visibility || 0) > 0.1) {
+          wristSep = Math.hypot((lw.x - rw.x), (lw.y - rw.y));
+        }
+      }
+      
+      const result = detector.detectClubHead(frameData, pose, wristSep);
+      
+      if (result && currentFrame !== lastAppendedFrameRef.current) {
+        clubHeadHistoryRef.current.push({
+          x: result.clubHead.x,
+          y: result.clubHead.y,
+          confidence: result.confidence,
+          method: result.method
+        });
+        lastAppendedFrameRef.current = currentFrame;
+        const MAX_HISTORY_POINTS = 300;
+        if (clubHeadHistoryRef.current.length > MAX_HISTORY_POINTS) {
+          clubHeadHistoryRef.current.shift();
+        }
+        
+        // Log detection info every 30 frames
+        if (currentFrame % 30 === 0) {
+          console.log(`🏌️ Club head detected: (${result.clubHead.x.toFixed(3)}, ${result.clubHead.y.toFixed(3)}), method: ${result.method}, confidence: ${result.confidence.toFixed(2)}`);
+        }
+      }
+    }
+
     if (overlaySettings.clubPath) {
       console.log('🎨 Drawing club path...');
       console.log('🎨 Club path settings:', overlaySettings.clubPath);
@@ -958,6 +1065,8 @@ export default function CleanVideoAnalysisDisplay({
     if (poses && poses.length > 0) {
       console.log('🏌️ RESETTING CLUB HEAD HISTORY for new video');
       clubHeadHistoryRef.current = [];
+      shaftDetectorRef.current = null;
+      lastAppendedFrameRef.current = -1;
     }
   }, [poses]);
 
@@ -967,17 +1076,22 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🎨 VIDEO LOADED - Triggering initial overlay draw');
       
       // Auto-play the video after a short delay
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         drawOverlays();
         
-        // Auto-play video
+        // Auto-play video with proper error handling
         if (videoRef.current) {
           console.log('🎬 Auto-playing video');
           videoRef.current.play()
             .then(() => console.log('🎬 Video playback started'))
-            .catch(err => console.error('🎬 Auto-play failed:', err));
+            .catch(err => {
+              console.warn('🎬 Auto-play failed (this is normal in some browsers):', err);
+              // Don't treat this as a critical error
+            });
         }
       }, 500); // Slightly longer delay to ensure video is ready
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [poses, drawOverlays]);
 
@@ -1005,18 +1119,26 @@ export default function CleanVideoAnalysisDisplay({
       console.log('🔇 Video', isMuted ? 'muted' : 'unmuted', 'for analysis');
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleError = (e: Event) => {
+      console.warn('🎬 Video error (this may be normal):', e);
+    };
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('play', () => setIsPlaying(true));
-    video.addEventListener('pause', () => setIsPlaying(false));
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('play', () => setIsPlaying(true));
-      video.removeEventListener('pause', () => setIsPlaying(false));
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('error', handleError);
     };
-  }, [handleTimeUpdate, playbackSpeed]);
+  }, [handleTimeUpdate, playbackSpeed, isMuted]);
 
   return (
     <div className="space-y-4">
@@ -1065,7 +1187,7 @@ export default function CleanVideoAnalysisDisplay({
           </button>
           
           <button
-            onClick={() => setShowOverlays(!showOverlays)}
+            onClick={toggleOverlays}
             className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
               showOverlays 
                 ? 'bg-green-600 text-white hover:bg-green-700' 
@@ -1077,10 +1199,7 @@ export default function CleanVideoAnalysisDisplay({
           </button>
           
           <button
-            onClick={() => {
-              console.log('🎨 MANUAL OVERLAY TRIGGER');
-              drawOverlays();
-            }}
+            onClick={forceRefreshOverlays}
             className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Refresh Overlays
